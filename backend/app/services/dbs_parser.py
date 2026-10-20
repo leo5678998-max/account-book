@@ -11,24 +11,29 @@ def normalize_date(date_str: str) -> Optional[date]:
         return None
     date_str = date_str.strip()
     
-    # 格式 1: 民國年 115/10/25 或 115年10月25日
-    roc_match = re.match(r'(\d{2,3})[年/.-](\d{1,2})[月/.-](\d{1,2})日?', date_str)
-    if roc_match:
-        year = int(roc_match.group(1))
-        # 若是民國年 (通常小於 1900)
-        if year < 1900:
-            year += 1911
-        month = int(roc_match.group(2))
-        day = int(roc_match.group(3))
-        return date(year, month, day)
-
-    # 格式 2: 西元年 2026/10/25 或 2026-10-25
-    ad_match = re.match(r'(\d{4})[年/.-](\d{1,2})[月/.-](\d{1,2})日?', date_str)
+    # 格式 1: 西元年 2026/10/25 或 2026-10-25
+    ad_match = re.match(r'(\d{4})\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})\s*日?', date_str)
     if ad_match:
         year = int(ad_match.group(1))
         month = int(ad_match.group(2))
         day = int(ad_match.group(3))
-        return date(year, month, day)
+        try:
+            return date(year, month, day)
+        except ValueError:
+            return None
+
+    # 格式 2: 民國年 115/10/25 或 115年10月25日
+    roc_match = re.match(r'(\d{2,3})\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})\s*日?', date_str)
+    if roc_match:
+        year = int(roc_match.group(1))
+        if year < 1900:
+            year += 1911
+        month = int(roc_match.group(2))
+        day = int(roc_match.group(3))
+        try:
+            return date(year, month, day)
+        except ValueError:
+            return None
 
     return None
 
@@ -38,25 +43,15 @@ def clean_amount(amount_str: str) -> float:
         return 0.0
     cleaned = re.sub(r'[^\d.-]', '', amount_str)
     try:
-        return float(cleaned)
+        val = float(cleaned)
+        # 防呆：如果誤匹配到年份 (例如 2026, 2027 等且帶有 / 格式)，可過濾
+        return val
     except ValueError:
         return 0.0
 
 def parse_dbs_pdf(pdf_stream_or_bytes: bytes, password: str) -> Dict[str, Any]:
     """
     解密並解析星展銀行 (DBS) 信用卡 PDF 電子帳單
-    
-    回傳範例:
-    {
-        "success": True,
-        "bank_name": "星展銀行",
-        "statement_date": date(2026, 10, 5),
-        "statement_month": "2026-10",
-        "due_date": date(2026, 10, 25),
-        "total_amount": 15800.0,
-        "minimum_amount": 1000.0,
-        "raw_text_snippet": "..."
-    }
     """
     try:
         pdf_file = io.BytesIO(pdf_stream_or_bytes)
@@ -67,14 +62,13 @@ def parse_dbs_pdf(pdf_stream_or_bytes: bytes, password: str) -> Dict[str, Any]:
     # 檢查是否加密
     if reader.is_encrypted:
         try:
-            # pypdf decrypt 回傳 DecryptionResult (0 代表失敗，1 或 2 代表成功)
             res = reader.decrypt(password)
             if not res:
                 return {"success": False, "error": "PDF 密碼錯誤，解密失敗"}
         except Exception as e:
             return {"success": False, "error": f"解密過程發生錯誤: {str(e)}"}
 
-    # 抽取前 1~2 頁文字 (主要總覽資訊都在第一或第二頁)
+    # 抽取前 3 頁文字
     full_text = ""
     try:
         pages_to_read = min(len(reader.pages), 3)
@@ -88,72 +82,76 @@ def parse_dbs_pdf(pdf_stream_or_bytes: bytes, password: str) -> Dict[str, Any]:
     if not full_text.strip():
         return {"success": False, "error": "PDF 為掃描圖片或無法提取純文字"}
 
-    # 正則提取關鍵欄位
-    # 1. 本期應繳總額 / 新增應繳款 / 應繳總額
     total_amount = 0.0
-    amount_patterns = [
-        r'(?:本期應繳總額|本期應繳款總額|應繳總額|本期應付總額)[^\dNT$]*?(?:NT\$|\$)?\s*([0-9,]+(?:\.[0-9]{2})?)',
-        r'(?:New Balance|Total Amount Due)[^\dNT$]*?(?:NT\$|\$)?\s*([0-9,]+(?:\.[0-9]{2})?)',
-        r'(?:本期結算金額)[^\dNT$]*?(?:NT\$|\$)?\s*([0-9,]+(?:\.[0-9]{2})?)',
-    ]
-    for pattern in amount_patterns:
-        match = re.search(pattern, full_text, re.IGNORECASE)
-        if match:
-            total_amount = clean_amount(match.group(1))
-            break
-
-    # 2. 繳款截止日 / 自動扣款日
-    due_date = None
-    due_date_patterns = [
-        r'(?:繳款截止日|最後繳款日|自動扣繳日|扣繳日)[^\d民國]*?((?:\d{2,4}[年/.-]\d{1,2}[月/.-]\d{1,2}日?))',
-        r'(?:Payment Due Date)[^\d]*?((?:\d{2,4}[年/.-]\d{1,2}[月/.-]\d{1,2}日?))',
-        r'截止日[^\d民國]*?((?:\d{2,4}[年/.-]\d{1,2}[月/.-]\d{1,2}日?))',
-    ]
-    for pattern in due_date_patterns:
-        match = re.search(pattern, full_text, re.IGNORECASE)
-        if match:
-            due_date = normalize_date(match.group(1))
-            if due_date:
-                break
-
-    # 3. 帳單結帳日 / 結帳日
-    statement_date = None
-    statement_patterns = [
-        r'(?:帳單結帳日|結帳日|帳單日)[^\d民國]*?((?:\d{2,4}[年/.-]\d{1,2}[月/.-]\d{1,2}日?))',
-        r'(?:Statement Date)[^\d]*?((?:\d{2,4}[年/.-]\d{1,2}[月/.-]\d{1,2}日?))',
-    ]
-    for pattern in statement_patterns:
-        match = re.search(pattern, full_text, re.IGNORECASE)
-        if match:
-            statement_date = normalize_date(match.group(1))
-            if statement_date:
-                break
-
-    # 4. 最低應繳金額
     minimum_amount = 0.0
-    min_patterns = [
-        r'(?:最低應繳金額|最低應繳款|最低繳款金額)[^\dNT$]*?(?:NT\$|\$)?\s*([0-9,]+(?:\.[0-9]{2})?)',
-        r'(?:Minimum Payment Due)[^\dNT$]*?(?:NT\$|\$)?\s*([0-9,]+(?:\.[0-9]{2})?)'
-    ]
-    for pattern in min_patterns:
-        match = re.search(pattern, full_text, re.IGNORECASE)
-        if match:
-            minimum_amount = clean_amount(match.group(1))
-            break
-
+    due_date = None
+    statement_date = None
     statement_month = None
-    if statement_date:
-        statement_month = statement_date.strftime("%Y-%m")
-    elif due_date:
-        statement_month = due_date.strftime("%Y-%m")
+
+    # ====== 優先比對：星展銀行特徵排版 ======
+    # 1. 帳單月份：例如「2026年09月信用卡帳單」
+    month_match = re.search(r'(\d{4})\s*年\s*(\d{1,2})\s*月信用卡帳單', full_text)
+    if month_match:
+        y = month_match.group(1)
+        m = int(month_match.group(2))
+        statement_month = f"{y}-{m:02d}"
+
+    # 2. 自動扣繳金額提示：例如「將自動扣繳15,486元」
+    auto_debit_match = re.search(r'將?自動扣繳\s*([0-9,]+(?:\.[0-9]{2})?)\s*元', full_text)
+    if auto_debit_match:
+        total_amount = clean_amount(auto_debit_match.group(1))
+
+    # 3. 帳務明細兩大日期：結帳日 繳款截止日 (例如 2026/09/16 2026/10/05)
+    dates_row_match = re.search(r'帳務明細[^\n]*\n\s*(\d{4}/\d{1,2}/\d{1,2})\s+(\d{4}/\d{1,2}/\d{1,2})', full_text)
+    if dates_row_match:
+        statement_date = normalize_date(dates_row_match.group(1))
+        due_date = normalize_date(dates_row_match.group(2))
+
+    # 4. 金額列解析：13,165 13,165 15,486 15,486 1,560 (上期結餘、已付、應繳、應繳、最低)
+    if total_amount == 0.0:
+        amt_row_match = re.search(r'\n([0-9,]+)\s+([0-9,]+)\s+([0-9,]+)\s+([0-9,]+)\s+([0-9,]+)', full_text)
+        if amt_row_match:
+            total_amount = clean_amount(amt_row_match.group(3))
+            minimum_amount = clean_amount(amt_row_match.group(5))
+    else:
+        # 若已從自動扣繳文字抓到總額，從數值行提取最低應繳
+        amt_row_match = re.search(r'\n[0-9,]+\s+[0-9,]+\s+[0-9,]+\s+[0-9,]+\s+([0-9,]+)', full_text)
+        if amt_row_match:
+            minimum_amount = clean_amount(amt_row_match.group(1))
+
+    # ====== 通用正則補救 (Fallback) ======
+    if total_amount == 0.0:
+        amount_patterns = [
+            r'(?:本\s*期\s*應\s*(?:繳|付)\s*(?:款\s*)?總\s*額|應\s*(?:繳|付)\s*總\s*額|本\s*期\s*結\s*算\s*金\s*額)[^\dNT$]*?(?:NT\$|\$)?\s*([0-9,]+(?:\.[0-9]{2})?)',
+            r'(?:New\s*Balance|Total\s*Amount\s*Due)[^\dNT$]*?(?:NT\$|\$)?\s*([0-9,]+(?:\.[0-9]{2})?)',
+        ]
+        for pattern in amount_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                total_amount = clean_amount(match.group(1))
+                break
+
+    if due_date is None:
+        due_patterns = [
+            r'(?:繳\s*款\s*截\s*止\s*日|最\s*後\s*繳\s*款\s*日|自\s*動\s*扣\s*繳\s*日)[^\d民國]*?((?:\d{2,4}\s*[年/.-]\s*\d{1,2}\s*[月/.-]\s*\d{1,2}\s*日?))',
+            r'(?:Payment\s*Due\s*Date)[^\d]*?((?:\d{2,4}\s*[年/.-]\s*\d{1,2}\s*[月/.-]\s*\d{1,2}\s*日?))',
+        ]
+        for pattern in due_patterns:
+            match = re.search(pattern, full_text, re.IGNORECASE)
+            if match:
+                due_date = normalize_date(match.group(1))
+                if due_date:
+                    break
+
+    if statement_month is None:
+        if statement_date:
+            statement_month = statement_date.strftime("%Y-%m")
+        elif due_date:
+            statement_month = due_date.strftime("%Y-%m")
 
     # 防呆檢驗
-    if total_amount == 0.0 and due_date is None:
-        return {
-            "success": False,
-            "error": "未能辨識出應繳金額與截止日，可能是格式變更或排版不同",
-            "raw_snippet": full_text[:1000]
-        }
+    is_explicit_zero = bool(re.search(r'(?:無須繳款|毋須繳款|本期結餘為\s*0)', full_text))
+    needs_review = (total_amount == 0.0 and not is_explicit_zero)
 
     return {
         "success": True,
@@ -163,6 +161,7 @@ def parse_dbs_pdf(pdf_stream_or_bytes: bytes, password: str) -> Dict[str, Any]:
         "due_date": due_date,
         "total_amount": total_amount,
         "minimum_amount": minimum_amount,
+        "needs_review": needs_review,
+        "confidence_summary": f"星展銀行 {statement_month or ''} 帳單，應繳總額 NT$ {total_amount:,.0f}，截止日 {due_date}",
         "raw_snippet": full_text[:400]
     }
-
