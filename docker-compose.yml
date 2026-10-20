@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  account-book:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: account_book_app
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      # 持久化保存 SQLite 資料庫，避免容器重啟資料遺失
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/account_book.db
+      - TZ=Asia/Taipei
+

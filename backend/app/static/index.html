@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智能記帳 & 星展信用卡自動扣款系統</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    [v-cloak] { display: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+  <div id="app" v-cloak class="flex flex-col min-h-screen">
+    
+    <!-- 頂部導航列 -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-indigo-200 shadow-md">
+            <i data-lucide="wallet" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold text-slate-900 tracking-tight">智能記帳 & 星展信用卡扣款</h1>
+            <p class="text-xs text-slate-500">多帳戶資產 · 月薪收支圓餅圖 · Gmail 電子帳單 · 自動扣款</p>
+          </div>
+        </div>
+
+        <!-- 狀態與功能按鈕 -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <!-- Gmail 狀態徽章 -->
+          <span v-if="settings.is_google_connected" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span class="w-2 h-2 mr-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Gmail 已連線
+          </span>
+          <span v-else class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 cursor-pointer" @click="showSettingsModal = true">
+            <span class="w-2 h-2 mr-1.5 rounded-full bg-amber-500"></span>
+            Gmail 未設定
+          </span>
+
+          <!-- 立即同步 Gmail 按鈕 -->
+          <button @click="syncGmail" :disabled="syncing" class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition disabled:opacity-50">
+            <i data-lucide="refresh-cw" :class="['w-4 h-4 mr-1.5', syncing ? 'animate-spin' : '']"></i>
+            {{ syncing ? '同步中...' : '同步 Gmail' }}
+          </button>
+
+          <!-- 測試上傳 PDF 按鈕 -->
+          <button @click="showUploadModal = true" class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+            <i data-lucide="file-up" class="w-4 h-4 mr-1.5"></i>
+            上傳帳單
+          </button>
+
+          <!-- 設定按鈕 -->
+          <button @click="showSettingsModal = true" class="p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition" title="系統設定">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主體內容 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+      
+      <!-- 頂部數據概覽卡片 -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- 總資產存款 -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-sm font-medium">
+            <span>各帳戶存款總資產</span>
+            <span class="p-2 bg-emerald-50 text-emerald-600 rounded-xl"><i data-lucide="coins" class="w-5 h-5"></i></span>
+          </div>
+          <div class="mt-4">
+            <div class="text-3xl font-extrabold text-slate-900 tracking-tight">NT$ {{ formatMoney(totalSavings) }}</div>
+            <p class="text-xs text-slate-400 mt-1">活存與現金帳戶加總</p>
+          </div>
+        </div>
+
+        <!-- 本期待繳星展卡費 -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-sm font-medium">
+            <span>星展卡費待扣款</span>
+            <span class="p-2 bg-rose-50 text-rose-600 rounded-xl"><i data-lucide="credit-card" class="w-5 h-5"></i></span>
+          </div>
+          <div class="mt-4">
+            <div class="text-3xl font-extrabold text-rose-600 tracking-tight">NT$ {{ formatMoney(pendingBillAmount) }}</div>
+            <p class="text-xs text-slate-500 mt-1">
+              <span v-if="nextDueBill">最近扣款日：<strong class="text-slate-800">{{ nextDueBill.due_date }}</strong></span>
+              <span v-else>目前無待繳帳單</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- 本月總開銷與佔比 -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-sm font-medium">
+            <span>本月總開銷 ({{ currentMonth }})</span>
+            <span class="p-2 bg-amber-50 text-amber-600 rounded-xl"><i data-lucide="pie-chart" class="w-5 h-5"></i></span>
+          </div>
+          <div class="mt-4">
+            <div class="text-3xl font-extrabold text-slate-900 tracking-tight">NT$ {{ formatMoney(monthlyTotalExpense) }}</div>
+            <p class="text-xs font-semibold mt-1" :class="expenseRatio > 100 ? 'text-rose-600' : 'text-slate-600'">
+              佔月薪 <span class="text-base font-bold">{{ expenseRatio.toFixed(1) }}%</span>
+              <span v-if="expenseRatio > 100" class="text-rose-500 ml-1 font-bold">(超支!)</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- 每月設定月薪 -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between text-slate-500 text-sm font-medium">
+            <span>每月月薪 (實領)</span>
+            <span class="p-2 bg-indigo-50 text-indigo-600 rounded-xl"><i data-lucide="badge-dollar-sign" class="w-5 h-5"></i></span>
+          </div>
+          <div class="mt-3 flex items-center space-x-2">
+            <span class="text-slate-400 font-bold text-sm">NT$</span>
+            <input type="number" v-model.number="salaryInput" @blur="updateSalary" @keyup.enter="updateSalary"
+              class="w-full text-2xl font-extrabold text-indigo-700 bg-slate-50 hover:bg-slate-100 focus:bg-white px-2 py-1 rounded-lg border border-slate-200 focus:border-indigo-500 outline-none transition font-mono"
+              placeholder="50000" title="點擊直接修改月薪">
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">輸入後自動儲存並重繪圓餅圖</p>
+        </div>
+      </div>
+
+      <!-- 🌟 新增功能：每個月開銷與月薪佔比圓餅圖分析 -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center">
+              <i data-lucide="chart-pie" class="w-5 h-5 mr-2 text-indigo-600"></i>
+              月薪與支出佔比圓餅圖分析
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">即時統計該月份手動開銷與信用卡扣款，計算各項佔月薪百分比</p>
+          </div>
+          
+          <div class="flex items-center space-x-3">
+            <!-- 選擇月份 -->
+            <div class="flex items-center space-x-1.5 text-xs text-slate-500">
+              <label class="font-semibold">月份：</label>
+              <input type="month" v-model="selectedMonth" @change="renderChart" class="border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-800 bg-slate-50 outline-none">
+            </div>
+
+            <!-- 快捷記一筆開銷 -->
+            <button @click="openTxModal()" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-sm">
+              <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> 手動記一筆開銷
+            </button>
+          </div>
+        </div>
+
+        <div class="p-6">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            
+            <!-- 左側：圓餅圖 / 環狀圖 -->
+            <div class="lg:col-span-5 flex flex-col items-center justify-center relative min-h-[300px]">
+              <div v-if="monthlyExpensesList.length === 0" class="text-center text-slate-400 py-10">
+                <i data-lucide="file-question" class="w-12 h-12 mx-auto stroke-1 mb-2"></i>
+                <p class="text-sm font-medium">該月份尚未有支出紀錄</p>
+                <p class="text-xs text-slate-400 mt-1">點擊上方「手動記一筆開銷」開始記錄！</p>
+              </div>
+              <div v-else class="w-full max-w-[340px] aspect-square relative">
+                <canvas id="expensePieChart"></canvas>
+              </div>
+            </div>
+
+            <!-- 右側：詳細開銷佔比統計表與進度條 -->
+            <div class="lg:col-span-7 space-y-4">
+              <!-- 核心摘要卡 -->
+              <div class="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                <div>
+                  <div class="text-xs text-slate-400 font-medium">實領月薪</div>
+                  <div class="text-base sm:text-lg font-bold text-slate-900 mt-0.5">NT$ {{ formatMoney(salaryInput) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-400 font-medium">本月總支出</div>
+                  <div class="text-base sm:text-lg font-bold text-rose-600 mt-0.5">NT$ {{ formatMoney(monthlyTotalExpense) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-400 font-medium">預計剩餘儲蓄</div>
+                  <div class="text-base sm:text-lg font-bold mt-0.5" :class="remainingSalary >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                    NT$ {{ formatMoney(remainingSalary) }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 開銷分類佔比清單 -->
+              <div class="space-y-3">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">各開銷項目佔月薪佔比排行</h4>
+                
+                <div v-if="monthlyExpensesList.length === 0" class="text-xs text-slate-400 italic">無開銷資料</div>
+
+                <div v-for="item in monthlyExpensesList" :key="item.category" class="p-3 bg-white border border-slate-100 rounded-xl shadow-xs space-y-2">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-slate-800 flex items-center">
+                      <span class="w-2.5 h-2.5 rounded-full mr-2 inline-block" :style="{ backgroundColor: item.color }"></span>
+                      {{ item.category }}
+                    </span>
+                    <div class="text-right">
+                      <span class="font-mono font-bold text-slate-900 text-sm">NT$ {{ formatMoney(item.amount) }}</span>
+                      <span class="text-slate-400 ml-1.5">(佔月薪 <strong class="text-indigo-600">{{ item.ratioOfSalary.toFixed(1) }}%</strong>)</span>
+                    </div>
+                  </div>
+                  <!-- 百分比進度條 -->
+                  <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-500" :style="{ width: Math.min(item.ratioOfSalary, 100) + '%', backgroundColor: item.color }"></div>
+                  </div>
+                </div>
+
+                <!-- 剩餘儲蓄佔比項目 -->
+                <div v-if="remainingSalary > 0" class="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-2">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-emerald-800 flex items-center">
+                      <span class="w-2.5 h-2.5 rounded-full mr-2 inline-block bg-emerald-500"></span>
+                      本月未支出 / 結餘儲蓄
+                    </span>
+                    <div class="text-right">
+                      <span class="font-mono font-bold text-emerald-700 text-sm">NT$ {{ formatMoney(remainingSalary) }}</span>
+                      <span class="text-emerald-600/80 ml-1.5">(佔月薪 <strong class="text-emerald-700">{{ ((remainingSalary / salaryInput) * 100).toFixed(1) }}%</strong>)</span>
+                    </div>
+                  </div>
+                  <div class="w-full bg-emerald-100 h-2 rounded-full overflow-hidden">
+                    <div class="h-full bg-emerald-500 rounded-full transition-all duration-500" :style="{ width: ((remainingSalary / salaryInput) * 100) + '%' }"></div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- 區塊一：多帳戶存款管理 -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center">
+              <i data-lucide="landmark" class="w-5 h-5 mr-2 text-indigo-600"></i>
+              各帳戶存款管理
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">獨立維護各家銀行存款餘額與扣款關係</p>
+          </div>
+          <button @click="openAccountModal()" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm">
+            <i data-lucide="plus" class="w-4 h-4 mr-1"></i> 新增帳戶
+          </button>
+        </div>
+
+        <div class="p-6">
+          <div v-if="accounts.length === 0" class="text-center py-10 text-slate-400">
+            <i data-lucide="inbox" class="w-10 h-10 mx-auto stroke-1 mb-2"></i>
+            尚無任何帳戶，請點擊上方按鈕新增（例如：台新 Richart、玉山活存）
+          </div>
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div v-for="acc in accounts" :key="acc.id" class="p-5 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition bg-gradient-to-b from-white to-slate-50 relative group">
+              <div class="flex items-start justify-between">
+                <div>
+                  <span class="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 mb-1">
+                    {{ acc.account_type === 'SAVINGS' ? '銀行活存' : (acc.account_type === 'CREDIT' ? '信用卡' : '現金') }}
+                  </span>
+                  <h3 class="text-lg font-bold text-slate-900">{{ acc.name }}</h3>
+                  <p class="text-xs text-slate-400" v-if="acc.account_number">末四碼: {{ acc.account_number }}</p>
+                </div>
+                <!-- 設為星展預設扣款標籤 -->
+                <span v-if="acc.is_dbs_default_debit" class="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-indigo-100 text-indigo-800">
+                  <i data-lucide="check-circle" class="w-3.5 h-3.5 mr-1 text-indigo-600"></i> 星展扣款帳戶
+                </span>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-slate-100 flex items-baseline justify-between">
+                <span class="text-xs text-slate-500">當前存款餘額</span>
+                <span class="text-xl font-extrabold text-slate-900 tracking-tight">NT$ {{ formatMoney(acc.balance) }}</span>
+              </div>
+
+              <div class="mt-4 flex items-center justify-end space-x-2 pt-2">
+                <button v-if="!acc.is_dbs_default_debit && acc.account_type !== 'CREDIT'" @click="setDefaultDebit(acc.id)" class="text-xs text-indigo-600 hover:underline">
+                  設為扣款帳戶
+                </button>
+                <button @click="openAccountModal(acc)" class="p-1.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-200">
+                  <i data-lucide="edit-3" class="w-4 h-4"></i>
+                </button>
+                <button @click="deleteAccount(acc.id)" class="p-1.5 text-rose-400 hover:text-rose-600 rounded hover:bg-rose-50">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 區塊二：星展銀行信用卡帳單 -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center">
+              <i data-lucide="receipt" class="w-5 h-5 mr-2 text-rose-600"></i>
+              星展銀行信用卡帳單紀錄
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">自動由 Gmail 擷取之加密 PDF 帳單解析與自動扣款狀態</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button @click="triggerDebitCheck" class="inline-flex items-center px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-sm font-medium transition">
+              <i data-lucide="zap" class="w-4 h-4 mr-1 text-rose-600"></i> 立即執行到期扣款檢驗
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                <th class="py-3.5 px-6 font-semibold">帳單月份</th>
+                <th class="py-3.5 px-6 font-semibold">本期應繳總額</th>
+                <th class="py-3.5 px-6 font-semibold">繳款截止 / 扣繳日</th>
+                <th class="py-3.5 px-6 font-semibold">扣款帳戶</th>
+                <th class="py-3.5 px-6 font-semibold">狀態</th>
+                <th class="py-3.5 px-6 font-semibold text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-if="bills.length === 0">
+                <td colspan="6" class="text-center py-8 text-slate-400">目前尚無帳單紀錄，請點擊上方「同步 Gmail」或「上傳帳單」</td>
+              </tr>
+              <tr v-for="b in bills" :key="b.id" class="hover:bg-slate-50 transition">
+                <td class="py-4 px-6 font-medium text-slate-900">
+                  {{ b.statement_month || '未指定月份' }}
+                  <span class="block text-xs text-slate-400" v-if="b.pdf_filename">{{ b.pdf_filename }}</span>
+                </td>
+                <td class="py-4 px-6 font-bold text-slate-900 text-base">NT$ {{ formatMoney(b.total_amount) }}</td>
+                <td class="py-4 px-6 font-medium text-slate-700">
+                  <span :class="{'text-rose-600 font-bold': isDueSoon(b.due_date) && b.status === 'PENDING'}">
+                    {{ b.due_date }}
+                  </span>
+                </td>
+                <td class="py-4 px-6 text-slate-600">
+                  {{ getAccountName(b.debit_account_id) || settings.default_debit_account_name || '尚未綁定' }}
+                </td>
+                <td class="py-4 px-6">
+                  <span v-if="b.status === 'PAID'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                    <i data-lucide="check" class="w-3 h-3 mr-1"></i> 已扣款
+                  </span>
+                  <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                    <i data-lucide="clock" class="w-3 h-3 mr-1"></i> 待扣款
+                  </span>
+                </td>
+                <td class="py-4 px-6 text-right">
+                  <button v-if="b.status === 'PENDING'" @click="payBillNow(b.id)" class="inline-flex items-center px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium transition shadow-sm">
+                    手動扣款
+                  </button>
+                  <span v-else class="text-xs text-slate-400">完成於 {{ b.paid_date ? b.paid_date.substring(0, 10) : '' }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 區塊三：收支流水帳 -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center">
+              <i data-lucide="arrow-left-right" class="w-5 h-5 mr-2 text-indigo-600"></i>
+              明細流水帳
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">所有手動記帳與系統自動扣款紀錄</p>
+          </div>
+          <button @click="openTxModal()" class="inline-flex items-center px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-medium transition shadow-sm">
+            <i data-lucide="plus" class="w-4 h-4 mr-1"></i> 快速記帳
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                <th class="py-3.5 px-6 font-semibold">日期</th>
+                <th class="py-3.5 px-6 font-semibold">類型 / 分類</th>
+                <th class="py-3.5 px-6 font-semibold">說明</th>
+                <th class="py-3.5 px-6 font-semibold">扣款帳戶</th>
+                <th class="py-3.5 px-6 font-semibold text-right">金額</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-if="transactions.length === 0">
+                <td colspan="5" class="text-center py-8 text-slate-400">目前尚無交易明細</td>
+              </tr>
+              <tr v-for="tx in transactions" :key="tx.id" class="hover:bg-slate-50 transition">
+                <td class="py-3.5 px-6 text-slate-600 font-mono text-xs">{{ tx.date ? tx.date.substring(0, 10) : '' }}</td>
+                <td class="py-3.5 px-6">
+                  <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold mr-1.5"
+                    :class="tx.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (tx.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700')">
+                    {{ tx.tx_type === 'EXPENSE' ? '支出' : (tx.tx_type === 'INCOME' ? '收入' : '轉帳') }}
+                  </span>
+                  <span class="text-slate-700 font-medium">{{ tx.category }}</span>
+                </td>
+                <td class="py-3.5 px-6 text-slate-800">{{ tx.description || '-' }}</td>
+                <td class="py-3.5 px-6 text-slate-600">{{ getAccountName(tx.account_id) }}</td>
+                <td class="py-3.5 px-6 text-right font-bold text-base"
+                  :class="tx.tx_type === 'EXPENSE' ? 'text-rose-600' : (tx.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600')">
+                  {{ tx.tx_type === 'EXPENSE' ? '-' : '+' }}NT$ {{ formatMoney(tx.amount) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Modal 1: 帳戶新增/編輯 -->
+    <div v-if="showAccountModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+        <h3 class="text-lg font-bold text-slate-900">{{ currentAcc.id ? '編輯帳戶' : '新增存款帳戶' }}</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">帳戶名稱</label>
+            <input v-model="currentAcc.name" placeholder="例如：台新 Richart、玉山活存" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">帳戶類型</label>
+            <select v-model="currentAcc.account_type" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+              <option value="SAVINGS">銀行活存</option>
+              <option value="CREDIT">信用卡</option>
+              <option value="CASH">現金</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">帳號 / 卡號末四碼 (選填)</label>
+            <input v-model="currentAcc.account_number" placeholder="例如：1234" class="w-full px-3 py-2 border rounded-lg text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">初始餘額 (NT$)</label>
+            <input v-model.number="currentAcc.balance" type="number" class="w-full px-3 py-2 border rounded-lg text-sm font-mono">
+          </div>
+          <div class="flex items-center pt-2">
+            <input id="is_dbs" type="checkbox" v-model="currentAcc.is_dbs_default_debit" class="w-4 h-4 text-indigo-600 rounded">
+            <label for="is_dbs" class="ml-2 text-xs font-medium text-slate-700">設為星展銀行信用卡預設扣款帳戶</label>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-2 pt-4">
+          <button @click="showAccountModal = false" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+          <button @click="saveAccount" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold">儲存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 2: 手動輸入開銷與記帳 -->
+    <div v-if="showTxModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+        <h3 class="text-lg font-bold text-slate-900">手動輸入開銷 / 記帳</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">類型</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" @click="currentTx.tx_type = 'EXPENSE'" :class="['py-2 text-xs font-bold rounded-lg border', currentTx.tx_type === 'EXPENSE' ? 'bg-rose-50 border-rose-500 text-rose-700' : 'border-slate-200']">支出 (開銷)</button>
+              <button type="button" @click="currentTx.tx_type = 'INCOME'" :class="['py-2 text-xs font-bold rounded-lg border', currentTx.tx_type === 'INCOME' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'border-slate-200']">收入</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">開銷金額 (NT$)</label>
+            <input v-model.number="currentTx.amount" type="number" placeholder="0" class="w-full px-3 py-2 border rounded-lg text-sm font-mono text-lg font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">日期</label>
+            <input v-model="currentTx.date" type="date" class="w-full px-3 py-2 border rounded-lg text-sm bg-white font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">扣款帳戶</label>
+            <select v-model="currentTx.account_id" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+              <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.name }} (餘額 NT$ {{ formatMoney(a.balance) }})</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">開銷分類</label>
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <span v-for="cat in quickCategories" :key="cat" @click="currentTx.category = cat"
+                class="px-2 py-0.5 text-xs rounded-md border cursor-pointer hover:bg-slate-100 transition"
+                :class="currentTx.category === cat ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold' : 'border-slate-200 text-slate-600'">
+                {{ cat }}
+              </span>
+            </div>
+            <input v-model="currentTx.category" placeholder="飲食、房租水電、日常娛樂、信用卡..." class="w-full px-3 py-2 border rounded-lg text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">開銷備註說明</label>
+            <input v-model="currentTx.description" placeholder="例如：好市多採買、10月房租" class="w-full px-3 py-2 border rounded-lg text-sm">
+          </div>
+        </div>
+        <div class="flex justify-end space-x-2 pt-4">
+          <button @click="showTxModal = false" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+          <button @click="saveTx" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold">新增開銷並更新圓餅圖</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 3: 手動上傳 PDF 帳單測試 -->
+    <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+        <h3 class="text-lg font-bold text-slate-900">手動上傳星展 PDF 帳單</h3>
+        <p class="text-xs text-slate-500">可在設定好 Gmail 前，先直接上傳手邊的星展加密 PDF 測試解密與自動扣款解析！</p>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">選擇 PDF 檔案</label>
+            <input type="file" ref="pdfInput" accept=".pdf" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">PDF 解密密碼 (若已在設定儲存可留空)</label>
+            <input v-model="uploadPwd" type="password" placeholder="身分證字號首字母大寫或生日" class="w-full px-3 py-2 border rounded-lg text-sm">
+          </div>
+        </div>
+        <div class="flex justify-end space-x-2 pt-4">
+          <button @click="showUploadModal = false" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+          <button @click="submitUploadPdf" :disabled="uploading" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+            {{ uploading ? '解析中...' : '開始解析匯入' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 4: 系統設定 (Google OAuth & 星展 PDF 密碼) -->
+    <div v-if="showSettingsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-lg font-bold text-slate-900">系統與串接設定</h3>
+          <button @click="showSettingsModal = false" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+
+        <!-- 月薪設定 -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+          <h4 class="text-sm font-bold text-slate-900 flex items-center">
+            <i data-lucide="badge-dollar-sign" class="w-4 h-4 mr-1.5 text-indigo-600"></i> 每月預設實領月薪
+          </h4>
+          <p class="text-xs text-slate-500">用於計算支出佔比與儲蓄率之基準。</p>
+          <input v-model.number="settingsForm.monthly_salary" type="number" placeholder="50000" class="w-full px-3 py-2 border rounded-lg text-sm bg-white font-mono">
+        </div>
+
+        <!-- 星展 PDF 帳單密碼 -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+          <h4 class="text-sm font-bold text-slate-900 flex items-center">
+            <i data-lucide="lock" class="w-4 h-4 mr-1.5 text-indigo-600"></i> 星展銀行 PDF 帳單預設密碼
+          </h4>
+          <p class="text-xs text-slate-500">星展銀行電子帳單 PDF 通常以身分證字號首字大寫或出生年月日加密。設定後後台抓取帳單將自動解密提取金額。</p>
+          <input v-model="settingsForm.dbs_pdf_password" type="password" placeholder="輸入您的身分證/預設密碼" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+        </div>
+
+        <!-- Google OAuth 串接 -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-slate-900 flex items-center">
+              <i data-lucide="mail" class="w-4 h-4 mr-1.5 text-indigo-600"></i> Gmail API 授權串接
+            </h4>
+            <span v-if="settings.is_google_connected" class="text-xs text-emerald-600 font-bold">● 已授權連線</span>
+            <span v-else class="text-xs text-amber-600 font-bold">● 尚未連線</span>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed">
+            請至 Google Cloud Console 建立 OAuth 2.0 憑證，並將重新導向 URI 填入下方（雲端伺服器填入伺服器 IP 或網域）。
+          </p>
+
+          <div class="space-y-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600">Google Client ID</label>
+              <input v-model="settingsForm.google_client_id" placeholder="xxxx.apps.googleusercontent.com" class="w-full px-3 py-1.5 border rounded-lg text-xs bg-white font-mono">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600">Google Client Secret</label>
+              <input v-model="settingsForm.google_client_secret" type="password" placeholder="Client Secret" class="w-full px-3 py-1.5 border rounded-lg text-xs bg-white font-mono">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600">OAuth 回調 Redirect URI</label>
+              <input v-model="settingsForm.google_redirect_uri" placeholder="http://<你的雲端IP>:8000/api/auth/google/callback" class="w-full px-3 py-1.5 border rounded-lg text-xs bg-white font-mono">
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button @click="connectGoogle" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center">
+              <i data-lucide="log-in" class="w-4 h-4 mr-1.5"></i>
+              {{ settings.is_google_connected ? '重新前往 Google 授權' : '前往 Google 授權此 App 讀取 Gmail' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-2">
+          <button @click="showSettingsModal = false" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+          <button @click="saveSettings" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold">儲存所有設定</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+    createApp({
+      setup() {
+        const accounts = ref([]);
+        const bills = ref([]);
+        const transactions = ref([]);
+        const settings = ref({
+          is_google_connected: false,
+          has_pdf_password: false,
+          default_debit_account_name: null,
+          monthly_salary: 50000
+        });
+
+        const salaryInput = ref(50000);
+        const todayStr = new Date().toISOString().substring(0, 10);
+        const currentMonth = ref(todayStr.substring(0, 7));
+        const selectedMonth = ref(todayStr.substring(0, 7));
+
+        const syncing = ref(false);
+        const uploading = ref(false);
+        const showAccountModal = ref(false);
+        const showTxModal = ref(false);
+        const showUploadModal = ref(false);
+        const showSettingsModal = ref(false);
+        const uploadPwd = ref('');
+        const pdfInput = ref(null);
+
+        const quickCategories = ['飲食', '房租水電', '交通', '日常採買', '娛樂休閒', '保險醫療', '信用卡費', '其他'];
+
+        const currentAcc = ref({ name: '', account_type: 'SAVINGS', balance: 0, account_number: '', is_dbs_default_debit: false });
+        const currentTx = ref({ amount: null, tx_type: 'EXPENSE', account_id: null, category: '飲食', description: '', date: todayStr });
+        const settingsForm = ref({
+          google_client_id: '',
+          google_client_secret: '',
+          google_redirect_uri: window.location.origin + '/api/auth/google/callback',
+          dbs_pdf_password: '',
+          monthly_salary: 50000
+        });
+
+        let chartInstance = null;
+        const palette = [
+          '#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6',
+          '#8B5CF6', '#14B8A6', '#F97316', '#64748B', '#06B6D4'
+        ];
+
+        const refreshIcons = () => {
+          nextTick(() => {
+            if (window.lucide) {
+              window.lucide.createIcons();
+            }
+          });
+        };
+
+        const fetchAccounts = async () => {
+          const res = await fetch('/api/accounts');
+          accounts.value = await res.json();
+          if (accounts.value.length > 0 && !currentTx.value.account_id) {
+            currentTx.value.account_id = accounts.value[0].id;
+          }
+          refreshIcons();
+        };
+
+        const fetchBills = async () => {
+          const res = await fetch('/api/bills');
+          bills.value = await res.json();
+          refreshIcons();
+        };
+
+        const fetchTransactions = async () => {
+          const res = await fetch('/api/transactions');
+          transactions.value = await res.json();
+          renderChart();
+          refreshIcons();
+        };
+
+        const fetchSettings = async () => {
+          const res = await fetch('/api/settings');
+          settings.value = await res.json();
+          if (settings.value.monthly_salary) {
+            salaryInput.value = settings.value.monthly_salary;
+            settingsForm.value.monthly_salary = settings.value.monthly_salary;
+          }
+          renderChart();
+          refreshIcons();
+        };
+
+        const updateSalary = async () => {
+          if (!salaryInput.value || salaryInput.value <= 0) {
+            salaryInput.value = 50000;
+          }
+          await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monthly_salary: salaryInput.value })
+          });
+          renderChart();
+        };
+
+        const totalSavings = computed(() => {
+          return accounts.value
+            .filter(a => a.account_type === 'SAVINGS' || a.account_type === 'CASH')
+            .reduce((sum, a) => sum + (a.balance || 0), 0);
+        });
+
+        const pendingBillAmount = computed(() => {
+          return bills.value
+            .filter(b => b.status === 'PENDING')
+            .reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        });
+
+        const nextDueBill = computed(() => {
+          const pending = bills.value.filter(b => b.status === 'PENDING');
+          return pending.length > 0 ? pending[0] : null;
+        });
+
+        // 該選擇月份的支出列表與彙總
+        const monthlyExpensesList = computed(() => {
+          const expensesByCategory = {};
+          const targetMonth = selectedMonth.value;
+
+          transactions.value.forEach(tx => {
+            if (tx.tx_type === 'EXPENSE') {
+              const txMonth = (tx.date || '').substring(0, 7);
+              if (txMonth === targetMonth) {
+                const cat = tx.category || '其他';
+                expensesByCategory[cat] = (expensesByCategory[cat] || 0) + tx.amount;
+              }
+            }
+          });
+
+          const salary = salaryInput.value || 1;
+          const list = Object.keys(expensesByCategory).map((cat, idx) => {
+            const amount = expensesByCategory[cat];
+            return {
+              category: cat,
+              amount: amount,
+              ratioOfSalary: (amount / salary) * 100,
+              color: palette[idx % palette.length]
+            };
+          });
+
+          // 由金額高至低排序
+          return list.sort((a, b) => b.amount - a.amount);
+        });
+
+        const monthlyTotalExpense = computed(() => {
+          return monthlyExpensesList.value.reduce((sum, item) => sum + item.amount, 0);
+        });
+
+        const expenseRatio = computed(() => {
+          const salary = salaryInput.value || 1;
+          return (monthlyTotalExpense.value / salary) * 100;
+        });
+
+        const remainingSalary = computed(() => {
+          return (salaryInput.value || 0) - monthlyTotalExpense.value;
+        });
+
+        // 繪製 Chart.js 圓餅圖
+        const renderChart = () => {
+          nextTick(() => {
+            const ctx = document.getElementById('expensePieChart');
+            if (!ctx) return;
+
+            if (chartInstance) {
+              chartInstance.destroy();
+              chartInstance = null;
+            }
+
+            const items = monthlyExpensesList.value;
+            if (items.length === 0) return;
+
+            const salary = salaryInput.value || 50000;
+            const labels = [];
+            const data = [];
+            const bgColors = [];
+
+            items.forEach(it => {
+              labels.push(`${it.category} (${((it.amount / salary) * 100).toFixed(1)}% 月薪)`);
+              data.push(it.amount);
+              bgColors.push(it.color);
+            });
+
+            // 若還有剩餘儲蓄，加入剩餘儲蓄切片
+            if (remainingSalary.value > 0) {
+              labels.push(`結餘儲蓄 (${((remainingSalary.value / salary) * 100).toFixed(1)}% 月薪)`);
+              data.push(remainingSalary.value);
+              bgColors.push('#10B981'); // 綠色
+            }
+
+            chartInstance = new Chart(ctx, {
+              type: 'doughnut',
+              data: {
+                labels: labels,
+                datasets: [{
+                  data: data,
+                  backgroundColor: bgColors,
+                  borderWidth: 2,
+                  borderColor: '#ffffff',
+                  hoverOffset: 6
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                    labels: {
+                      boxWidth: 12,
+                      font: { size: 11, family: 'system-ui' },
+                      padding: 12
+                    }
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function(context) {
+                        const val = context.raw || 0;
+                        const pct = ((val / salary) * 100).toFixed(1);
+                        return ` NT$ ${val.toLocaleString()} (${pct}% 月薪)`;
+                      }
+                    }
+                  }
+                },
+                cutout: '62%'
+              }
+            });
+          });
+        };
+
+        const formatMoney = (val) => {
+          if (val === undefined || val === null) return '0';
+          return Number(val).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        };
+
+        const getAccountName = (accId) => {
+          const acc = accounts.value.find(a => a.id === accId);
+          return acc ? acc.name : '';
+        };
+
+        const isDueSoon = (dueDateStr) => {
+          if (!dueDateStr) return false;
+          const due = new Date(dueDateStr);
+          const now = new Date();
+          const diffDays = (due - now) / (1000 * 60 * 60 * 24);
+          return diffDays >= 0 && diffDays <= 5;
+        };
+
+        const openAccountModal = (acc = null) => {
+          if (acc) {
+            currentAcc.value = { ...acc };
+          } else {
+            currentAcc.value = { name: '', account_type: 'SAVINGS', balance: 0, account_number: '', is_dbs_default_debit: accounts.value.length === 0 };
+          }
+          showAccountModal.value = true;
+          refreshIcons();
+        };
+
+        const saveAccount = async () => {
+          if (!currentAcc.value.name) return alert('請填寫帳戶名稱');
+          const method = currentAcc.value.id ? 'PUT' : 'POST';
+          const url = currentAcc.value.id ? `/api/accounts/${currentAcc.value.id}` : '/api/accounts';
+          const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(currentAcc.value)
+          });
+          if (res.ok) {
+            showAccountModal.value = false;
+            await fetchAccounts();
+            await fetchSettings();
+          } else {
+            alert('儲存失敗');
+          }
+        };
+
+        const deleteAccount = async (id) => {
+          if (!confirm('確定刪除此帳戶？')) return;
+          await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
+          await fetchAccounts();
+          await fetchSettings();
+        };
+
+        const setDefaultDebit = async (id) => {
+          await fetch(`/api/accounts/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_dbs_default_debit: true })
+          });
+          await fetchAccounts();
+          await fetchSettings();
+        };
+
+        const openTxModal = () => {
+          currentTx.value = { amount: null, tx_type: 'EXPENSE', account_id: accounts.value[0]?.id, category: '飲食', description: '', date: todayStr };
+          showTxModal.value = true;
+          refreshIcons();
+        };
+
+        const saveTx = async () => {
+          if (!currentTx.value.amount || !currentTx.value.account_id) return alert('請填寫金額與選擇扣款帳戶');
+          const res = await fetch('/api/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(currentTx.value)
+          });
+          if (res.ok) {
+            showTxModal.value = false;
+            await fetchAccounts();
+            await fetchTransactions();
+          }
+        };
+
+        const syncGmail = async () => {
+          syncing.value = true;
+          try {
+            const res = await fetch('/api/sync/gmail', { method: 'POST' });
+            const data = await res.json();
+            if (data.status === 'success') {
+              alert(`同步完成！成功抓取 ${data.imported_count} 筆新帳單`);
+              await fetchBills();
+            } else {
+              alert(`同步提示: ${data.message || '無新帳單'}`);
+            }
+          } catch (e) {
+            alert('同步發生錯誤: ' + e);
+          } finally {
+            syncing.value = false;
+            refreshIcons();
+          }
+        };
+
+        const triggerDebitCheck = async () => {
+          const res = await fetch('/api/sync/auto-debit', { method: 'POST' });
+          const data = await res.json();
+          alert(`扣款檢驗完成！已自動完成 ${data.paid_count} 筆扣款`);
+          await fetchAccounts();
+          await fetchBills();
+          await fetchTransactions();
+        };
+
+        const payBillNow = async (billId) => {
+          if (!confirm('確定立即從預設扣款帳戶扣除此筆卡費？')) return;
+          const res = await fetch(`/api/bills/${billId}/pay`, { method: 'POST' });
+          const data = await res.json();
+          if (res.ok) {
+            alert(data.message);
+            await fetchAccounts();
+            await fetchBills();
+            await fetchTransactions();
+          } else {
+            alert(data.detail || '扣款失敗');
+          }
+        };
+
+        const submitUploadPdf = async () => {
+          const file = pdfInput.value?.files[0];
+          if (!file) return alert('請選擇 PDF 檔案');
+          uploading.value = true;
+          const formData = new FormData();
+          formData.append('file', file);
+          if (uploadPwd.value) formData.append('password', uploadPwd.value);
+
+          try {
+            const res = await fetch('/api/bills/upload-pdf', {
+              method: 'POST',
+              body: formData
+            });
+            const data = await res.json();
+            if (res.ok) {
+              alert(`解析成功！星展帳單金額：NT$ ${data.bill.total_amount}，截止日：${data.bill.due_date}`);
+              showUploadModal.value = false;
+              await fetchBills();
+            } else {
+              alert(`解析失敗: ${data.detail}`);
+            }
+          } catch (e) {
+            alert('上傳失敗: ' + e);
+          } finally {
+            uploading.value = false;
+            refreshIcons();
+          }
+        };
+
+        const saveSettings = async () => {
+          const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settingsForm.value)
+          });
+          if (res.ok) {
+            alert('設定儲存成功！');
+            showSettingsModal.value = false;
+            await fetchSettings();
+          }
+        };
+
+        const connectGoogle = async () => {
+          await saveSettings();
+          try {
+            const res = await fetch(`/api/auth/google/url?redirect_uri=${encodeURIComponent(settingsForm.value.google_redirect_uri)}`);
+            const data = await res.json();
+            if (data.auth_url) {
+              window.location.href = data.auth_url;
+            } else {
+              alert(data.detail || '取得授權網址失敗，請先確認 Google Client ID 設定');
+            }
+          } catch (e) {
+            alert('請先填寫正確的 Google Client ID 與 Client Secret');
+          }
+        };
+
+        onMounted(async () => {
+          await fetchAccounts();
+          await fetchBills();
+          await fetchTransactions();
+          await fetchSettings();
+          refreshIcons();
+
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get('auth') === 'success') {
+            alert('🎉 Google 帳號授權成功！現在已可自動從 Gmail 撈取星展帳單！');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            await fetchSettings();
+          }
+        });
+
+        return {
+          accounts, bills, transactions, settings, salaryInput, currentMonth, selectedMonth,
+          syncing, uploading, showAccountModal, showTxModal, showUploadModal, showSettingsModal,
+          uploadPwd, pdfInput, currentAcc, currentTx, settingsForm, quickCategories,
+          totalSavings, pendingBillAmount, nextDueBill, monthlyExpensesList, monthlyTotalExpense,
+          expenseRatio, remainingSalary,
+          formatMoney, getAccountName, isDueSoon,
+          openAccountModal, saveAccount, deleteAccount, setDefaultDebit,
+          openTxModal, saveTx, syncGmail, triggerDebitCheck, payBillNow,
+          submitUploadPdf, saveSettings, connectGoogle, updateSalary, renderChart
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
+
