@@ -2166,17 +2166,24 @@
 
           <!-- 4. 不扣帳戶存款選項（預設啟用） -->
           <div class="p-3 bg-slate-50 hover:bg-slate-100/70 rounded-xl border border-slate-200/80 flex items-center justify-between transition cursor-pointer select-none"
-            @click="currentTx.affects_balance = !currentTx.affects_balance; refreshIcons()">
+            @click="toggleAffectsBalance">
             <div class="flex items-center space-x-2.5 pointer-events-none">
               <div class="w-8 h-8 rounded-lg flex items-center justify-center transition"
                 :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'">
-                <i data-lucide="shield-check" class="w-4 h-4" v-if="!currentTx.affects_balance"></i>
-                <i data-lucide="wallet" class="w-4 h-4" v-else></i>
+                <!-- 原生內嵌 SVG 圖示，100% 即時響應切換 -->
+                <svg v-if="!currentTx.affects_balance" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-amber-600 dark:text-amber-400">
+                  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                  <path d="m9 12 2 2 4-4"/>
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-slate-500 dark:text-slate-400">
+                  <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
+                  <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>
+                </svg>
               </div>
               <div>
                 <div class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
                   <span>不扣帳戶存款</span>
-                  <span class="text-[10px] px-1.5 py-0.2 rounded font-medium"
+                  <span class="text-[10px] px-1.5 py-0.5 rounded font-medium transition"
                     :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'">
                     {{ !currentTx.affects_balance ? '純記帳（預設）' : '扣款模式' }}
                   </span>
@@ -2188,7 +2195,7 @@
             </div>
             
             <!-- 切換滑動開關 -->
-            <button type="button" @click.stop="currentTx.affects_balance = !currentTx.affects_balance; refreshIcons()"
+            <button type="button" @click.stop="toggleAffectsBalance"
               class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
               :class="!currentTx.affects_balance ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'">
               <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out"
@@ -3121,6 +3128,6 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.3.1"></script>
+  <script type="module" src="/static/js/app.js?v=2.3.2"></script>
 </body>
 </html>

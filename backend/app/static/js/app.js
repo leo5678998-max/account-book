@@ -1584,7 +1584,7 @@ createApp({
       effectiveSalary, totalInsuranceDeduction, settingsInsurancePreview, onInsuranceSettingChange, resetToAutoInsuranceFees,
       formatMoney, formatStockPrice, formatStockShares, formatStockTotal, getAccountName, isDueSoon,
       openAccountModal, saveAccount, deleteAccount, setDefaultDebit,
-      openTxModal, saveTx, deleteTx, toggleAffectsBalance, openAddBillModal, openEditBillModal, saveBill, deleteBill,
+      openTxModal, saveTx, deleteTx, toggleAffectsBalance, refreshIcons, openAddBillModal, openEditBillModal, saveBill, deleteBill,
       openAddStockModal, openEditStockModal, saveStock, deleteStock, refreshStockQuotes,
       openAddRecurringModal, openEditRecurringModal, saveRecurring, deleteRecurring,
       submitParseDocument, confirmApplyParsedData,
