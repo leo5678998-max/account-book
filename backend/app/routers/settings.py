@@ -1,0 +1,230 @@
+from typing import Optional
+from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import User, Account
+from ..schemas import SettingsUpdate, SettingsStatus
+from ..services.accounting_service import get_setting, save_setting, get_default_debit_account
+from ..services.auth_service import get_current_user
+from ..services.gmail_service import GmailService
+from ..services.imap_service import ImapService
+from ..services.insurance_service import calculate_insurance_summary
+
+router = APIRouter(tags=["Settings & Email Sync"])
+
+
+class ImapTestRequest(BaseModel):
+    imap_email: Optional[str] = None
+    imap_app_password: Optional[str] = None
+    imap_server: Optional[str] = None
+
+
+@router.get("/api/settings", response_model=SettingsStatus)
+def get_settings_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    uid = current_user.id
+    gmail_service = GmailService(db, user_id=uid)
+    imap_service = ImapService(db, user_id=uid)
+
+    pwd_val = get_setting(db, "DBS_PDF_PASSWORD", "", user_id=uid)
+    id_card_val = get_setting(db, "ID_CARD_PASSWORD", "", user_id=uid)
+    cid_val = get_setting(db, "GOOGLE_CLIENT_ID", "", user_id=uid)
+    uri_val = get_setting(db, "GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback", user_id=uid)
+    # 嚴格獨立：每位使用者只讀取自己的 Gemini API Key，絕不與其他使用者共用
+    gemini_val = get_setting(db, "GEMINI_API_KEY", "", user_id=uid)
+
+    imap_email_val = get_setting(db, "IMAP_EMAIL", "", user_id=uid)
+    imap_pwd_val = get_setting(db, "IMAP_APP_PASSWORD", "", user_id=uid)
+    imap_server_val = get_setting(db, "IMAP_SERVER", "imap.gmail.com", user_id=uid) or "imap.gmail.com"
+
+    default_acc = get_default_debit_account(db, user_id=uid)
+    salary_str = get_setting(db, "MONTHLY_SALARY", "", user_id=uid)
+    salary = float(salary_str) if salary_str else 50000.0
+
+    deduct_labor_health_str = get_setting(db, "DEDUCT_LABOR_HEALTH", "false", user_id=uid)
+    deduct_labor_health = deduct_labor_health_str.lower() in ("true", "1")
+
+    dependents_str = get_setting(db, "HEALTH_INSURANCE_DEPENDENTS", "1", user_id=uid)
+    dependents = int(dependents_str) if dependents_str and dependents_str.isdigit() else 1
+
+    auto_calc_str = get_setting(db, "LABOR_HEALTH_AUTO_CALC", "true", user_id=uid)
+    auto_calc = auto_calc_str.lower() in ("true", "1")
+
+    pension_rate_str = get_setting(db, "PENSION_RATE", "0.0", user_id=uid)
+    try:
+        pension_rate = float(pension_rate_str)
+    except (ValueError, TypeError):
+        pension_rate = 0.0
+
+    tax_rate_str = get_setting(db, "TAX_RATE", "0.0", user_id=uid)
+    try:
+        tax_rate = float(tax_rate_str)
+    except (ValueError, TypeError):
+        tax_rate = 0.0
+
+    show_chart_str = get_setting(db, "SHOW_DEDUCTIONS_IN_CHART", "true", user_id=uid)
+    show_deductions_in_chart = show_chart_str.lower() in ("true", "1")
+
+    labor_fee_str = get_setting(db, "LABOR_INSURANCE_FEE", "", user_id=uid) or None
+    health_fee_str = get_setting(db, "HEALTH_INSURANCE_FEE", "", user_id=uid) or None
+    pension_fee_str = get_setting(db, "PENSION_FEE", "", user_id=uid) or None
+    tax_fee_str = get_setting(db, "TAX_FEE", "", user_id=uid) or None
+
+    if auto_calc or labor_fee_str is None or health_fee_str is None or pension_fee_str is None or tax_fee_str is None:
+        calc = calculate_insurance_summary(salary, dependents, pension_rate, tax_rate)
+        labor_fee = float(calc["labor_insurance"]["fee"])
+        health_fee = float(calc["health_insurance"]["fee"])
+        pension_fee = float(calc["labor_pension"]["fee"])
+        tax_fee = float(calc["income_tax"]["fee"])
+    else:
+        labor_fee = float(labor_fee_str)
+        health_fee = float(health_fee_str)
+        pension_fee = float(pension_fee_str)
+        tax_fee = float(tax_fee_str)
+
+    if deduct_labor_health:
+        net_salary = max(0.0, salary - labor_fee - health_fee - pension_fee - tax_fee)
+    else:
+        net_salary = salary
+
+    is_imap_ok = imap_service.is_configured()
+    is_gmail_ok = gmail_service.is_connected()
+
+    return SettingsStatus(
+        is_google_connected=(is_imap_ok or is_gmail_ok),
+        is_imap_configured=is_imap_ok,
+        has_pdf_password=bool(pwd_val or id_card_val),
+        google_client_id_configured=bool(cid_val),
+        has_gemini_api_key=bool(gemini_val),
+        default_debit_account_name=default_acc.name if default_acc else None,
+        monthly_salary=salary,
+        deduct_labor_health=deduct_labor_health,
+        health_insurance_dependents=dependents,
+        labor_insurance_fee=labor_fee,
+        health_insurance_fee=health_fee,
+        pension_rate=pension_rate,
+        pension_fee=pension_fee,
+        tax_rate=tax_rate,
+        tax_fee=tax_fee,
+        show_deductions_in_chart=show_deductions_in_chart,
+        labor_health_auto_calc=auto_calc,
+        net_salary=net_salary,
+        gemini_api_key=gemini_val,
+        dbs_pdf_password=pwd_val,
+        id_card_password=id_card_val,
+        imap_email=imap_email_val,
+        imap_app_password=imap_pwd_val,
+        imap_server=imap_server_val,
+        google_client_id=cid_val,
+        google_redirect_uri=uri_val
+    )
+
+
+@router.post("/api/settings")
+def update_settings(
+    settings: SettingsUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    uid = current_user.id
+    if settings.google_client_id is not None:
+        save_setting(db, "GOOGLE_CLIENT_ID", settings.google_client_id.strip(), user_id=uid)
+    if settings.google_client_secret is not None and settings.google_client_secret.strip() != "":
+        save_setting(db, "GOOGLE_CLIENT_SECRET", settings.google_client_secret.strip(), user_id=uid)
+    if settings.google_redirect_uri is not None and settings.google_redirect_uri.strip() != "":
+        save_setting(db, "GOOGLE_REDIRECT_URI", settings.google_redirect_uri.strip(), user_id=uid)
+    if settings.imap_email is not None:
+        save_setting(db, "IMAP_EMAIL", settings.imap_email.strip(), user_id=uid)
+    if settings.imap_app_password is not None:
+        save_setting(db, "IMAP_APP_PASSWORD", settings.imap_app_password.strip(), user_id=uid)
+    if settings.imap_server is not None:
+        save_setting(db, "IMAP_SERVER", settings.imap_server.strip() or "imap.gmail.com", user_id=uid)
+    if settings.id_card_password is not None:
+        save_setting(db, "ID_CARD_PASSWORD", settings.id_card_password.strip(), user_id=uid)
+    if settings.dbs_pdf_password is not None:
+        save_setting(db, "DBS_PDF_PASSWORD", settings.dbs_pdf_password.strip(), user_id=uid)
+    if settings.gemini_api_key is not None:
+        save_setting(db, "GEMINI_API_KEY", settings.gemini_api_key.strip(), user_id=uid)
+    if settings.monthly_salary is not None:
+        save_setting(db, "MONTHLY_SALARY", str(settings.monthly_salary), user_id=uid)
+    if settings.deduct_labor_health is not None:
+        save_setting(db, "DEDUCT_LABOR_HEALTH", "true" if settings.deduct_labor_health else "false", user_id=uid)
+    if settings.health_insurance_dependents is not None:
+        save_setting(db, "HEALTH_INSURANCE_DEPENDENTS", str(max(1, settings.health_insurance_dependents)), user_id=uid)
+    if settings.labor_health_auto_calc is not None:
+        save_setting(db, "LABOR_HEALTH_AUTO_CALC", "true" if settings.labor_health_auto_calc else "false", user_id=uid)
+    if settings.labor_insurance_fee is not None:
+        save_setting(db, "LABOR_INSURANCE_FEE", str(settings.labor_insurance_fee), user_id=uid)
+    if settings.health_insurance_fee is not None:
+        save_setting(db, "HEALTH_INSURANCE_FEE", str(settings.health_insurance_fee), user_id=uid)
+    if settings.pension_rate is not None:
+        save_setting(db, "PENSION_RATE", str(max(0.0, min(0.06, settings.pension_rate))), user_id=uid)
+    if settings.pension_fee is not None:
+        save_setting(db, "PENSION_FEE", str(settings.pension_fee), user_id=uid)
+    if settings.tax_rate is not None:
+        save_setting(db, "TAX_RATE", str(max(0.0, min(0.30, settings.tax_rate))), user_id=uid)
+    if settings.tax_fee is not None:
+        save_setting(db, "TAX_FEE", str(settings.tax_fee), user_id=uid)
+    if settings.show_deductions_in_chart is not None:
+        save_setting(db, "SHOW_DEDUCTIONS_IN_CHART", "true" if settings.show_deductions_in_chart else "false", user_id=uid)
+    if settings.default_debit_account_id is not None:
+        db.query(Account).filter(Account.user_id == uid).update({Account.is_dbs_default_debit: False})
+        db.query(Account).filter(
+            Account.id == settings.default_debit_account_id,
+            Account.user_id == uid
+        ).update({Account.is_dbs_default_debit: True})
+
+    db.commit()
+    return {"status": "success", "message": "設定已更新"}
+
+
+@router.post("/api/settings/test-imap")
+def test_imap_connection(
+    req: ImapTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """測試 IMAP 信箱與 16 碼應用程式密碼連線"""
+    imap = ImapService(db, user_id=current_user.id)
+    res = imap.test_connection(
+        email_addr=req.imap_email,
+        app_pwd=req.imap_app_password,
+        server=req.imap_server
+    )
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message", "IMAP 連線測試失敗"))
+    return res
+
+
+@router.get("/api/settings/calculate-insurance")
+def calculate_insurance(salary: float = 50000.0, dependents: int = 1, pension_rate: float = 0.0, tax_rate: float = 0.0):
+    return calculate_insurance_summary(salary, dependents, pension_rate, tax_rate)
+
+
+@router.get("/api/auth/google/url")
+def get_google_auth_url(
+    redirect_uri: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    gmail = GmailService(db, user_id=current_user.id)
+    try:
+        url = gmail.get_auth_url(redirect_uri=redirect_uri)
+        return {"auth_url": url}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/api/auth/google/callback")
+def google_auth_callback(code: str, state: Optional[str] = None, db: Session = Depends(get_db)):
+    gmail = GmailService(db, user_id=1)
+    try:
+        gmail.handle_auth_callback(code=code)
+        return RedirectResponse(url="/?auth=success")
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

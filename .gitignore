@@ -1,0 +1,25 @@
+# Python bytecode & virtual environment
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+backend/venv/
+.venv/
+
+# Database & personal credentials (Do NOT commit personal data!)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
+credentials.json
+token.json
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
