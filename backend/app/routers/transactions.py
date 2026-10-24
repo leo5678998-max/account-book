@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User, Transaction
-from ..schemas import TransactionCreate, TransactionResponse
-from ..services.accounting_service import record_transaction, remove_transaction
+from ..schemas import TransactionCreate, TransactionUpdate, TransactionResponse
+from ..services.accounting_service import record_transaction, modify_transaction, remove_transaction
 from ..services.auth_service import get_current_user
 
 router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
@@ -29,6 +29,17 @@ def create_transaction(
     db: Session = Depends(get_db)
 ):
     return record_transaction(db, tx_in, user_id=current_user.id)
+
+
+@router.put("/{tx_id}", response_model=TransactionResponse)
+def update_transaction(
+    tx_id: int,
+    tx_in: TransactionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """編輯交易紀錄並自動更新帳戶餘額"""
+    return modify_transaction(db, tx_id, tx_in, user_id=current_user.id)
 
 
 @router.delete("/{tx_id}")

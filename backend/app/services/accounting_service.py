@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from ..models import Account, Transaction, Bill, SystemSetting
-from ..schemas import TransactionCreate, SalaryApplyRequest
+from ..schemas import TransactionCreate, TransactionUpdate, SalaryApplyRequest
 
 
 def get_setting(db: Session, key: str, default: str = "", user_id: int = 1) -> str:
@@ -80,6 +80,87 @@ def record_transaction(db: Session, tx_in: TransactionCreate, user_id: int = 1) 
 
     tx = Transaction(**tx_data, user_id=user_id)
     db.add(tx)
+    db.commit()
+    db.refresh(tx)
+    return tx
+
+
+def modify_transaction(
+    db: Session,
+    tx_id: int,
+    tx_in: TransactionUpdate,
+    user_id: int = 1
+) -> Transaction:
+    """編輯交易紀錄，並自動還原舊帳戶差額與套用新扣款"""
+    tx = db.query(Transaction).filter(
+        Transaction.id == tx_id,
+        Transaction.user_id == user_id
+    ).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="找不到該筆交易紀錄")
+
+    # 1. 還原舊交易對帳戶餘額的影響
+    if getattr(tx, "affects_balance", True):
+        old_source_acc = db.query(Account).filter(
+            Account.id == tx.account_id,
+            Account.user_id == user_id
+        ).first()
+        if old_source_acc:
+            if tx.tx_type == "EXPENSE":
+                old_source_acc.balance += tx.amount
+            elif tx.tx_type == "INCOME":
+                old_source_acc.balance -= tx.amount
+            elif tx.tx_type == "TRANSFER":
+                old_source_acc.balance += tx.amount
+                if tx.target_account_id:
+                    old_target_acc = db.query(Account).filter(
+                        Account.id == tx.target_account_id,
+                        Account.user_id == user_id
+                    ).first()
+                    if old_target_acc:
+                        old_target_acc.balance -= tx.amount
+
+    # 2. 驗證新帳戶與轉帳設定
+    new_source_acc = db.query(Account).filter(
+        Account.id == tx_in.account_id,
+        Account.user_id == user_id
+    ).first()
+    if not new_source_acc:
+        raise HTTPException(status_code=404, detail="來源帳戶不存在")
+
+    new_target_acc = None
+    if tx_in.tx_type == "TRANSFER":
+        if not tx_in.target_account_id:
+            raise HTTPException(status_code=400, detail="轉帳必須指定目標帳戶")
+        new_target_acc = db.query(Account).filter(
+            Account.id == tx_in.target_account_id,
+            Account.user_id == user_id
+        ).first()
+        if not new_target_acc:
+            raise HTTPException(status_code=404, detail="轉帳目標帳戶不存在")
+
+    # 3. 套用新交易對帳戶餘額的影響
+    new_affects_balance = getattr(tx_in, "affects_balance", True)
+    if new_affects_balance:
+        if tx_in.tx_type == "EXPENSE":
+            new_source_acc.balance -= tx_in.amount
+        elif tx_in.tx_type == "INCOME":
+            new_source_acc.balance += tx_in.amount
+        elif tx_in.tx_type == "TRANSFER" and new_target_acc:
+            new_source_acc.balance -= tx_in.amount
+            new_target_acc.balance += tx_in.amount
+
+    # 4. 更新交易紀錄欄位
+    tx.amount = tx_in.amount
+    tx.tx_type = tx_in.tx_type
+    tx.account_id = tx_in.account_id
+    tx.target_account_id = tx_in.target_account_id if tx_in.tx_type == "TRANSFER" else None
+    tx.category = tx_in.category or "其他"
+    tx.description = tx_in.description
+    if tx_in.date:
+        tx.date = tx_in.date
+    tx.affects_balance = new_affects_balance
+
     db.commit()
     db.refresh(tx)
     return tx

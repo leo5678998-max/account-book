@@ -1000,20 +1000,28 @@
                   <i data-lucide="receipt-text" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
                   尚無記帳明細，點擊右上角「記一筆」新增開銷！
                 </div>
-                <div v-else class="divide-y divide-slate-100 mt-1">
-                  <div v-for="t in recentTransactions" :key="t.id" class="py-2.5 flex items-center justify-between text-xs hover:bg-slate-50/60 px-1 rounded-lg transition">
+                <div v-else class="divide-y divide-slate-100 dark:divide-slate-800 mt-1">
+                  <div v-for="t in recentTransactions" :key="t.id"
+                    @click="openEditTxModal(t)"
+                    class="group py-2.5 flex items-center justify-between text-xs hover:bg-slate-50/80 dark:hover:bg-slate-800/60 px-1.5 rounded-lg transition cursor-pointer"
+                    title="點擊編輯此筆明細">
                     <div class="flex items-center space-x-2.5 min-w-0 pr-2">
                       <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0"
-                        :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700')">
+                        :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400')">
                         {{ t.category || t.tx_type }}
                       </span>
-                      <span v-if="t.affects_balance === false" class="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded flex-shrink-0">不扣存款</span>
-                      <span class="font-medium text-slate-800 truncate">{{ t.description || '-' }}</span>
+                      <span v-if="t.affects_balance === false" class="text-[9px] bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-1 rounded flex-shrink-0">不扣存款</span>
+                      <span class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ t.description || '-' }}</span>
                       <span class="text-[11px] text-slate-400 font-mono hidden sm:inline flex-shrink-0">{{ t.date ? t.date.substring(0, 10) : '' }}</span>
                     </div>
-                    <div class="font-mono font-bold text-xs flex-shrink-0"
-                      :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-slate-800')">
-                      {{ t.tx_type === 'EXPENSE' ? '-' : '+' }}NT$ {{ formatMoney(t.amount) }}
+                    <div class="flex items-center space-x-2 flex-shrink-0">
+                      <div class="font-mono font-bold text-xs"
+                        :class="t.tx_type === 'EXPENSE' ? 'text-rose-600 dark:text-rose-400' : (t.tx_type === 'INCOME' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200')">
+                        {{ t.tx_type === 'EXPENSE' ? '-' : '+' }}NT$ {{ formatMoney(t.amount) }}
+                      </div>
+                      <button @click.stop="openEditTxModal(t)" class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition" title="編輯此筆記帳">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1183,12 +1191,15 @@
                 <span v-if="t.affects_balance === false" class="ml-1 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded font-sans">不扣存款</span>
               </div>
             </div>
-            <div class="flex items-center space-x-2 flex-shrink-0">
+            <div class="flex items-center space-x-1.5 flex-shrink-0">
               <span class="font-extrabold font-mono text-sm"
                 :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-slate-800')">
                 {{ t.tx_type === 'EXPENSE' ? '-' : '+' }}NT$ {{ formatMoney(t.amount) }}
               </span>
-              <button @click="deleteTx(t.id)" class="p-1 text-slate-300 hover:text-rose-600 rounded">
+              <button @click="openEditTxModal(t)" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition" title="編輯此筆記帳">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+              </button>
+              <button @click="deleteTx(t.id)" class="p-1.5 text-slate-300 hover:text-rose-600 rounded transition" title="刪除此筆記帳">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
               </button>
             </div>
@@ -1230,9 +1241,14 @@
                   {{ t.tx_type === 'EXPENSE' ? '-' : '+' }}NT$ {{ formatMoney(t.amount) }}
                 </td>
                 <td class="py-3.5 px-6 text-right">
-                  <button @click="deleteTx(t.id)" class="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 transition" title="刪除此筆記帳並還原餘額">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                  </button>
+                  <div class="flex items-center justify-end space-x-1">
+                    <button @click="openEditTxModal(t)" class="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="編輯此筆記帳">
+                      <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                    <button @click="deleteTx(t.id)" class="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="刪除此筆記帳並還原餘額">
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -2226,19 +2242,20 @@
 
     <!-- Modal 2: 快速記帳 (方案 C: 極簡極速記帳) -->
     <div v-if="showTxModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 my-auto border border-slate-100 max-h-[92vh] overflow-y-auto">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 my-auto border border-slate-100 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
         <!-- 彈窗頂部：標題與關閉按鈕 -->
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div class="flex items-center space-x-2">
             <span class="w-8 h-8 rounded-xl flex items-center justify-center font-bold"
-              :class="currentTx.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'">
+              :class="currentTx.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'">
               <i :data-lucide="currentTx.tx_type === 'EXPENSE' ? 'arrow-up-right' : 'arrow-down-left'" class="w-4 h-4"></i>
             </span>
-            <h3 class="text-base sm:text-lg font-bold text-slate-900">
-              {{ currentTx.tx_type === 'EXPENSE' ? '記錄一筆支出' : '記錄一筆收入' }}
+            <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+              <span v-if="editingTxId">編輯{{ currentTx.tx_type === 'EXPENSE' ? '支出明細' : '收入明細' }}</span>
+              <span v-else>{{ currentTx.tx_type === 'EXPENSE' ? '記錄一筆支出' : '記錄一筆收入' }}</span>
             </h3>
           </div>
-          <button @click="showTxModal = false" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+          <button @click="showTxModal = false; editingTxId = null" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
@@ -2434,12 +2451,16 @@
           </div>
 
           <!-- 5. 底部按鈕 -->
-          <div class="pt-2">
+          <div class="pt-2 flex items-center space-x-2">
+            <button v-if="editingTxId" type="button" @click="showTxModal = false; editingTxId = null"
+              class="w-1/3 py-3 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition">
+              取消
+            </button>
             <button type="submit"
-              class="w-full py-3 rounded-xl text-sm font-bold text-white shadow-md transition flex items-center justify-center space-x-1.5"
-              :class="currentTx.tx_type === 'EXPENSE' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'">
+              class="flex-1 py-3 rounded-xl text-sm font-bold text-white shadow-md transition flex items-center justify-center space-x-1.5"
+              :class="currentTx.tx_type === 'EXPENSE' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 dark:shadow-none' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-none'">
               <i data-lucide="check" class="w-4 h-4"></i>
-              <span>{{ currentTx.tx_type === 'EXPENSE' ? '確認記下這筆支出' : '確認記下這筆收入' }}</span>
+              <span>{{ editingTxId ? '儲存變更' : (currentTx.tx_type === 'EXPENSE' ? '確認記下這筆支出' : '確認記下這筆收入') }}</span>
             </button>
           </div>
         </form>
@@ -3358,6 +3379,6 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.3.6"></script>
+  <script type="module" src="/static/js/app.js?v=2.4.0"></script>
 </body>
 </html>

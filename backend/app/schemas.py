@@ -68,6 +68,9 @@ class TransactionCreate(BaseModel):
     date: Optional[datetime] = None
     affects_balance: bool = True
 
+class TransactionUpdate(TransactionCreate):
+    pass
+
 class TransactionResponse(BaseModel):
     id: int
     amount: float

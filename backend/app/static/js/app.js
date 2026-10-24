@@ -846,20 +846,43 @@ createApp({
 
     // 記帳管理 (方案 C: 極簡記帳體驗)
     const showTxAdvanced = ref(false);
+    const editingTxId = ref(null);
 
     const openTxModal = () => {
+      editingTxId.value = null;
       const defaultAcc = accounts.value.find(a => a.is_dbs_default_debit) || accounts.value[0];
       const defaultCat = quickCategories.value[0] || '飲食';
       currentTx.value = {
         amount: null,
         tx_type: 'EXPENSE',
         account_id: defaultAcc?.id,
+        target_account_id: null,
         category: defaultCat,
         description: '',
         date: todayStr,
         affects_balance: false
       };
       showTxAdvanced.value = false;
+      showAddCategoryInline.value = false;
+      isManagingCategories.value = false;
+      showTxModal.value = true;
+      refreshIcons();
+    };
+
+    const openEditTxModal = (tx) => {
+      editingTxId.value = tx.id;
+      currentTx.value = {
+        amount: tx.amount,
+        tx_type: tx.tx_type || 'EXPENSE',
+        account_id: tx.account_id,
+        target_account_id: tx.target_account_id || null,
+        category: tx.category || '其它',
+        description: tx.description || '',
+        date: tx.date ? tx.date.substring(0, 10) : todayStr,
+        affects_balance: tx.affects_balance !== false
+      };
+      // 若有填寫備註、自訂日期或轉帳，自動展開進階選單以方便瀏覽修改
+      showTxAdvanced.value = Boolean(tx.description || (tx.date && tx.date.substring(0, 10) !== todayStr) || tx.tx_type === 'TRANSFER');
       showAddCategoryInline.value = false;
       isManagingCategories.value = false;
       showTxModal.value = true;
@@ -873,6 +896,9 @@ createApp({
 
     const saveTx = async () => {
       if (!currentTx.value.amount || !currentTx.value.account_id) return alert('請填寫金額與選擇帳戶');
+      if (currentTx.value.tx_type === 'TRANSFER' && !currentTx.value.target_account_id) {
+        return alert('轉帳必須選擇轉入帳戶');
+      }
       if (!currentTx.value.description || !currentTx.value.description.trim()) {
         currentTx.value.description = currentTx.value.category || '一般消費';
       }
@@ -883,12 +909,23 @@ createApp({
         localStorage.setItem('custom_categories', JSON.stringify(quickCategories.value));
         ApiService.saveCategories(quickCategories.value).catch(err => console.warn('自動儲存新分類失敗', err));
       }
-      const res = await ApiService.createTransaction(currentTx.value);
-      if (res.ok) {
+
+      let res;
+      if (editingTxId.value) {
+        res = await ApiService.updateTransaction(editingTxId.value, currentTx.value);
+      } else {
+        res = await ApiService.createTransaction(currentTx.value);
+      }
+
+      if (res && res.ok) {
         showTxModal.value = false;
+        editingTxId.value = null;
         await fetchAccounts();
         await fetchTransactions();
         fetchAnalytics();
+      } else {
+        const err = await res?.json().catch(() => ({}));
+        alert(err?.detail || '儲存交易紀錄失敗');
       }
     };
 
@@ -1687,7 +1724,7 @@ createApp({
       effectiveSalary, totalInsuranceDeduction, settingsInsurancePreview, onInsuranceSettingChange, resetToAutoInsuranceFees,
       formatMoney, formatStockPrice, formatStockShares, formatStockTotal, getAccountName, isDueSoon,
       openAccountModal, saveAccount, deleteAccount, setDefaultDebit,
-      openTxModal, saveTx, deleteTx, toggleAffectsBalance, refreshIcons, openAddBillModal, openEditBillModal, saveBill, deleteBill,
+      openTxModal, openEditTxModal, editingTxId, saveTx, deleteTx, toggleAffectsBalance, refreshIcons, openAddBillModal, openEditBillModal, saveBill, deleteBill,
       openAddStockModal, openEditStockModal, saveStock, deleteStock, refreshStockQuotes,
       openAddRecurringModal, openEditRecurringModal, saveRecurring, deleteRecurring,
       submitParseDocument, confirmApplyParsedData,

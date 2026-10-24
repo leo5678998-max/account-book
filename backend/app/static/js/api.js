@@ -92,6 +92,11 @@ export const ApiService = {
     headers: jsonHeaders,
     body: JSON.stringify(tx)
   }),
+  updateTransaction: (txId, tx) => authFetch(`/api/transactions/${txId}`, {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify(tx)
+  }),
   deleteTransaction: (txId) => authFetch(`/api/transactions/${txId}`, { method: 'DELETE' }),
 
   // 自訂常用分類 API
