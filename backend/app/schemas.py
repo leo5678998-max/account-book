@@ -66,6 +66,7 @@ class TransactionCreate(BaseModel):
     category: str = "其他"
     description: Optional[str] = None
     date: Optional[datetime] = None
+    affects_balance: bool = True
 
 class TransactionResponse(BaseModel):
     id: int
@@ -77,6 +78,7 @@ class TransactionResponse(BaseModel):
     description: Optional[str] = None
     date: datetime
     bill_id: Optional[int] = None
+    affects_balance: bool = True
 
     class Config:
         from_attributes = True

@@ -44,6 +44,7 @@ class Transaction(Base):
     category = Column(String(50), default="其他") # 餐飲, 交通, 信用卡費, 薪資...
     description = Column(String(255), nullable=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), nullable=True)
+    affects_balance = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     account = relationship("Account", foreign_keys=[account_id], back_populates="transactions")

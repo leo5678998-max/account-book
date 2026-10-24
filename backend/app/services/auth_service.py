@@ -154,6 +154,9 @@ def run_schema_migrations(engine) -> None:
 
                 if table == "recurring_expenses" and "updated_at" not in col_names:
                     conn.execute(text("ALTER TABLE recurring_expenses ADD COLUMN updated_at DATETIME"))
+
+                if table == "transactions" and "affects_balance" not in col_names:
+                    conn.execute(text("ALTER TABLE transactions ADD COLUMN affects_balance BOOLEAN DEFAULT 1"))
             except Exception as e:
                 print(f"[Migration] 檢查資料表 {table} 時發生警告: {e}")
 

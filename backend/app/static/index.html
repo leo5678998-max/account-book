@@ -599,6 +599,7 @@
                         :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700')">
                         {{ t.category || t.tx_type }}
                       </span>
+                      <span v-if="t.affects_balance === false" class="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded flex-shrink-0">不扣存款</span>
                       <span class="font-medium text-slate-800 truncate">{{ t.description || '-' }}</span>
                       <span class="text-[11px] text-slate-400 font-mono hidden sm:inline flex-shrink-0">{{ t.date ? t.date.substring(0, 10) : '' }}</span>
                     </div>
@@ -771,6 +772,7 @@
               </div>
               <div class="text-[11px] text-slate-400 font-mono mt-1">
                 {{ t.date ? t.date.substring(0, 10) : '' }} · {{ getAccountName(t.account_id) }}
+                <span v-if="t.affects_balance === false" class="ml-1 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded font-sans">不扣存款</span>
               </div>
             </div>
             <div class="flex items-center space-x-2 flex-shrink-0">
@@ -811,7 +813,10 @@
                   </span>
                 </td>
                 <td class="py-3.5 px-6 text-slate-800 font-medium">{{ t.description || '-' }}</td>
-                <td class="py-3.5 px-6 text-slate-600 text-xs">{{ getAccountName(t.account_id) }}</td>
+                <td class="py-3.5 px-6 text-slate-600 text-xs">
+                  {{ getAccountName(t.account_id) }}
+                  <span v-if="t.affects_balance === false" class="ml-1.5 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-sans">不扣存款</span>
+                </td>
                 <td class="py-3.5 px-6 text-right font-extrabold font-mono text-base"
                   :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-slate-800')">
                   {{ t.tx_type === 'EXPENSE' ? '-' : '+' }}NT$ {{ formatMoney(t.amount) }}
@@ -1820,7 +1825,35 @@
               class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 bg-slate-50/50 focus:bg-white transition">
           </div>
 
-          <!-- 4. 進階設定折疊區 (可折疊收合：帳戶、日期、備註) -->
+          <!-- 4. 不扣帳戶存款選項（預設啟用） -->
+          <div class="p-3 bg-slate-50 hover:bg-slate-100/70 rounded-xl border border-slate-200/80 flex items-center justify-between transition cursor-pointer select-none"
+            @click="currentTx.affects_balance = !currentTx.affects_balance">
+            <div class="flex items-center space-x-2.5">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center transition"
+                :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'">
+                <i data-lucide="shield-check" class="w-4 h-4" v-if="!currentTx.affects_balance"></i>
+                <i data-lucide="wallet" class="w-4 h-4" v-else></i>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                  <span>不扣帳戶存款</span>
+                  <span class="text-[10px] px-1.5 py-0.2 rounded font-medium"
+                    :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'">
+                    {{ !currentTx.affects_balance ? '純記帳（預設）' : '扣款模式' }}
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-0.5">
+                  {{ !currentTx.affects_balance ? '僅列入收支統計，不更動帳戶存款餘額' : '將會同步更動帳戶的存款餘額' }}
+                </p>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer pointer-events-none">
+              <input type="checkbox" :checked="!currentTx.affects_balance" class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+            </label>
+          </div>
+
+          <!-- 5. 進階設定折疊區 (可折疊收合：帳戶、日期、備註) -->
           <div class="pt-1">
             <button type="button" @click="showTxAdvanced = !showTxAdvanced"
               class="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs text-slate-600 transition border border-slate-100">
@@ -1839,7 +1872,9 @@
             <!-- 展開內容 -->
             <div v-show="showTxAdvanced" class="mt-2.5 space-y-3 p-3 bg-slate-50/60 rounded-xl border border-slate-100 animate-in fade-in duration-150">
               <div>
-                <label class="block text-[11px] font-semibold text-slate-600 mb-1">扣款/入帳帳戶</label>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {{ currentTx.affects_balance ? '扣款/入帳帳戶 (同步扣款)' : '關聯帳戶 (純記帳，不扣存款)' }}
+                </label>
                 <select v-model="currentTx.account_id" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:border-indigo-500">
                   <option v-for="a in accounts" :key="a.id" :value="a.id">
                     {{ a.name }} (餘額 NT$ {{ formatMoney(a.balance) }}) {{ a.is_dbs_default_debit ? '★ 預設' : '' }}

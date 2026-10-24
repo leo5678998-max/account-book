@@ -57,21 +57,22 @@ def record_transaction(db: Session, tx_in: TransactionCreate, user_id: int = 1) 
     if not source_acc:
         raise HTTPException(status_code=404, detail="來源帳戶不存在")
 
-    if tx_in.tx_type == "EXPENSE":
-        source_acc.balance -= tx_in.amount
-    elif tx_in.tx_type == "INCOME":
-        source_acc.balance += tx_in.amount
-    elif tx_in.tx_type == "TRANSFER":
-        if not tx_in.target_account_id:
-            raise HTTPException(status_code=400, detail="轉帳必須指定目標帳戶")
-        target_acc = db.query(Account).filter(
-            Account.id == tx_in.target_account_id,
-            Account.user_id == user_id
-        ).first()
-        if not target_acc:
-            raise HTTPException(status_code=404, detail="轉帳目標帳戶不存在")
-        source_acc.balance -= tx_in.amount
-        target_acc.balance += tx_in.amount
+    if getattr(tx_in, "affects_balance", True):
+        if tx_in.tx_type == "EXPENSE":
+            source_acc.balance -= tx_in.amount
+        elif tx_in.tx_type == "INCOME":
+            source_acc.balance += tx_in.amount
+        elif tx_in.tx_type == "TRANSFER":
+            if not tx_in.target_account_id:
+                raise HTTPException(status_code=400, detail="轉帳必須指定目標帳戶")
+            target_acc = db.query(Account).filter(
+                Account.id == tx_in.target_account_id,
+                Account.user_id == user_id
+            ).first()
+            if not target_acc:
+                raise HTTPException(status_code=404, detail="轉帳目標帳戶不存在")
+            source_acc.balance -= tx_in.amount
+            target_acc.balance += tx_in.amount
 
     tx_data = tx_in.dict()
     if not tx_data.get("date"):
@@ -93,7 +94,7 @@ def remove_transaction(db: Session, tx_id: int, rollback_balance: bool = True, u
     if not tx:
         raise HTTPException(status_code=404, detail="找不到該筆交易明細")
 
-    if rollback_balance:
+    if rollback_balance and getattr(tx, "affects_balance", True):
         source_acc = db.query(Account).filter(
             Account.id == tx.account_id,
             Account.user_id == user_id

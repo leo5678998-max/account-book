@@ -258,7 +258,7 @@ createApp({
     });
 
     const currentAcc = ref({ name: '', account_type: 'SAVINGS', balance: 0, account_number: '', is_dbs_default_debit: false });
-    const currentTx = ref({ amount: null, tx_type: 'EXPENSE', account_id: null, category: '飲食', description: '', date: todayStr });
+    const currentTx = ref({ amount: null, tx_type: 'EXPENSE', account_id: null, category: '飲食', description: '', date: todayStr, affects_balance: false });
     const settingsForm = ref({
       google_client_id: '',
       google_client_secret: '',
@@ -749,7 +749,8 @@ createApp({
         account_id: defaultAcc?.id,
         category: '飲食',
         description: '',
-        date: todayStr
+        date: todayStr,
+        affects_balance: false
       };
       showTxAdvanced.value = false;
       showTxModal.value = true;
@@ -771,7 +772,11 @@ createApp({
     };
 
     const deleteTx = async (txId) => {
-      if (!confirm('確定刪除此筆明細？（該帳戶之餘額將會自動同步還原）')) return;
+      const targetTx = (transactions.value || []).find(t => t.id === txId);
+      const confirmMsg = (targetTx && !targetTx.affects_balance)
+        ? '確定刪除此筆記帳明細？（此筆為純記帳，不會更動帳戶餘額）'
+        : '確定刪除此筆明細？（該帳戶之餘額將會自動同步還原）';
+      if (!confirm(confirmMsg)) return;
       const res = await ApiService.deleteTransaction(txId);
       if (res.ok) {
         await fetchTransactions();
