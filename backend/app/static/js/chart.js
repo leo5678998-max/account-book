@@ -2,6 +2,8 @@
  * Chart.js 圓餅圖渲染封裝模組 (Isolating Charting Library Details)
  */
 
+import { SAVINGS_COLOR } from './formatters.js?v=2.4.4';
+
 let chartInstance = null;
 
 export const renderExpenseDoughnutChart = ({
@@ -46,7 +48,7 @@ export const renderExpenseDoughnutChart = ({
       const leftoverRatio = effectiveSalary > 0 ? ((leftover / effectiveSalary) * 100).toFixed(1) : '0.0';
       labels.push(`結餘儲蓄 (${leftoverRatio}%)`);
       data.push(leftover);
-      bgColors.push('#10B981');
+      bgColors.push(SAVINGS_COLOR || '#10B981');
     } else if (data.length === 0) {
       labels.push('無支出紀錄');
       data.push(1);

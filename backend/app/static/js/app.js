@@ -6,20 +6,23 @@ import {
   QUICK_CATEGORIES,
   CHART_PALETTE,
   CATEGORY_COLORS,
+  SAVINGS_COLOR,
+  MASTER_UNIQUE_PALETTE,
+  assignUniqueColors,
   getCategoryColor,
   formatMoney,
   formatStockPrice,
   formatStockShares,
   formatStockTotal,
   isDueSoon
-} from './formatters.js?v=2.4.3';
-import { ApiService, AuthStorage } from './api.js?v=2.4.3';
-import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.4.3';
+} from './formatters.js?v=2.4.4';
+import { ApiService, AuthStorage } from './api.js?v=2.4.4';
+import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.4.4';
 import {
   calculateLaborInsurance,
   calculateHealthInsurance,
   calculateInsuranceSummary
-} from './insurance.js?v=2.4.3';
+} from './insurance.js?v=2.4.4';
 
 const safeCategoryColor = (cat, idx) => {
   try {
@@ -440,17 +443,17 @@ createApp({
       });
 
       const totalInc = Object.values(incomesByCategory).reduce((s, a) => s + a, 0) || 1;
-      const list = Object.keys(incomesByCategory).map((cat, idx) => {
+      const rawIncomes = Object.keys(incomesByCategory).map(cat => {
         const amt = incomesByCategory[cat];
         return {
           category: cat,
           amount: amt,
-          ratioOfTotal: (amt / totalInc) * 100,
-          color: safeCategoryColor(cat, idx)
+          ratioOfTotal: (amt / totalInc) * 100
         };
       });
 
-      return list.sort((a, b) => b.amount - a.amount);
+      rawIncomes.sort((a, b) => b.amount - a.amount);
+      return assignUniqueColors(rawIncomes, false);
     });
 
     const monthlyExpensesList = computed(() => {
@@ -482,7 +485,7 @@ createApp({
       }
 
       const salary = chartBaseSalary.value || 1;
-      const list = Object.keys(expensesByCategory).map((cat, idx) => {
+      const rawExpenses = Object.keys(expensesByCategory).map(cat => {
         const amount = expensesByCategory[cat];
         const fixedAmt = fixedByCategory[cat] || 0;
         return {
@@ -490,8 +493,7 @@ createApp({
           amount: amount,
           fixedAmount: fixedAmt,
           isDeduction: false,
-          ratioOfSalary: (amount / salary) * 100,
-          color: safeCategoryColor(cat, idx)
+          ratioOfSalary: (amount / salary) * 100
         };
       });
 
@@ -503,54 +505,51 @@ createApp({
         const taxFee = Number(settings.value.tax_fee || 0);
 
         if (healthFee > 0) {
-          list.push({
+          rawExpenses.push({
             category: '全民健保費',
             amount: healthFee,
             fixedAmount: 0,
             isDeduction: true,
             deductionLabel: '健保扣繳',
-            ratioOfSalary: (healthFee / salary) * 100,
-            color: '#0284C7' // Sky Blue
+            ratioOfSalary: (healthFee / salary) * 100
           });
         }
         if (laborFee > 0) {
-          list.push({
+          rawExpenses.push({
             category: '勞工保險費',
             amount: laborFee,
             fixedAmount: 0,
             isDeduction: true,
             deductionLabel: '勞保扣繳',
-            ratioOfSalary: (laborFee / salary) * 100,
-            color: '#6366F1' // Indigo
+            ratioOfSalary: (laborFee / salary) * 100
           });
         }
         if (pensionFee > 0) {
           const penRate = Math.round((Number(settings.value.pension_rate) || 0.06) * 100);
-          list.push({
+          rawExpenses.push({
             category: `勞退自提 (${penRate}%)`,
             amount: pensionFee,
             fixedAmount: 0,
             isDeduction: true,
             deductionLabel: '退休專戶',
-            ratioOfSalary: (pensionFee / salary) * 100,
-            color: '#8B5CF6' // Purple
+            ratioOfSalary: (pensionFee / salary) * 100
           });
         }
         if (taxFee > 0) {
           const taxRate = Math.round((Number(settings.value.tax_rate) || 0.05) * 100);
-          list.push({
+          rawExpenses.push({
             category: `預繳所得稅 (${taxRate}%)`,
             amount: taxFee,
             fixedAmount: 0,
             isDeduction: true,
             deductionLabel: '薪資預扣',
-            ratioOfSalary: (taxFee / salary) * 100,
-            color: '#D97706' // Amber
+            ratioOfSalary: (taxFee / salary) * 100
           });
         }
       }
 
-      return list.sort((a, b) => b.amount - a.amount);
+      rawExpenses.sort((a, b) => b.amount - a.amount);
+      return assignUniqueColors(rawExpenses, true);
     });
 
     const monthlyTotalExpense = computed(() => {
