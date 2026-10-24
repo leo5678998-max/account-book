@@ -94,6 +94,15 @@ export const ApiService = {
   }),
   deleteTransaction: (txId) => authFetch(`/api/transactions/${txId}`, { method: 'DELETE' }),
 
+  // 自訂常用分類 API
+  getCategories: () => authFetch('/api/categories').then(r => (r.ok ? r.json() : { categories: [] })),
+  saveCategories: (categories) => authFetch('/api/categories', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ categories })
+  }).then(r => (r.ok ? r.json() : null)),
+  resetCategories: () => authFetch('/api/categories/reset', { method: 'POST' }).then(r => (r.ok ? r.json() : null)),
+
   // 信用卡帳單 API
   getBills: () => authFetch('/api/bills').then(r => (r.ok ? r.json() : [])),
   saveBill: (bill) => {

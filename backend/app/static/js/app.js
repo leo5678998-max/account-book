@@ -761,21 +761,107 @@ createApp({
       await fetchSettings();
     };
 
+    // 自訂常用分類管理狀態與方法
+    const quickCategories = ref([...QUICK_CATEGORIES]);
+    const newCategoryInput = ref('');
+    const showAddCategoryInline = ref(false);
+    const isManagingCategories = ref(false);
+
+    const fetchCategories = async () => {
+      try {
+        const res = await ApiService.getCategories();
+        if (res && Array.isArray(res.categories) && res.categories.length > 0) {
+          quickCategories.value = res.categories;
+          localStorage.setItem('custom_categories', JSON.stringify(res.categories));
+          return;
+        }
+      } catch (e) {
+        console.warn('載入自訂分類失敗，改用本機快取', e);
+      }
+      const cached = localStorage.getItem('custom_categories');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            quickCategories.value = parsed;
+            return;
+          }
+        } catch (_) {}
+      }
+      quickCategories.value = [...QUICK_CATEGORIES];
+    };
+
+    const addCustomCategory = async (catName) => {
+      const name = (catName || newCategoryInput.value || '').trim();
+      if (!name) return;
+      if (name.length > 20) {
+        alert('分類名稱請勿超過 20 個字元');
+        return;
+      }
+      if (!quickCategories.value.includes(name)) {
+        quickCategories.value.push(name);
+        localStorage.setItem('custom_categories', JSON.stringify(quickCategories.value));
+        try {
+          await ApiService.saveCategories(quickCategories.value);
+        } catch (e) {
+          console.warn('同步分類至伺服器失敗', e);
+        }
+      }
+      currentTx.value.category = name;
+      newCategoryInput.value = '';
+      showAddCategoryInline.value = false;
+    };
+
+    const removeCustomCategory = async (catName) => {
+      if (quickCategories.value.length <= 1) {
+        alert('請至少保留一個分類項目');
+        return;
+      }
+      if (!confirm(`確定要刪除「${catName}」分類嗎？（已記錄的歷史交易不會受影響）`)) return;
+      quickCategories.value = quickCategories.value.filter(c => c !== catName);
+      localStorage.setItem('custom_categories', JSON.stringify(quickCategories.value));
+      if (currentTx.value.category === catName) {
+        currentTx.value.category = quickCategories.value[0] || '其他';
+      }
+      try {
+        await ApiService.saveCategories(quickCategories.value);
+      } catch (e) {
+        console.warn('同步分類至伺服器失敗', e);
+      }
+    };
+
+    const resetCategories = async () => {
+      if (!confirm('確定要恢復為系統預設分類清單嗎？')) return;
+      quickCategories.value = [...QUICK_CATEGORIES];
+      localStorage.setItem('custom_categories', JSON.stringify(quickCategories.value));
+      try {
+        await ApiService.resetCategories();
+      } catch (e) {
+        console.warn('重設分類至伺服器失敗', e);
+      }
+      if (!quickCategories.value.includes(currentTx.value.category)) {
+        currentTx.value.category = quickCategories.value[0] || '飲食';
+      }
+    };
+
     // 記帳管理 (方案 C: 極簡記帳體驗)
     const showTxAdvanced = ref(false);
 
     const openTxModal = () => {
       const defaultAcc = accounts.value.find(a => a.is_dbs_default_debit) || accounts.value[0];
+      const defaultCat = quickCategories.value[0] || '飲食';
       currentTx.value = {
         amount: null,
         tx_type: 'EXPENSE',
         account_id: defaultAcc?.id,
-        category: '飲食',
+        category: defaultCat,
         description: '',
         date: todayStr,
         affects_balance: false
       };
       showTxAdvanced.value = false;
+      showAddCategoryInline.value = false;
+      isManagingCategories.value = false;
       showTxModal.value = true;
       refreshIcons();
     };
@@ -789,6 +875,13 @@ createApp({
       if (!currentTx.value.amount || !currentTx.value.account_id) return alert('請填寫金額與選擇帳戶');
       if (!currentTx.value.description || !currentTx.value.description.trim()) {
         currentTx.value.description = currentTx.value.category || '一般消費';
+      }
+      // 若使用者手動輸入了新的自訂分類，自動納入常用分類清單並持久化
+      const customCat = (currentTx.value.category || '').trim();
+      if (customCat && !quickCategories.value.includes(customCat)) {
+        quickCategories.value.push(customCat);
+        localStorage.setItem('custom_categories', JSON.stringify(quickCategories.value));
+        ApiService.saveCategories(quickCategories.value).catch(err => console.warn('自動儲存新分類失敗', err));
       }
       const res = await ApiService.createTransaction(currentTx.value);
       if (res.ok) {
@@ -1460,7 +1553,8 @@ createApp({
         fetchTransactions(),
         fetchStocks(),
         fetchRecurringExpenses(),
-        fetchSettings()
+        fetchSettings(),
+        fetchCategories()
       ]);
       refreshIcons();
     };
@@ -1543,6 +1637,7 @@ createApp({
         }
       });
 
+      fetchCategories();
       if (AuthStorage.getToken()) {
         try {
           const meRes = await ApiService.getMe();
@@ -1582,7 +1677,9 @@ createApp({
       showBatchResultModal, isSavingBatch, selectedFilesCount, batchProgress, batchParsedList,
       onFilesSelected, toggleBatchSelectAll, removeBatchItem, selectedBatchCount, totalSelectedBatchAmount, confirmBatchSave,
       showEditBillModal, showSettingsModal, uploadPwd, documentInput, currentAcc, currentTx,
-      currentBill, parsedData, settingsForm, quickCategories: QUICK_CATEGORIES,
+      currentBill, parsedData, settingsForm,
+      quickCategories, newCategoryInput, showAddCategoryInline, isManagingCategories,
+      addCustomCategory, removeCustomCategory, resetCategories,
       stockPortfolio, showStockModal, refreshingStocks, savingStock, currentStock,
       recurringExpenses, showRecurringModal, savingRecurring, currentRecurring,
       totalSavings, totalNetWorth, pendingBillAmount, nextDueBill, monthlyExpensesList, monthlyTotalExpense, monthlyLivingExpense,

@@ -1,4 +1,5 @@
-from typing import Optional
+import json
+from typing import Optional, List
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
@@ -14,6 +15,65 @@ from ..services.imap_service import ImapService
 from ..services.insurance_service import calculate_insurance_summary
 
 router = APIRouter(tags=["Settings & Email Sync"])
+
+DEFAULT_EXPENSE_CATEGORIES = [
+    "飲食", "房租水電", "交通", "日常採買", "娛樂休閒", "保險醫療", "信用卡費", "薪資收入", "其他"
+]
+
+
+class CategoriesUpdateRequest(BaseModel):
+    categories: List[str]
+
+
+@router.get("/api/categories")
+def get_categories(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """讀取使用者的自訂常用支出分類清單"""
+    val = get_setting(db, "EXPENSE_CATEGORIES", "", user_id=current_user.id)
+    if val:
+        try:
+            cats = json.loads(val)
+            if isinstance(cats, list) and len(cats) > 0:
+                return {"categories": cats}
+        except Exception:
+            pass
+    return {"categories": list(DEFAULT_EXPENSE_CATEGORIES)}
+
+
+@router.post("/api/categories")
+def update_categories(
+    req: CategoriesUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """更新使用者的常用支出分類清單"""
+    cleaned = []
+    seen = set()
+    for c in req.categories:
+        if not isinstance(c, str):
+            continue
+        c_str = c.strip()
+        if c_str and c_str not in seen:
+            seen.add(c_str)
+            cleaned.append(c_str)
+    if not cleaned:
+        cleaned = list(DEFAULT_EXPENSE_CATEGORIES)
+    save_setting(db, "EXPENSE_CATEGORIES", json.dumps(cleaned, ensure_ascii=False), user_id=current_user.id)
+    db.commit()
+    return {"status": "success", "categories": cleaned}
+
+
+@router.post("/api/categories/reset")
+def reset_categories(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """重設回系統預設支出分類清單"""
+    save_setting(db, "EXPENSE_CATEGORIES", json.dumps(DEFAULT_EXPENSE_CATEGORIES, ensure_ascii=False), user_id=current_user.id)
+    db.commit()
+    return {"status": "success", "categories": list(DEFAULT_EXPENSE_CATEGORIES)}
 
 
 class ImapTestRequest(BaseModel):
