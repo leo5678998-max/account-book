@@ -2166,8 +2166,8 @@
 
           <!-- 4. 不扣帳戶存款選項（預設啟用） -->
           <div class="p-3 bg-slate-50 hover:bg-slate-100/70 rounded-xl border border-slate-200/80 flex items-center justify-between transition cursor-pointer select-none"
-            @click="toggleAffectsBalance">
-            <div class="flex items-center space-x-2.5">
+            @click="currentTx.affects_balance = !currentTx.affects_balance; refreshIcons()">
+            <div class="flex items-center space-x-2.5 pointer-events-none">
               <div class="w-8 h-8 rounded-lg flex items-center justify-center transition"
                 :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'">
                 <i data-lucide="shield-check" class="w-4 h-4" v-if="!currentTx.affects_balance"></i>
@@ -2188,7 +2188,7 @@
             </div>
             
             <!-- 切換滑動開關 -->
-            <button type="button" @click.stop="toggleAffectsBalance"
+            <button type="button" @click.stop="currentTx.affects_balance = !currentTx.affects_balance; refreshIcons()"
               class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
               :class="!currentTx.affects_balance ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'">
               <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out"
@@ -3121,6 +3121,6 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.2.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.3.1"></script>
 </body>
 </html>
