@@ -54,6 +54,8 @@ export const renderExpenseDoughnutChart = ({
     }
   }
 
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
   if (chartInstance) {
     chartInstance.destroy();
   }
@@ -66,7 +68,7 @@ export const renderExpenseDoughnutChart = ({
         data,
         backgroundColor: bgColors,
         borderWidth: 2,
-        borderColor: '#ffffff',
+        borderColor: isDark ? '#1e293b' : '#ffffff',
         hoverOffset: 4
       }]
     },
@@ -106,6 +108,10 @@ export const renderMonthlyTrendChart = ({
     : monthsData.map(d => d.net);
   const lineLabel = chartMode === 'savings' ? '月末預估存款' : '當月淨結餘';
 
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const textColor = isDark ? '#94a3b8' : '#64748b';
+  const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9';
+
   if (trendChartInstance) {
     trendChartInstance.destroy();
   }
@@ -119,11 +125,11 @@ export const renderMonthlyTrendChart = ({
           type: 'line',
           label: lineLabel,
           data: lineData,
-          borderColor: '#4F46E5', // Indigo 600
-          backgroundColor: 'rgba(79, 70, 229, 0.1)',
+          borderColor: '#6366F1', // Indigo 500
+          backgroundColor: 'rgba(99, 102, 241, 0.1)',
           borderWidth: 3,
-          pointBackgroundColor: '#4F46E5',
-          pointBorderColor: '#ffffff',
+          pointBackgroundColor: '#6366F1',
+          pointBorderColor: isDark ? '#1e293b' : '#ffffff',
           pointBorderWidth: 2,
           pointRadius: 5,
           pointHoverRadius: 7,
@@ -168,6 +174,7 @@ export const renderMonthlyTrendChart = ({
             boxWidth: 12,
             boxHeight: 12,
             usePointStyle: true,
+            color: textColor,
             font: {
               size: 11,
               weight: 'bold'
@@ -186,14 +193,16 @@ export const renderMonthlyTrendChart = ({
       },
       scales: {
         x: {
-          grid: { display: false }
+          grid: { display: false },
+          ticks: { color: textColor }
         },
         y: {
           type: 'linear',
           display: true,
           position: 'left',
-          grid: { color: '#F1F5F9' },
+          grid: { color: gridColor },
           ticks: {
+            color: textColor,
             callback: function (val) {
               if (Math.abs(val) >= 10000) {
                 return (val / 10000).toFixed(1) + '萬';
@@ -209,6 +218,7 @@ export const renderMonthlyTrendChart = ({
             position: 'right',
             grid: { drawOnChartArea: false },
             ticks: {
+              color: textColor,
               callback: function (val) {
                 if (Math.abs(val) >= 10000) {
                   return (val / 10000).toFixed(1) + '萬';

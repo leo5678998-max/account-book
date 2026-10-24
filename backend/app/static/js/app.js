@@ -70,6 +70,29 @@ createApp({
       refreshIcons();
     };
 
+    // 深色模式 (Dark Mode)
+    const isDarkMode = ref(
+      document.documentElement.classList.contains('dark') ||
+      localStorage.getItem('theme') === 'dark' ||
+      (!('theme' in localStorage) && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    );
+
+    const toggleDarkMode = () => {
+      isDarkMode.value = !isDarkMode.value;
+      if (isDarkMode.value) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+      refreshIcons();
+      renderChart();
+      if (typeof renderTrendChart === 'function') {
+        renderTrendChart();
+      }
+    };
+
     const currentTabTitle = computed(() => {
       switch (currentTab.value) {
         case 'dashboard': return '總覽儀表板';
@@ -1566,6 +1589,7 @@ createApp({
       currentTab, mobileMenuOpen, currentTabTitle, switchTab, txSubTab, assetSubTab, showTxAdvanced,
       txSearch, txTypeFilter, txMonthFilter, filteredTransactions, txStats, recentTransactions,
       hideAssets, toggleHideAssets,
+      isDarkMode, toggleDarkMode,
       analyticsRange, analyticsChartMode, analyticsData, loadingAnalytics,
       fetchAnalytics, setAnalyticsRange, setAnalyticsChartMode, jumpToTransactionsMonth
     };

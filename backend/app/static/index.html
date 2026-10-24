@@ -6,6 +6,17 @@
   <title>智能記帳 & 多銀行帳單/薪資單 AI 辨識系統</title>
   <!-- Tailwind CSS (Local Vendor) -->
   <script src="/static/vendor/tailwindcss.js"></script>
+  <script>
+    if (typeof tailwind !== 'undefined') {
+      tailwind.config = { darkMode: 'class' };
+    }
+    // Early theme check to avoid light flash
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  </script>
   <!-- Lucide Icons (Local Vendor) -->
   <script src="/static/vendor/lucide.min.js"></script>
   <!-- Vue 3 (Local Vendor) -->
@@ -14,6 +25,189 @@
   <script src="/static/vendor/chart.min.js"></script>
   <style>
     [v-cloak] { display: none !important; }
+
+    /* ================= DARK MODE SYSTEM ================= */
+    html.dark,
+    html.dark body,
+    html.dark #app {
+      background-color: #0f172a !important; /* slate-900 */
+      color: #f1f5f9 !important; /* slate-100 */
+    }
+
+    /* Cards, Panels, Modals, Overlays, Dropdowns */
+    html.dark .bg-white {
+      background-color: #1e293b !important; /* slate-800 */
+      color: #f1f5f9 !important;
+    }
+
+    html.dark .bg-slate-50,
+    html.dark .bg-slate-50\/50,
+    html.dark .bg-slate-50\/60 {
+      background-color: #0f172a !important; /* slate-900 */
+      color: #e2e8f0 !important;
+    }
+
+    html.dark .bg-slate-100 {
+      background-color: #334155 !important; /* slate-700 */
+      color: #f8fafc !important;
+    }
+
+    html.dark .hover\:bg-slate-50:hover,
+    html.dark .hover\:bg-slate-50\/60:hover {
+      background-color: #334155 !important;
+    }
+
+    html.dark .hover\:bg-slate-100:hover,
+    html.dark .hover\:bg-slate-200:hover {
+      background-color: #475569 !important;
+    }
+
+    /* Borders & Dividers */
+    html.dark .border-slate-100,
+    html.dark .border-slate-200,
+    html.dark .border-slate-200\/80,
+    html.dark .border-slate-200\/90,
+    html.dark .border-slate-300,
+    html.dark .border-slate-100 {
+      border-color: #334155 !important;
+    }
+
+    html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+    html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+      border-color: #334155 !important;
+    }
+
+    /* Text hierarchy in dark mode */
+    html.dark .text-slate-900,
+    html.dark .text-slate-800 {
+      color: #f8fafc !important;
+    }
+
+    html.dark .text-slate-700 {
+      color: #e2e8f0 !important;
+    }
+
+    html.dark .text-slate-600 {
+      color: #cbd5e1 !important;
+    }
+
+    html.dark .text-slate-500 {
+      color: #94a3b8 !important;
+    }
+
+    html.dark .text-slate-400 {
+      color: #64748b !important;
+    }
+
+    /* Form controls: input, select, textarea */
+    html.dark input:not([type="checkbox"]):not([type="radio"]),
+    html.dark select,
+    html.dark textarea {
+      background-color: #0f172a !important;
+      color: #f8fafc !important;
+      border-color: #334155 !important;
+    }
+
+    html.dark input::placeholder,
+    html.dark textarea::placeholder {
+      color: #64748b !important;
+    }
+
+    html.dark input:focus,
+    html.dark select:focus,
+    html.dark textarea:focus {
+      border-color: #6366f1 !important;
+      background-color: #1e293b !important;
+    }
+
+    /* Badges & semantic tints in dark mode */
+    html.dark .bg-indigo-50 {
+      background-color: rgba(99, 102, 241, 0.18) !important;
+    }
+    html.dark .text-indigo-600,
+    html.dark .text-indigo-700 {
+      color: #a5b4fc !important;
+    }
+
+    html.dark .bg-rose-50 {
+      background-color: rgba(244, 63, 94, 0.18) !important;
+    }
+    html.dark .text-rose-600,
+    html.dark .text-rose-700 {
+      color: #fda4af !important;
+    }
+
+    html.dark .bg-emerald-50 {
+      background-color: rgba(16, 185, 129, 0.18) !important;
+    }
+    html.dark .text-emerald-600,
+    html.dark .text-emerald-700 {
+      color: #6ee7b7 !important;
+    }
+
+    html.dark .bg-amber-50 {
+      background-color: rgba(245, 158, 11, 0.18) !important;
+    }
+    html.dark .text-amber-700 {
+      color: #fcd34d !important;
+    }
+
+    html.dark .bg-purple-50 {
+      background-color: rgba(168, 85, 247, 0.18) !important;
+    }
+    html.dark .text-purple-700 {
+      color: #d8b4fe !important;
+    }
+
+    html.dark .bg-blue-50 {
+      background-color: rgba(59, 130, 246, 0.18) !important;
+    }
+    html.dark .text-blue-700 {
+      color: #93c5fd !important;
+    }
+
+    /* Navigation & Layout */
+    html.dark aside {
+      background-color: #1e293b !important;
+      border-color: #334155 !important;
+    }
+
+    html.dark header {
+      background-color: rgba(30, 41, 59, 0.92) !important;
+      border-color: #334155 !important;
+    }
+
+    html.dark nav.lg\:hidden {
+      background-color: rgba(30, 41, 59, 0.95) !important;
+      border-color: #334155 !important;
+    }
+
+    html.dark .bg-slate-900\/50 {
+      background-color: rgba(0, 0, 0, 0.8) !important;
+    }
+
+    html.dark .shadow-xs,
+    html.dark .shadow-sm,
+    html.dark .shadow-md,
+    html.dark .shadow-xl {
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    /* Scrollbars */
+    html.dark ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    html.dark ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    html.dark ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    html.dark ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
@@ -192,6 +386,16 @@
           </button>
         </div>
 
+        <button @click="toggleDarkMode" class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+          <span class="flex items-center space-x-2">
+            <i :data-lucide="isDarkMode ? 'sun' : 'moon'" class="w-4 h-4" :class="isDarkMode ? 'text-amber-400' : 'text-indigo-500'"></i>
+            <span>{{ isDarkMode ? '淺色模式' : '深色模式' }}</span>
+          </span>
+          <span class="text-[10px] font-mono px-1.5 py-0.5 rounded" :class="isDarkMode ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-200 text-slate-600'">
+            {{ isDarkMode ? 'Dark' : 'Light' }}
+          </span>
+        </button>
+
         <button @click="openSettingsModal" class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
           <span class="flex items-center space-x-2">
             <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
@@ -254,6 +458,15 @@
         </nav>
 
         <div class="p-4 border-t border-slate-100 space-y-2">
+          <button @click="toggleDarkMode" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-700 hover:bg-slate-100">
+            <span class="flex items-center space-x-2">
+              <i :data-lucide="isDarkMode ? 'sun' : 'moon'" class="w-4 h-4" :class="isDarkMode ? 'text-amber-400' : 'text-indigo-500'"></i>
+              <span>{{ isDarkMode ? '淺色模式' : '深色模式' }}</span>
+            </span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded" :class="isDarkMode ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-200 text-slate-600'">
+              {{ isDarkMode ? 'Dark' : 'Light' }}
+            </span>
+          </button>
           <button @click="openSettingsModal(); mobileMenuOpen = false;" class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-slate-700 hover:bg-slate-100">
             <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
             <span>系統設定</span>
@@ -277,6 +490,12 @@
           </div>
 
           <div class="flex items-center space-x-2 sm:space-x-3">
+            <!-- 深色 / 淺色模式切換按鈕 -->
+            <button @click="toggleDarkMode" class="inline-flex items-center px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition" :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'">
+              <i :data-lucide="isDarkMode ? 'sun' : 'moon'" class="w-3.5 h-3.5 sm:mr-1" :class="isDarkMode ? 'text-amber-400' : 'text-indigo-500'"></i>
+              <span class="hidden sm:inline">{{ isDarkMode ? '淺色' : '深色' }}</span>
+            </button>
+
             <!-- 資產隱私開關按鈕 -->
             <button @click="toggleHideAssets" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition" :title="hideAssets ? '點擊顯示資產金額' : '點擊隱藏資產金額'">
               <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-3.5 h-3.5 sm:mr-1 text-slate-500"></i>
