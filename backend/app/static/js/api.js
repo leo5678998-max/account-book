@@ -117,7 +117,22 @@ export const ApiService = {
     headers: jsonHeaders,
     body: JSON.stringify(payload)
   }).then(r => r.json()),
-  syncGmail: () => authFetch('/api/sync/gmail', { method: 'POST' }).then(r => r.json()),
+  syncGmail: async () => {
+    const res = await authFetch('/api/sync/gmail', { method: 'POST' });
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      if (!res.ok) {
+        throw new Error(data.detail || data.message || `連線錯誤 (${res.status})`);
+      }
+      return data;
+    } catch (parseErr) {
+      if (!res.ok) {
+        throw new Error(`伺服器或閘道回應錯誤 (${res.status})`);
+      }
+      throw new Error('伺服器回應非預期格式');
+    }
+  },
   triggerAutoDebit: () => authFetch('/api/sync/auto-debit', { method: 'POST' }).then(r => r.json()),
   getMonthlyTrends: (months = 6) => authFetch(`/api/analytics/monthly-trends?months=${encodeURIComponent(months)}`).then(r => (r.ok ? r.json() : null)),
 

@@ -1167,13 +1167,19 @@ createApp({
       try {
         const data = await ApiService.syncGmail();
         if (data.status === 'success') {
-          alert(`同步完成！成功抓取 ${data.imported_count} 筆新帳單`);
+          if (data.imported_count > 0) {
+            alert(`同步完成！成功抓取 ${data.imported_count} 筆新帳單`);
+          } else {
+            alert('信箱同步完成：收件匣中暫無未匯入的新信用卡帳單');
+          }
           await fetchBills();
+        } else if (data.status === 'skipped') {
+          alert(`同步提示: ${data.message}`);
         } else {
           alert(`同步提示: ${data.message || '無新帳單'}`);
         }
       } catch (e) {
-        alert('同步發生錯誤: ' + e);
+        alert('同步發生錯誤: ' + (e.message || e));
       } finally {
         syncing.value = false;
         refreshIcons();

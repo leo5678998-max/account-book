@@ -145,33 +145,45 @@ class ImapService:
                 return []
 
             msg_nums = data[0].split()
-            # 從最新信件往回掃描 (最多檢查最近 120 封信以確保效率)
-            recent_nums = list(reversed(msg_nums[-120:]))
+            # 取最近 100 封信件進行批次標頭檢查 (大幅節省 95% 以上網路 round-trip 耗時)
+            recent_nums = msg_nums[-100:]
+            if not recent_nums:
+                return []
 
-            for num in recent_nums:
+            batch_nums = b",".join(recent_nums)
+            hdr_status, hdr_data = mail.fetch(batch_nums, "(BODY.PEEK[HEADER.FIELDS (SUBJECT DATE MESSAGE-ID)])")
+            if hdr_status != "OK" or not hdr_data:
+                return []
+
+            matched_targets = []
+            for item in hdr_data:
+                if not isinstance(item, tuple) or len(item) < 2:
+                    continue
+                num_part = item[0].split()[0]
+                raw_header = item[1]
+                hdr_msg = email.message_from_bytes(raw_header)
+                subject = decode_mime_header(hdr_msg.get("Subject", ""))
+                subj_lower = subject.lower()
+                is_bill_subject = any(kw in subj_lower for kw in BILL_KEYWORDS)
+                if is_bill_subject:
+                    matched_targets.append({
+                        "num": num_part,
+                        "subject": subject or "信用卡電子帳單",
+                        "date_received": decode_mime_header(hdr_msg.get("Date", "")),
+                        "msg_id_hdr": decode_mime_header(hdr_msg.get("Message-ID", "")).strip("<> ")
+                    })
+
+            # 從最新的匹配信件依序提取 PDF 附件
+            for target in reversed(matched_targets):
                 if len(attachments_found) >= max_results:
                     break
 
-                # 先僅讀取標頭 (Subject, Date, Message-ID) 快速篩選
-                hdr_status, hdr_data = mail.fetch(num, "(BODY.PEEK[HEADER.FIELDS (SUBJECT DATE MESSAGE-ID)])")
-                if hdr_status != "OK" or not hdr_data or not hdr_data[0]:
-                    continue
+                num = target["num"]
+                subject = target["subject"]
+                date_received = target["date_received"]
+                msg_id_hdr = target["msg_id_hdr"]
 
-                raw_header = hdr_data[0][1] if isinstance(hdr_data[0], tuple) else b""
-                hdr_msg = email.message_from_bytes(raw_header)
-                subject = decode_mime_header(hdr_msg.get("Subject", ""))
-                date_received = decode_mime_header(hdr_msg.get("Date", ""))
-                msg_id_hdr = decode_mime_header(hdr_msg.get("Message-ID", "")).strip("<> ")
-
-                subj_lower = subject.lower()
-                is_bill_subject = (
-                    any(bk in subj_lower for bk in BANK_KEYWORDS) or
-                    any(kw in subj_lower for kw in BILL_KEYWORDS)
-                )
-                if not is_bill_subject:
-                    continue
-
-                # 標頭符合條件，下載完整信件內容以提取 PDF 附件
+                # 僅針對標題包含帳單關鍵字的信件下載完整信件內容以提取 PDF 附件
                 msg_status, msg_data = mail.fetch(num, "(BODY.PEEK[])")
                 if msg_status != "OK" or not msg_data or not msg_data[0]:
                     continue
@@ -199,7 +211,7 @@ class ImapService:
 
                     attachments_found.append({
                         "message_id": unique_msg_id,
-                        "subject": subject or "信用卡電子帳單",
+                        "subject": subject,
                         "date_received": date_received,
                         "filename": filename or "statement.pdf",
                         "pdf_bytes": file_bytes
