@@ -108,6 +108,15 @@ export const ApiService = {
   }).then(r => (r.ok ? r.json() : null)),
   resetCategories: () => authFetch('/api/categories/reset', { method: 'POST' }).then(r => (r.ok ? r.json() : null)),
 
+  // 自訂分類色彩 API
+  getCategoryColors: () => authFetch('/api/category-colors').then(r => (r.ok ? r.json() : { colors: {} })),
+  saveCategoryColors: (colors) => authFetch('/api/category-colors', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ colors })
+  }).then(r => (r.ok ? r.json() : null)),
+  resetCategoryColors: () => authFetch('/api/category-colors/reset', { method: 'POST' }).then(r => (r.ok ? r.json() : null)),
+
   // 信用卡帳單 API
   getBills: () => authFetch('/api/bills').then(r => (r.ok ? r.json() : [])),
   saveBill: (bill) => {

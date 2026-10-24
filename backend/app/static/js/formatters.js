@@ -78,19 +78,33 @@ export const CATEGORY_COLORS = {
  * 動態唯一去重配色演算法
  * 保證傳入的所有項目（包含自訂分類、法定扣繳與固定開銷）在同一圖表中 100% 配色不重複
  */
-export const assignUniqueColors = (items, isExpenseMode = true) => {
+export const assignUniqueColors = (items, isExpenseMode = true, customColors = {}) => {
   if (!Array.isArray(items)) return [];
   const usedColors = new Set();
   if (isExpenseMode) {
     usedColors.add(SAVINGS_COLOR.toLowerCase());
   }
 
+  // 先把使用者自訂的顏色登記到已使用集合中（避免未設定的分類撞色）
+  if (customColors && typeof customColors === 'object') {
+    Object.values(customColors).forEach(c => {
+      if (typeof c === 'string' && c.trim()) {
+        usedColors.add(c.trim().toLowerCase());
+      }
+    });
+  }
+
   return items.map((item, idx) => {
     const cat = (item.category || '').trim();
     let chosenColor = null;
 
+    // 0. 最高優先級：使用者自訂色彩
+    if (customColors && typeof customColors === 'object' && customColors[cat]) {
+      chosenColor = customColors[cat].trim();
+    }
+
     // 1. 優先比對專屬語意色彩表
-    if (CATEGORY_COLORS[cat]) {
+    if (!chosenColor && CATEGORY_COLORS[cat]) {
       const pref = CATEGORY_COLORS[cat].toLowerCase();
       if (!usedColors.has(pref)) {
         chosenColor = CATEGORY_COLORS[cat];
@@ -135,9 +149,12 @@ export const assignUniqueColors = (items, isExpenseMode = true) => {
   });
 };
 
-export const getCategoryColor = (category, index = 0) => {
+export const getCategoryColor = (category, index = 0, customColors = {}) => {
   if (!category) return MASTER_UNIQUE_PALETTE[index % MASTER_UNIQUE_PALETTE.length];
   const catTrim = String(category).trim();
+  if (customColors && typeof customColors === 'object' && customColors[catTrim]) {
+    return customColors[catTrim].trim();
+  }
   if (CATEGORY_COLORS[catTrim]) {
     return CATEGORY_COLORS[catTrim];
   }

@@ -15,19 +15,22 @@ import {
   formatStockShares,
   formatStockTotal,
   isDueSoon
-} from './formatters.js?v=2.4.4';
-import { ApiService, AuthStorage } from './api.js?v=2.4.4';
-import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.4.4';
+} from './formatters.js?v=2.4.5';
+import { ApiService, AuthStorage } from './api.js?v=2.4.5';
+import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.4.5';
 import {
   calculateLaborInsurance,
   calculateHealthInsurance,
   calculateInsuranceSummary
-} from './insurance.js?v=2.4.4';
+} from './insurance.js?v=2.4.5';
 
-const safeCategoryColor = (cat, idx) => {
+const safeCategoryColor = (cat, idx = 0, customColors = {}) => {
   try {
+    if (customColors && typeof customColors === 'object' && customColors[cat]) {
+      return customColors[cat];
+    }
     if (typeof getCategoryColor === 'function') {
-      return getCategoryColor(cat, idx);
+      return getCategoryColor(cat, idx, customColors);
     }
     if (typeof CATEGORY_COLORS !== 'undefined' && cat && CATEGORY_COLORS[cat]) {
       return CATEGORY_COLORS[cat];
@@ -453,7 +456,7 @@ createApp({
       });
 
       rawIncomes.sort((a, b) => b.amount - a.amount);
-      return assignUniqueColors(rawIncomes, false);
+      return assignUniqueColors(rawIncomes, false, customCategoryColors.value);
     });
 
     const monthlyExpensesList = computed(() => {
@@ -549,7 +552,7 @@ createApp({
       }
 
       rawExpenses.sort((a, b) => b.amount - a.amount);
-      return assignUniqueColors(rawExpenses, true);
+      return assignUniqueColors(rawExpenses, true, customCategoryColors.value);
     });
 
     const monthlyTotalExpense = computed(() => {
@@ -862,6 +865,66 @@ createApp({
       }
       if (!quickCategories.value.includes(currentTx.value.category)) {
         currentTx.value.category = quickCategories.value[0] || '飲食';
+      }
+    };
+
+    // 自訂分類色彩管理狀態與方法
+    const customCategoryColors = ref({});
+
+    const getCategoryColorDisplay = (cat, idx = 0) => {
+      return safeCategoryColor(cat, idx, customCategoryColors.value);
+    };
+
+    const fetchCategoryColors = async () => {
+      const cached = localStorage.getItem('custom_category_colors');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object') {
+            customCategoryColors.value = parsed;
+          }
+        } catch (_) {}
+      }
+      try {
+        const res = await ApiService.getCategoryColors();
+        if (res && res.colors && typeof res.colors === 'object') {
+          customCategoryColors.value = { ...customCategoryColors.value, ...res.colors };
+          localStorage.setItem('custom_category_colors', JSON.stringify(customCategoryColors.value));
+        }
+      } catch (e) {
+        console.warn('載入自訂分類色彩失敗', e);
+      }
+      renderChart();
+    };
+
+    const setCategoryColor = async (catName, newColor) => {
+      const name = (catName || '').trim();
+      const color = (newColor || '').trim();
+      if (!name || !color) return;
+
+      customCategoryColors.value = {
+        ...customCategoryColors.value,
+        [name]: color
+      };
+      localStorage.setItem('custom_category_colors', JSON.stringify(customCategoryColors.value));
+      renderChart();
+
+      try {
+        await ApiService.saveCategoryColors(customCategoryColors.value);
+      } catch (e) {
+        console.warn('同步分類色彩至伺服器失敗', e);
+      }
+    };
+
+    const resetCategoryColors = async () => {
+      if (!confirm('確定要將所有分類色彩恢復為系統預設配色嗎？')) return;
+      customCategoryColors.value = {};
+      localStorage.removeItem('custom_category_colors');
+      renderChart();
+      try {
+        await ApiService.resetCategoryColors();
+      } catch (e) {
+        console.warn('重設分類色彩至伺服器失敗', e);
       }
     };
 
@@ -1612,7 +1675,8 @@ createApp({
         fetchStocks(),
         fetchRecurringExpenses(),
         fetchSettings(),
-        fetchCategories()
+        fetchCategories(),
+        fetchCategoryColors()
       ]);
       refreshIcons();
     };
@@ -1696,6 +1760,7 @@ createApp({
       });
 
       fetchCategories();
+      fetchCategoryColors();
       if (AuthStorage.getToken()) {
         try {
           const meRes = await ApiService.getMe();
@@ -1738,6 +1803,7 @@ createApp({
       currentBill, parsedData, settingsForm,
       quickCategories, newCategoryInput, showAddCategoryInline, isManagingCategories,
       addCustomCategory, removeCustomCategory, resetCategories,
+      customCategoryColors, getCategoryColorDisplay, setCategoryColor, resetCategoryColors,
       stockPortfolio, showStockModal, refreshingStocks, savingStock, currentStock,
       recurringExpenses, showRecurringModal, savingRecurring, currentRecurring,
       totalSavings, totalNetWorth, pendingBillAmount, nextDueBill, monthlyExpensesList, monthlyTotalExpense, monthlyLivingExpense,

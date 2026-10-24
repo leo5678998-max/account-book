@@ -900,7 +900,10 @@
                 <!-- 支出排行清單 -->
                 <div v-if="chartViewMode === 'expense'">
                   <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">支出項目佔比排行</h3>
+                    <div class="flex items-center space-x-1.5">
+                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">支出項目佔比排行</h3>
+                      <span class="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">（點擊圓點自訂色彩）</span>
+                    </div>
                     <span class="text-[11px] text-slate-400">
                       總收入池 NT$ {{ formatMoney(chartBaseSalary) }}
                       <span v-if="monthlyRecordedIncome > 0" class="text-emerald-600 font-bold">(含進帳 +{{ formatMoney(monthlyRecordedIncome) }})</span>
@@ -914,7 +917,10 @@
                     <div v-for="(item, idx) in monthlyExpensesList" :key="idx" class="ranking-item p-2.5 rounded-xl transition">
                       <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
                         <div class="flex items-center space-x-2 truncate">
-                          <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: item.color }"></span>
+                          <label class="relative inline-flex items-center justify-center cursor-pointer flex-shrink-0 group/color" :title="'點擊自訂「' + item.category + '」顏色'">
+                            <span class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/20 shadow-xs transition-transform transform group-hover/color:scale-130" :style="{ backgroundColor: item.color }"></span>
+                            <input type="color" :value="item.color" @change="setCategoryColor(item.category, $event.target.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                          </label>
                           <span class="truncate">{{ item.category }}</span>
                           <span v-if="item.isDeduction" class="text-[10px] font-bold text-sky-700 bg-sky-50 px-1 rounded">
                             {{ item.deductionLabel || '預扣' }}
@@ -941,7 +947,10 @@
                 <!-- 收入結構清單 -->
                 <div v-else>
                   <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">收入來源明細結構</h3>
+                    <div class="flex items-center space-x-1.5">
+                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">收入來源明細結構</h3>
+                      <span class="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">（點擊圓點自訂色彩）</span>
+                    </div>
                     <span class="text-[11px] text-slate-400 font-semibold">
                       當月實得總進帳 NT$ {{ formatMoney(chartBaseSalary) }}
                     </span>
@@ -954,7 +963,10 @@
                     <div v-for="(item, idx) in monthlyIncomesList" :key="idx" class="ranking-item p-2.5 rounded-xl transition">
                       <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
                         <div class="flex items-center space-x-2 truncate">
-                          <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: item.color }"></span>
+                          <label class="relative inline-flex items-center justify-center cursor-pointer flex-shrink-0 group/color" :title="'點擊自訂「' + item.category + '」顏色'">
+                            <span class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/20 shadow-xs transition-transform transform group-hover/color:scale-130" :style="{ backgroundColor: item.color }"></span>
+                            <input type="color" :value="item.color" @change="setCategoryColor(item.category, $event.target.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                          </label>
                           <span class="truncate">{{ item.category }}</span>
                           <span v-if="item.category === '固定月薪'" class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1 rounded">
                             底薪基準
@@ -972,7 +984,7 @@
                       </div>
                       <!-- 佔比進度條 -->
                       <div class="w-full bg-slate-200 ranking-progress-track rounded-full h-1 mt-1.5 overflow-hidden">
-                        <div class="h-1 rounded-full bg-emerald-500 transition-all duration-300" :style="{ width: Math.min(item.ratioOfTotal, 100) + '%' }"></div>
+                        <div class="h-1 rounded-full transition-all duration-300" :style="{ width: Math.min(item.ratioOfTotal, 100) + '%', backgroundColor: item.color }"></div>
                       </div>
                     </div>
                   </div>
@@ -2306,10 +2318,15 @@
 
             <!-- 管理模式提示列 -->
             <div v-if="isManagingCategories" class="mb-2 p-2 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-lg flex items-center justify-between text-[11px] text-indigo-700 dark:text-indigo-300 animate-in fade-in duration-150">
-              <span>💡 點擊標籤右上角「×」即可刪除分類項目</span>
-              <button type="button" @click="resetCategories" class="underline hover:text-indigo-900 dark:hover:text-indigo-200 font-semibold">
-                恢復預設分類
-              </button>
+              <span>💡 點擊「×」刪除分類；點擊圓點可自訂色彩</span>
+              <div class="space-x-2">
+                <button type="button" @click="resetCategoryColors" class="underline hover:text-indigo-900 dark:hover:text-indigo-200 font-semibold">
+                  重設配色
+                </button>
+                <button type="button" @click="resetCategories" class="underline hover:text-indigo-900 dark:hover:text-indigo-200 font-semibold">
+                  恢復預設分類
+                </button>
+              </div>
             </div>
 
             <!-- 快速分類膠囊清單 -->
@@ -2319,6 +2336,12 @@
                   @click="currentTx.category = cat"
                   :class="currentTx.category === cat ? 'bg-indigo-600 text-white font-bold shadow-xs dark:bg-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'"
                   class="px-2.5 py-1 rounded-lg text-xs transition flex items-center select-none">
+                  <!-- 色彩小圓點（管理模式下可點選更改顏色） -->
+                  <label v-if="isManagingCategories" @click.stop class="relative inline-flex items-center justify-center cursor-pointer mr-1.5 flex-shrink-0 group/color" :title="'更換「' + cat + '」顏色'">
+                    <span class="w-2.5 h-2.5 rounded-full ring-1 ring-black/20 dark:ring-white/30 shadow-2xs group-hover/color:scale-125 transition-transform" :style="{ backgroundColor: getCategoryColorDisplay(cat) }"></span>
+                    <input type="color" :value="getCategoryColorDisplay(cat)" @change="setCategoryColor(cat, $event.target.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                  </label>
+                  <span v-else class="w-2 h-2 rounded-full mr-1.5 flex-shrink-0 ring-1 ring-black/10 dark:ring-white/20" :style="{ backgroundColor: getCategoryColorDisplay(cat) }"></span>
                   <span>{{ cat }}</span>
                 </button>
                 <!-- 刪除按鈕 (管理模式下顯示) -->
@@ -3165,26 +3188,36 @@
           </div>
         </div>
 
-        <!-- 🏷️ 常用支出分類管理 -->
-        <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200 space-y-3">
+        <!-- 🏷️ 常用支出分類與色彩管理 -->
+        <div class="bg-slate-50 dark:bg-slate-800/60 p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
-              <i data-lucide="tag" class="w-4 h-4 text-indigo-600"></i>
-              <h4 class="text-xs font-bold text-slate-800">常用支出分類管理</h4>
+              <i data-lucide="palette" class="w-4 h-4 text-indigo-600"></i>
+              <h4 class="text-xs font-bold text-slate-800 dark:text-slate-100">常用分類與自訂色彩管理</h4>
             </div>
-            <button type="button" @click="resetCategories" class="text-[11px] text-slate-500 hover:text-indigo-600 underline transition">
-              恢復系統預設
-            </button>
+            <div class="flex items-center space-x-3">
+              <button type="button" @click="resetCategoryColors" class="text-[11px] text-slate-500 hover:text-indigo-600 underline transition" title="重設所有分類為預設色彩">
+                重設配色
+              </button>
+              <button type="button" @click="resetCategories" class="text-[11px] text-slate-500 hover:text-indigo-600 underline transition" title="恢復預設分類清單">
+                恢復預設分類
+              </button>
+            </div>
           </div>
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            這些分類項目會即時顯示於「手動記帳」的快速選擇膠囊與發票單據辨識選單中。
+            點擊各分類標籤左側的色球即可開啟調色盤自訂專屬代表色；自訂色彩將即時同步於圓餅圖、佔比排行與記帳頁面。
           </p>
 
           <!-- 分類標籤清單 -->
           <div class="flex flex-wrap gap-1.5">
             <span v-for="cat in quickCategories" :key="cat"
-              class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs">
-              {{ cat }}
+              class="inline-flex items-center pl-2 pr-2.5 py-1 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs">
+              <!-- 自訂色彩色球 -->
+              <label class="relative inline-flex items-center justify-center cursor-pointer mr-1.5 flex-shrink-0 group/color" :title="'點擊自訂「' + cat + '」代表色'">
+                <span class="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 shadow-2xs transition-transform transform group-hover/color:scale-125" :style="{ backgroundColor: getCategoryColorDisplay(cat) }"></span>
+                <input type="color" :value="getCategoryColorDisplay(cat)" @change="setCategoryColor(cat, $event.target.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+              </label>
+              <span>{{ cat }}</span>
               <button type="button" @click="removeCustomCategory(cat)"
                 class="ml-1.5 text-slate-400 hover:text-rose-500 font-bold transition text-xs"
                 :title="'刪除「' + cat + '」分類'">
@@ -3380,7 +3413,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.4.4"></script>
+  <script type="module" src="/static/js/app.js?v=2.4.5"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

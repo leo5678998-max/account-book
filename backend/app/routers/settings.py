@@ -76,6 +76,58 @@ def reset_categories(
     return {"status": "success", "categories": list(DEFAULT_EXPENSE_CATEGORIES)}
 
 
+class CategoryColorsUpdateRequest(BaseModel):
+    colors: dict
+
+
+@router.get("/api/category-colors")
+def get_category_colors(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """讀取使用者的自訂分類色彩對應表"""
+    val = get_setting(db, "CATEGORY_CUSTOM_COLORS", "", user_id=current_user.id)
+    if val:
+        try:
+            colors = json.loads(val)
+            if isinstance(colors, dict):
+                return {"colors": colors}
+        except Exception:
+            pass
+    return {"colors": {}}
+
+
+@router.post("/api/category-colors")
+def update_category_colors(
+    req: CategoryColorsUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """更新使用者的自訂分類色彩對應表"""
+    cleaned = {}
+    if isinstance(req.colors, dict):
+        for k, v in req.colors.items():
+            if isinstance(k, str) and isinstance(v, str):
+                k_clean = k.strip()
+                v_clean = v.strip()
+                if k_clean and v_clean.startswith("#") and len(v_clean) in (4, 7, 9):
+                    cleaned[k_clean] = v_clean
+    save_setting(db, "CATEGORY_CUSTOM_COLORS", json.dumps(cleaned, ensure_ascii=False), user_id=current_user.id)
+    db.commit()
+    return {"status": "success", "colors": cleaned}
+
+
+@router.post("/api/category-colors/reset")
+def reset_category_colors(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """重設回系統預設分類色彩"""
+    save_setting(db, "CATEGORY_CUSTOM_COLORS", "{}", user_id=current_user.id)
+    db.commit()
+    return {"status": "success", "colors": {}}
+
+
 class ImapTestRequest(BaseModel):
     imap_email: Optional[str] = None
     imap_app_password: Optional[str] = None
