@@ -26,6 +26,29 @@
   <style>
     [v-cloak] { display: none !important; }
 
+    /* Hide number input spin buttons */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+    .hero-amount-box input {
+      background-color: transparent !important;
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    html.dark .hero-amount-box {
+      background-color: #0f172a !important;
+      border-color: #334155 !important;
+    }
+    html.dark .hero-amount-box input {
+      color: #f8fafc !important;
+    }
+
     /* ================= DARK MODE SYSTEM ================= */
     html.dark,
     html.dark body,
@@ -2016,11 +2039,11 @@
           <!-- 2. 大金額輸入框 (Hero Amount Input) -->
           <div>
             <label class="block text-xs font-semibold text-slate-500 mb-1">金額 (TWD)</label>
-            <div class="relative flex items-center">
-              <span class="absolute left-3.5 text-lg font-extrabold font-mono text-slate-400 select-none">NT$</span>
+            <div class="hero-amount-box flex items-center rounded-xl border border-slate-200 bg-white transition focus-within:ring-2"
+              :class="currentTx.tx_type === 'EXPENSE' ? 'focus-within:ring-rose-500/20 focus-within:border-rose-500' : 'focus-within:ring-emerald-500/20 focus-within:border-emerald-500'">
+              <span class="pl-4 pr-1 text-xl sm:text-2xl font-extrabold font-mono text-slate-400 select-none">NT$</span>
               <input type="number" step="any" v-model.number="currentTx.amount" required autofocus placeholder="0"
-                class="w-full pl-13 pr-4 py-3 border border-slate-200 rounded-xl text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono outline-none transition focus:ring-2"
-                :class="currentTx.tx_type === 'EXPENSE' ? 'focus:ring-rose-500/20 focus:border-rose-500' : 'focus:ring-emerald-500/20 focus:border-emerald-500'">
+                class="w-full pr-4 py-3 bg-transparent text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono outline-none border-0 shadow-none focus:ring-0">
             </div>
           </div>
 
