@@ -780,6 +780,11 @@ createApp({
       refreshIcons();
     };
 
+    const toggleAffectsBalance = () => {
+      currentTx.value.affects_balance = !currentTx.value.affects_balance;
+      refreshIcons();
+    };
+
     const saveTx = async () => {
       if (!currentTx.value.amount || !currentTx.value.account_id) return alert('請填寫金額與選擇帳戶');
       if (!currentTx.value.description || !currentTx.value.description.trim()) {
@@ -1579,7 +1584,7 @@ createApp({
       effectiveSalary, totalInsuranceDeduction, settingsInsurancePreview, onInsuranceSettingChange, resetToAutoInsuranceFees,
       formatMoney, formatStockPrice, formatStockShares, formatStockTotal, getAccountName, isDueSoon,
       openAccountModal, saveAccount, deleteAccount, setDefaultDebit,
-      openTxModal, saveTx, deleteTx, openAddBillModal, openEditBillModal, saveBill, deleteBill,
+      openTxModal, saveTx, deleteTx, toggleAffectsBalance, openAddBillModal, openEditBillModal, saveBill, deleteBill,
       openAddStockModal, openEditStockModal, saveStock, deleteStock, refreshStockQuotes,
       openAddRecurringModal, openEditRecurringModal, saveRecurring, deleteRecurring,
       submitParseDocument, confirmApplyParsedData,
