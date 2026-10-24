@@ -3380,6 +3380,16 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.4.2"></script>
+  <script type="module" src="/static/js/app.js?v=2.4.3"></script>
+  <script>
+    // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
+    setTimeout(function() {
+      var appEl = document.getElementById('app');
+      if (appEl && appEl.hasAttribute('v-cloak')) {
+        console.warn('Auto-clearing v-cloak');
+        appEl.removeAttribute('v-cloak');
+      }
+    }, 1200);
+  </script>
 </body>
 </html>

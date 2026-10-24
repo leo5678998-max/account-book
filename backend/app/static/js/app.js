@@ -12,14 +12,34 @@ import {
   formatStockShares,
   formatStockTotal,
   isDueSoon
-} from './formatters.js';
-import { ApiService, AuthStorage } from './api.js';
-import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js';
+} from './formatters.js?v=2.4.3';
+import { ApiService, AuthStorage } from './api.js?v=2.4.3';
+import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.4.3';
 import {
   calculateLaborInsurance,
   calculateHealthInsurance,
   calculateInsuranceSummary
-} from './insurance.js';
+} from './insurance.js?v=2.4.3';
+
+const safeCategoryColor = (cat, idx) => {
+  try {
+    if (typeof getCategoryColor === 'function') {
+      return getCategoryColor(cat, idx);
+    }
+    if (typeof CATEGORY_COLORS !== 'undefined' && cat && CATEGORY_COLORS[cat]) {
+      return CATEGORY_COLORS[cat];
+    }
+    if (cat && (cat.includes('投資') || cat.includes('理財') || cat.includes('基金') || cat.includes('ETF'))) {
+      return '#8B5CF6';
+    }
+    if (typeof CHART_PALETTE !== 'undefined' && CHART_PALETTE.length) {
+      return CHART_PALETTE[idx % CHART_PALETTE.length];
+    }
+  } catch (e) {
+    console.warn('safeCategoryColor error:', e);
+  }
+  return '#8B5CF6';
+};
 
 const { createApp, ref, computed, onMounted, nextTick } = window.Vue;
 
@@ -426,7 +446,7 @@ createApp({
           category: cat,
           amount: amt,
           ratioOfTotal: (amt / totalInc) * 100,
-          color: getCategoryColor(cat, idx)
+          color: safeCategoryColor(cat, idx)
         };
       });
 
@@ -471,7 +491,7 @@ createApp({
           fixedAmount: fixedAmt,
           isDeduction: false,
           ratioOfSalary: (amount / salary) * 100,
-          color: getCategoryColor(cat, idx)
+          color: safeCategoryColor(cat, idx)
         };
       });
 
