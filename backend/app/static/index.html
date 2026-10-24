@@ -49,6 +49,27 @@
       color: #f8fafc !important;
     }
 
+    /* ================= MOBILE LAYOUT & ANTI-OVERFLOW ================= */
+    html, body {
+      overflow-x: hidden !important;
+      max-width: 100vw !important;
+      width: 100%;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #app {
+      overflow-x: hidden !important;
+      max-width: 100vw !important;
+      width: 100%;
+      min-width: 0;
+    }
+    .pb-safe {
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem)) !important;
+    }
+    .bottom-fab-safe {
+      bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
     /* ================= DARK MODE SYSTEM ================= */
     html.dark,
     html.dark body,
@@ -647,45 +668,45 @@
     <div class="flex-1 flex flex-col min-w-0">
       <!-- 頂部通用導航列 -->
       <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
-        <div class="px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <button @click="mobileMenuOpen = true" class="lg:hidden p-1.5 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100">
+        <div class="px-3 sm:px-6 lg:px-8 h-13 sm:h-16 flex items-center justify-between min-w-0">
+          <div class="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 mr-2">
+            <button @click="mobileMenuOpen = true" class="lg:hidden p-1.5 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100 flex-shrink-0">
               <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
-            <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
+            <h2 class="text-sm sm:text-lg font-bold text-slate-900 truncate flex-1 min-w-0">
               {{ currentTabTitle }}
             </h2>
           </div>
 
-          <div class="flex items-center space-x-2 sm:space-x-3">
+          <div class="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
             <!-- 深色 / 淺色模式切換按鈕 -->
-            <button @click="toggleDarkMode" class="inline-flex items-center px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition" :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'">
-              <i :data-lucide="isDarkMode ? 'sun' : 'moon'" class="w-3.5 h-3.5 sm:mr-1" :class="isDarkMode ? 'text-amber-400' : 'text-indigo-500'"></i>
+            <button @click="toggleDarkMode" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition" :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'">
+              <i :data-lucide="isDarkMode ? 'sun' : 'moon'" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1" :class="isDarkMode ? 'text-amber-400' : 'text-indigo-500'"></i>
               <span class="hidden sm:inline">{{ isDarkMode ? '淺色' : '深色' }}</span>
             </button>
 
             <!-- 資產隱私開關按鈕 -->
-            <button @click="toggleHideAssets" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition" :title="hideAssets ? '點擊顯示資產金額' : '點擊隱藏資產金額'">
-              <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-3.5 h-3.5 sm:mr-1 text-slate-500"></i>
+            <button @click="toggleHideAssets" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition" :title="hideAssets ? '點擊顯示資產金額' : '點擊隱藏資產金額'">
+              <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1 text-slate-500"></i>
               <span class="hidden sm:inline">{{ hideAssets ? '顯示資產' : '隱藏資產' }}</span>
             </button>
 
             <!-- 同步信箱按鈕 -->
-            <button @click="syncGmail" :disabled="syncing" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition disabled:opacity-50">
-              <i data-lucide="refresh-cw" :class="['w-3.5 h-3.5 mr-1', syncing ? 'animate-spin' : '']"></i>
+            <button @click="syncGmail" :disabled="syncing" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition disabled:opacity-50" title="同步信箱帳單">
+              <i data-lucide="refresh-cw" :class="['w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1', syncing ? 'animate-spin' : '']"></i>
               <span class="hidden sm:inline">{{ syncing ? '同步中' : '同步 Gmail' }}</span>
             </button>
 
-            <!-- 快速記帳 -->
-            <button @click="openTxModal()" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
+            <!-- 快速記帳 (電腦/平板保留文字，手機版由常駐 FAB 提供) -->
+            <button @click="openTxModal()" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
               <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i>
               <span>記一筆</span>
             </button>
 
-            <!-- 單據辨識 -->
-            <button @click="showUploadModal = true" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition" title="AI 單據與薪資單辨識">
+            <!-- 單據辨識 (電腦/平板保留文字，手機版由常駐 FAB 提供) -->
+            <button @click="showUploadModal = true" class="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition" title="AI 單據與薪資單辨識">
               <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:mr-1 text-purple-600"></i>
-              <span class="hidden sm:inline">單據辨識</span>
+              <span>單據辨識</span>
             </button>
 
             <!-- 設定 -->
@@ -697,14 +718,14 @@
       </header>
 
       <!-- 主要內容分頁區塊 -->
-      <main class="p-3.5 sm:p-6 lg:p-8 flex-1 max-w-7xl w-full mx-auto space-y-6 pb-24 lg:pb-12">
+      <main class="p-3 sm:p-5 lg:p-8 flex-1 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6 pb-28 lg:pb-12 min-w-0">
 
         <!-- ==================== TAB 1: 總覽儀表板 (DASHBOARD) ==================== -->
-        <div v-show="currentTab === 'dashboard'" class="space-y-6">
+        <div v-show="currentTab === 'dashboard'" class="space-y-4 sm:space-y-6">
           <!-- ==================== 頂部 3 大核心指標 (Clean 3-Card Grid) ==================== -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-5">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-5">
             <!-- 1. 個人總淨資產 (存款 + 股票) -->
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
+            <div class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
               <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
                 <span class="flex items-center space-x-1.5">
                   <span class="text-slate-700 font-bold">個人總淨資產</span>
@@ -716,14 +737,14 @@
                   <i data-lucide="wallet" class="w-4 h-4"></i>
                 </span>
               </div>
-              <div class="mt-2.5 cursor-pointer select-none" @click="toggleHideAssets" :title="hideAssets ? '點擊顯示金額' : '點擊隱藏金額'">
+              <div class="mt-2 sm:mt-2.5 cursor-pointer select-none" @click="toggleHideAssets" :title="hideAssets ? '點擊顯示金額' : '點擊隱藏金額'">
                 <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-mono">
                   <span v-if="hideAssets" class="tracking-wider text-slate-400 font-sans text-xl sm:text-2xl">NT$ ••••••</span>
                   <span v-else>NT$ {{ formatMoney(totalNetWorth) }}</span>
                 </div>
               </div>
               <!-- 拆分子項目與跳轉 -->
-              <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                 <div class="flex items-center space-x-2 truncate">
                   <span title="活存與各帳戶現金">活存 NT$ {{ hideAssets ? '•••' : formatMoney(totalSavings) }}</span>
                   <span class="text-slate-300">·</span>
@@ -743,20 +764,20 @@
             </div>
 
             <!-- 2. 本月開銷與月薪佔比 -->
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
+            <div class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
               <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
                 <span class="text-slate-700 font-bold">本月總開銷 ({{ currentMonth.substring(5) }}月)</span>
                 <span class="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
                   <i data-lucide="pie-chart" class="w-4 h-4"></i>
                 </span>
               </div>
-              <div class="mt-2.5">
+              <div class="mt-2 sm:mt-2.5">
                 <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-mono">
                   NT$ {{ formatMoney(monthlyTotalExpense) }}
                 </div>
               </div>
               <!-- 佔比與結餘 -->
-              <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                 <div class="flex items-center space-x-1.5 truncate">
                   <span class="font-semibold" :class="expenseRatio > 100 ? 'text-rose-600 font-bold' : 'text-slate-700'">
                     佔月薪 {{ expenseRatio.toFixed(0) }}%
@@ -773,14 +794,14 @@
             </div>
 
             <!-- 3. 卡費待扣提醒 -->
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
+            <div class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
               <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
                 <span class="text-slate-700 font-bold">信用卡待繳款</span>
                 <span class="w-7 h-7 rounded-xl flex items-center justify-center" :class="pendingBillAmount > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'">
                   <i :data-lucide="pendingBillAmount > 0 ? 'credit-card' : 'check-circle'" class="w-4 h-4"></i>
                 </span>
               </div>
-              <div class="mt-2.5">
+              <div class="mt-2 sm:mt-2.5">
                 <div v-if="pendingBillAmount > 0" class="text-2xl sm:text-3xl font-extrabold text-rose-600 tracking-tight font-mono">
                   NT$ {{ formatMoney(pendingBillAmount) }}
                 </div>
@@ -789,7 +810,7 @@
                 </div>
               </div>
               <!-- 最近待扣與跳轉 -->
-              <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                 <div class="truncate">
                   <span v-if="nextDueBill" class="truncate">
                     最近待繳：<strong class="text-slate-700">{{ nextDueBill.bank_name }}</strong> ({{ nextDueBill.due_date || '即將扣款' }})
@@ -805,23 +826,23 @@
 
           <!-- ==================== 月薪收支與支出結構圓餅分析 ==================== -->
           <section class="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
-            <div class="px-4 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-              <div class="flex items-center space-x-3">
-                <div class="flex items-center space-x-2">
-                  <i data-lucide="chart-pie" class="w-4 h-4 text-indigo-600"></i>
-                  <h2 class="text-sm sm:text-base font-bold text-slate-900">收支結構與佔比分析</h2>
+            <div class="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
+              <div class="flex items-center justify-between sm:justify-start space-x-2 sm:space-x-3 w-full sm:w-auto">
+                <div class="flex items-center space-x-1.5 sm:space-x-2">
+                  <i data-lucide="chart-pie" class="w-4 h-4 text-indigo-600 flex-shrink-0"></i>
+                  <h2 class="text-xs sm:text-base font-bold text-slate-900 truncate">收支結構與佔比</h2>
                 </div>
                 <!-- 支出 / 收入 模式切換 -->
-                <div class="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                <div class="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold flex-shrink-0">
                   <button @click="setChartViewMode('expense')"
                     :class="chartViewMode === 'expense' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
-                    class="px-2.5 py-1 rounded-md transition flex items-center space-x-1">
+                    class="px-2 py-1 rounded-md transition flex items-center space-x-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-indigo-600" v-if="chartViewMode === 'expense'"></span>
                     <span>支出分析</span>
                   </button>
                   <button @click="setChartViewMode('income')"
                     :class="chartViewMode === 'income' ? 'bg-white text-emerald-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
-                    class="px-2.5 py-1 rounded-md transition flex items-center space-x-1">
+                    class="px-2 py-1 rounded-md transition flex items-center space-x-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-600" v-if="chartViewMode === 'income'"></span>
                     <span>收入結構</span>
                     <span v-if="monthlyRecordedIncome > 0" class="text-[9px] bg-emerald-50 text-emerald-600 px-1 rounded-full font-bold">
@@ -832,23 +853,23 @@
               </div>
 
               <!-- 月份選擇器 -->
-              <div class="flex items-center space-x-1.5 text-xs text-slate-500">
+              <div class="flex items-center justify-end space-x-1.5 text-xs text-slate-500 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100/60">
                 <label class="font-medium text-[11px] sm:text-xs text-slate-500">月份：</label>
                 <input type="month" v-model="selectedMonth" @change="renderChart"
                   class="border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-50 outline-none hover:border-slate-300 focus:border-indigo-500">
               </div>
             </div>
 
-            <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+            <div class="p-3.5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-center">
               <!-- 圓餅圖畫布 -->
               <div class="lg:col-span-5 flex flex-col items-center justify-center">
-                <div class="relative w-48 h-48 sm:w-64 sm:h-64">
+                <div class="relative w-44 h-44 sm:w-60 sm:h-60 mx-auto">
                   <canvas id="expenseChart"></canvas>
                   <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
                     <span class="text-[10px] sm:text-xs text-slate-400 font-medium">
                       {{ chartViewMode === 'expense' ? '當月總支出' : '當月總收入' }}
                     </span>
-                    <span class="text-base sm:text-xl font-extrabold font-mono"
+                    <span class="text-sm sm:text-xl font-extrabold font-mono px-2 truncate"
                       :class="chartViewMode === 'expense' ? 'text-slate-800' : 'text-emerald-700'">
                       NT$ {{ formatMoney(chartViewMode === 'expense' ? monthlyTotalExpense : chartBaseSalary) }}
                     </span>
@@ -1052,28 +1073,28 @@
         <!-- ==================== TAB 2: 收支記帳 (TRANSACTIONS & RECURRING) ==================== -->
         <div v-show="currentTab === 'transactions'" class="space-y-5">
           <!-- 子分頁切換選單 (Sub-Tab Segmented Control) -->
-          <div class="flex items-center space-x-1.5 bg-slate-200/60 p-1 rounded-xl max-w-xs">
+          <div class="flex items-center space-x-1.5 bg-slate-200/60 dark:bg-slate-800 p-1 rounded-xl w-full sm:max-w-xs">
             <button @click="switchTab('transactions', 'list')"
-              :class="txSubTab === 'list' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+              :class="txSubTab === 'list' ? 'bg-white text-indigo-700 font-bold shadow-xs dark:bg-slate-900 dark:text-indigo-400' : 'text-slate-600 hover:text-slate-900 font-medium'"
               class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
               <i data-lucide="receipt-text" class="w-3.5 h-3.5"></i>
               <span>收支流水帳</span>
             </button>
             <button @click="switchTab('transactions', 'recurring')"
-              :class="txSubTab === 'recurring' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+              :class="txSubTab === 'recurring' ? 'bg-white text-indigo-700 font-bold shadow-xs dark:bg-slate-900 dark:text-indigo-400' : 'text-slate-600 hover:text-slate-900 font-medium'"
               class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
               <i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
               <span>固定開銷</span>
-              <span v-if="recurringExpenses.items && recurringExpenses.items.length" class="text-[10px] font-mono bg-indigo-50 text-indigo-600 px-1.5 py-0.2 rounded font-bold">
+              <span v-if="recurringExpenses.items && recurringExpenses.items.length" class="text-[10px] font-mono bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded font-bold">
                 {{ recurringExpenses.items.length }}
               </span>
             </button>
           </div>
 
           <!-- 子頁 A: 收支流水帳 -->
-          <div v-show="txSubTab === 'list'" class="space-y-5">
+          <div v-show="txSubTab === 'list'" class="space-y-4 sm:space-y-5">
             <!-- 篩選工具列 -->
-          <div class="bg-white p-3.5 sm:p-4 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+          <div class="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-2.5 sm:gap-3 items-center">
             <!-- 搜尋框 -->
             <div class="sm:col-span-5 relative">
               <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
@@ -1105,22 +1126,22 @@
           </div>
 
           <!-- 篩選結果統計指標 -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="bg-white p-3 rounded-xl border border-slate-200">
-              <div class="text-[11px] text-slate-400 font-medium">符合筆數</div>
-              <div class="text-base sm:text-lg font-extrabold text-slate-900 font-mono mt-0.5">{{ filteredTransactions.length }} 筆</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <div class="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 min-w-0">
+              <div class="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">符合筆數</div>
+              <div class="text-sm sm:text-lg font-extrabold text-slate-900 font-mono mt-0.5 truncate">{{ filteredTransactions.length }} 筆</div>
             </div>
-            <div class="bg-white p-3 rounded-xl border border-slate-200">
-              <div class="text-[11px] text-slate-400 font-medium">篩選支出</div>
-              <div class="text-base sm:text-lg font-extrabold text-rose-600 font-mono mt-0.5">NT$ {{ formatMoney(txStats.expense) }}</div>
+            <div class="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 min-w-0">
+              <div class="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">篩選支出</div>
+              <div class="text-sm sm:text-lg font-extrabold text-rose-600 font-mono mt-0.5 truncate">NT$ {{ formatMoney(txStats.expense) }}</div>
             </div>
-            <div class="bg-white p-3 rounded-xl border border-slate-200">
-              <div class="text-[11px] text-slate-400 font-medium">篩選收入</div>
-              <div class="text-base sm:text-lg font-extrabold text-emerald-600 font-mono mt-0.5">NT$ {{ formatMoney(txStats.income) }}</div>
+            <div class="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 min-w-0">
+              <div class="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">篩選收入</div>
+              <div class="text-sm sm:text-lg font-extrabold text-emerald-600 font-mono mt-0.5 truncate">NT$ {{ formatMoney(txStats.income) }}</div>
             </div>
-            <div class="bg-white p-3 rounded-xl border border-slate-200">
-              <div class="text-[11px] text-slate-400 font-medium">收支結餘</div>
-              <div class="text-base sm:text-lg font-extrabold font-mono mt-0.5"
+            <div class="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 min-w-0">
+              <div class="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">收支結餘</div>
+              <div class="text-sm sm:text-lg font-extrabold font-mono mt-0.5 truncate"
                 :class="txStats.net >= 0 ? 'text-emerald-600' : 'text-rose-600'">
                 {{ txStats.net >= 0 ? '+' : '' }}NT$ {{ formatMoney(txStats.net) }}
               </div>
@@ -1392,7 +1413,7 @@
         <!-- ==================== TAB 3: 資產與帳單 (ASSETS: ACCOUNTS, BILLS, STOCKS) ==================== -->
         <div v-show="currentTab === 'assets'" class="space-y-5">
           <!-- 子分頁切換選單 (Sub-Tab Segmented Control) -->
-          <div class="flex items-center space-x-1.5 bg-slate-200/60 p-1 rounded-xl max-w-sm">
+          <div class="flex items-center space-x-1.5 bg-slate-200/60 dark:bg-slate-800 p-1 rounded-xl w-full sm:max-w-sm">
             <button @click="switchTab('assets', 'accounts')"
               :class="assetSubTab === 'accounts' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
               class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
@@ -1963,7 +1984,63 @@
               <span class="text-xs text-slate-500 font-medium hidden sm:inline">點擊任一月份可快速跳轉查看流水帳</span>
             </div>
 
-            <div class="overflow-x-auto">
+            <!-- 手機版月度結算卡片列表 (block md:hidden) -->
+            <div class="block md:hidden divide-y divide-slate-100">
+              <div v-if="!analyticsData.months_data || analyticsData.months_data.length === 0" class="text-center py-8 text-slate-400 text-xs">
+                尚無足夠的歷史結算資料
+              </div>
+              <div v-for="row in (analyticsData.months_data || []).slice().reverse()" :key="row.month"
+                class="p-3.5 space-y-2 hover:bg-slate-50/50 transition">
+                <!-- 頂部：月份 + 儲蓄率標籤 + 跳轉明細 -->
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-1.5 min-w-0">
+                    <span class="font-bold text-slate-900 text-sm">{{ row.full_label }}</span>
+                    <span v-if="row.month === currentMonth" class="px-1.5 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-bold">本月</span>
+                    <span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold"
+                      :class="row.savings_rate >= 30 ? 'bg-emerald-50 text-emerald-700' : (row.savings_rate > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500')">
+                      儲蓄率 {{ row.savings_rate }}%
+                    </span>
+                  </div>
+                  <button @click="jumpToTransactionsMonth(row.month)"
+                    class="text-xs font-semibold text-indigo-600 flex items-center hover:underline flex-shrink-0">
+                    明細 <i data-lucide="chevron-right" class="w-3 h-3 ml-0.5"></i>
+                  </button>
+                </div>
+
+                <!-- 收支與淨結餘三欄 -->
+                <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl text-center">
+                  <div class="min-w-0">
+                    <div class="text-[10px] text-slate-400 font-medium truncate">總收入</div>
+                    <div class="font-mono font-bold text-emerald-600 text-xs mt-0.5 truncate">+{{ formatMoney(row.income) }}</div>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-[10px] text-slate-400 font-medium truncate">總支出</div>
+                    <div class="font-mono font-bold text-rose-600 text-xs mt-0.5 truncate">-{{ formatMoney(row.expense) }}</div>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-[10px] text-slate-400 font-medium truncate">當月淨存</div>
+                    <div class="font-mono font-bold text-xs mt-0.5 truncate" :class="row.net >= 0 ? 'text-indigo-600' : 'text-rose-600'">
+                      {{ row.net >= 0 ? '+' : '' }}{{ formatMoney(row.net) }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 底部：月末總存款與較上月 -->
+                <div class="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                  <span class="truncate">月末存款：<strong class="font-mono text-slate-800">NT$ {{ formatMoney(row.end_balance) }}</strong></span>
+                  <span v-if="row.expense_mom_diff < 0" class="text-emerald-600 font-semibold text-[10px] flex items-center flex-shrink-0 ml-1">
+                    <i data-lucide="trending-down" class="w-3 h-3 mr-0.5"></i> 省 ${{ formatMoney(Math.abs(row.expense_mom_diff)) }} (-{{ Math.abs(row.expense_mom_pct) }}%)
+                  </span>
+                  <span v-else-if="row.expense_mom_diff > 0" class="text-rose-600 font-semibold text-[10px] flex items-center flex-shrink-0 ml-1">
+                    <i data-lucide="trending-up" class="w-3 h-3 mr-0.5"></i> 增 ${{ formatMoney(row.expense_mom_diff) }} (+{{ row.expense_mom_pct }}%)
+                  </span>
+                  <span v-else class="text-slate-400 text-[10px] flex-shrink-0 ml-1">持平</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 電腦版月度財務結算明細表 (hidden md:block) -->
+            <div class="hidden md:block overflow-x-auto">
               <table class="w-full text-left text-xs sm:text-sm">
                 <thead class="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200 text-xs">
                   <tr>
@@ -2067,44 +2144,44 @@
       </main>
 
       <!-- 手機專屬懸浮快捷記帳按鈕 (Mobile FAB, lg:hidden) -->
-      <div class="lg:hidden fixed bottom-18 right-4 z-40 flex flex-col items-end space-y-2 select-none">
+      <div class="lg:hidden fixed bottom-fab-safe right-4 z-40 flex flex-col items-end space-y-2.5 select-none">
         <!-- AI 辨識快捷按鈕 -->
         <button @click="showUploadModal = true"
-          class="w-10 h-10 rounded-full bg-white text-purple-600 border border-purple-200 shadow-md flex items-center justify-center hover:bg-purple-50 active:scale-90 transition shadow-purple-100"
+          class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 shadow-md flex items-center justify-center hover:bg-purple-50 dark:hover:bg-slate-700 active:scale-95 transition"
           title="AI 單據辨識">
-          <i data-lucide="sparkles" class="w-4 h-4 text-purple-600"></i>
+          <i data-lucide="sparkles" class="w-4 h-4 text-purple-600 dark:text-purple-400"></i>
         </button>
         <!-- 快速手動記帳主要 FAB -->
         <button @click="openTxModal()"
-          class="w-13 h-13 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-300 flex items-center justify-center active:scale-90 transition"
+          class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-300 dark:shadow-indigo-950 flex items-center justify-center active:scale-95 transition"
           title="快速手動記帳">
           <i data-lucide="plus" class="w-6 h-6"></i>
         </button>
       </div>
 
       <!-- 手機專屬底部快速切換導覽列 (4 大核心分頁，lg:hidden) -->
-      <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 px-2 py-1.5 shadow-lg flex items-center justify-around select-none">
+      <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-40 px-2 py-1 shadow-lg flex items-center justify-around select-none pb-safe">
         <button @click="switchTab('dashboard')"
-          :class="currentTab === 'dashboard' ? 'text-indigo-600 font-bold' : 'text-slate-500'"
+          :class="currentTab === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
           class="flex flex-col items-center justify-center py-1 px-3 transition">
           <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
           <span class="text-[10px] mt-0.5">總覽</span>
         </button>
         <button @click="switchTab('transactions')"
-          :class="currentTab === 'transactions' ? 'text-indigo-600 font-bold' : 'text-slate-500'"
+          :class="currentTab === 'transactions' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
           class="flex flex-col items-center justify-center py-1 px-3 transition">
           <i data-lucide="receipt-text" class="w-5 h-5"></i>
           <span class="text-[10px] mt-0.5">記帳</span>
         </button>
         <button @click="switchTab('assets')"
-          :class="currentTab === 'assets' ? 'text-indigo-600 font-bold' : 'text-slate-500'"
+          :class="currentTab === 'assets' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
           class="flex flex-col items-center justify-center py-1 px-3 transition relative">
           <i data-lucide="wallet" class="w-5 h-5"></i>
           <span class="text-[10px] mt-0.5">資產帳單</span>
           <span v-if="pendingBillAmount > 0" class="w-2 h-2 rounded-full bg-rose-500 absolute top-1 right-3"></span>
         </button>
         <button @click="switchTab('trends')"
-          :class="currentTab === 'trends' ? 'text-indigo-600 font-bold' : 'text-slate-500'"
+          :class="currentTab === 'trends' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
           class="flex flex-col items-center justify-center py-1 px-3 transition">
           <i data-lucide="line-chart" class="w-5 h-5"></i>
           <span class="text-[10px] mt-0.5">趨勢</span>
@@ -2116,7 +2193,7 @@
 
     <!-- Modal 1: 帳戶新增/編輯 -->
     <div v-if="showAccountModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <h3 class="text-base sm:text-lg font-bold text-slate-900">{{ currentAcc.id ? '編輯帳戶' : '新增帳戶' }}</h3>
         <div class="space-y-3">
           <div>
@@ -2149,7 +2226,7 @@
 
     <!-- Modal 2: 快速記帳 (方案 C: 極簡極速記帳) -->
     <div v-if="showTxModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-6 space-y-4 my-auto border border-slate-100">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 my-auto border border-slate-100 max-h-[92vh] overflow-y-auto">
         <!-- 彈窗頂部：標題與關閉按鈕 -->
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <div class="flex items-center space-x-2">
@@ -2371,7 +2448,7 @@
 
     <!-- Modal 3: 🤖 AI 智慧單據辨識上傳 (支援多張照片/收據/各家信用卡/薪資單批次排隊辨識) -->
     <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
             <i data-lucide="sparkles" class="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 text-indigo-600"></i>
@@ -2696,7 +2773,7 @@
 
     <!-- Modal 5: ✏️ 帳單手動新增 / 編輯 Modal (可自由修正 0 元) -->
     <div v-if="showEditBillModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <h3 class="text-base sm:text-lg font-bold text-slate-900">{{ currentBill.id ? '編輯信用卡帳單' : '手動補登信用卡帳單' }}</h3>
         <div class="space-y-3">
           <div>
@@ -3117,7 +3194,7 @@
 
     <!-- Modal 7: 📈 持股新增 / 編輯 Modal -->
     <div v-if="showStockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
             <i data-lucide="trending-up" class="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 text-indigo-600"></i>
@@ -3181,7 +3258,7 @@
 
     <!-- Modal 8: 🗓️ 每月固定花費新增 / 編輯 Modal -->
     <div v-if="showRecurringModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
-      <div class="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-xl space-y-4 my-auto border border-slate-100">
+      <div class="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-xl space-y-4 my-auto border border-slate-100 max-h-[92vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="font-bold text-slate-900 text-base sm:text-lg flex items-center">
             <i data-lucide="calendar" class="w-5 h-5 mr-1.5 text-indigo-600"></i>
@@ -3281,6 +3358,6 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.3.5"></script>
+  <script type="module" src="/static/js/app.js?v=2.3.6"></script>
 </body>
 </html>
