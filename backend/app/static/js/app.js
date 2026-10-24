@@ -5,6 +5,8 @@
 import {
   QUICK_CATEGORIES,
   CHART_PALETTE,
+  CATEGORY_COLORS,
+  getCategoryColor,
   formatMoney,
   formatStockPrice,
   formatStockShares,
@@ -424,7 +426,7 @@ createApp({
           category: cat,
           amount: amt,
           ratioOfTotal: (amt / totalInc) * 100,
-          color: CHART_PALETTE[idx % CHART_PALETTE.length]
+          color: getCategoryColor(cat, idx)
         };
       });
 
@@ -469,7 +471,7 @@ createApp({
           fixedAmount: fixedAmt,
           isDeduction: false,
           ratioOfSalary: (amount / salary) * 100,
-          color: CHART_PALETTE[idx % CHART_PALETTE.length]
+          color: getCategoryColor(cat, idx)
         };
       });
 
