@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..database import get_db, SessionLocal
+from ..core.database import get_db, SessionLocal
 from ..models import User, SystemSetting
 
 

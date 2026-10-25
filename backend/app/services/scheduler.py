@@ -10,13 +10,13 @@ from datetime import datetime, date
 from typing import Optional
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
-from ..database import SessionLocal
+from ..core.database import SessionLocal
 from ..models import User, Account, Bill
 from .accounting_service import get_setting, execute_bill_payment
-from .gmail_service import GmailService
-from .imap_service import ImapService
-from .dbs_parser import parse_dbs_pdf, normalize_date
-from .ai_parser import parse_document_with_gemini
+from .integrations.gmail_service import GmailService
+from .integrations.imap_service import ImapService
+from .integrations.dbs_parser import parse_dbs_pdf, normalize_date
+from .integrations.ai_parser import parse_document_with_gemini
 from .stock_service import refresh_all_stock_prices
 from .recurring_service import execute_auto_recurring_debits
 

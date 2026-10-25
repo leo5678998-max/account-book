@@ -5,13 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..core.database import get_db
 from ..models import User, Account
 from ..schemas import SettingsUpdate, SettingsStatus
 from ..services.accounting_service import get_setting, save_setting, get_default_debit_account
 from ..services.auth_service import get_current_user
-from ..services.gmail_service import GmailService
-from ..services.imap_service import ImapService
+from ..services.integrations.gmail_service import GmailService
+from ..services.integrations.imap_service import ImapService
 from ..services.insurance_service import calculate_insurance_summary
 
 router = APIRouter(tags=["Settings & Email Sync"])

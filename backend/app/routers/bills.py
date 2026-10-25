@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..core.database import get_db
 from ..models import User, Bill, Account, Transaction
 from ..schemas import (
     BillCreate,
@@ -22,8 +22,8 @@ from ..services.accounting_service import (
     apply_salary_income
 )
 from ..services.auth_service import get_current_user
-from ..services.ai_parser import parse_document_with_gemini
-from ..services.dbs_parser import parse_dbs_pdf
+from ..services.integrations.ai_parser import parse_document_with_gemini
+from ..services.integrations.dbs_parser import parse_dbs_pdf
 from ..services.scheduler import sync_bills_from_gmail, execute_auto_debits
 
 router = APIRouter(tags=["Bills & Sync"])

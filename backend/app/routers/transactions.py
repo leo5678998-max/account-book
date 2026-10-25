@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..core.database import get_db
 from ..models import User, Transaction
 from ..schemas import TransactionCreate, TransactionUpdate, TransactionResponse
 from ..services.accounting_service import record_transaction, modify_transaction, remove_transaction

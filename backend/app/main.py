@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .database import engine, Base
+from .core.database import engine, Base
 from . import models  # 確保所有 ORM Model 均被載入註冊
 from .services.auth_service import run_schema_migrations
 from .services.scheduler import start_scheduler, stop_scheduler

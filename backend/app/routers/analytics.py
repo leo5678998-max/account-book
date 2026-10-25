@@ -4,7 +4,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..core.database import get_db
 from ..models import User, Transaction, Account, RecurringExpense
 from ..services.accounting_service import get_setting
 from ..services.auth_service import get_current_user
