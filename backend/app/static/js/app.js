@@ -1031,7 +1031,7 @@ createApp({
         amount: null,
         tx_type: 'EXPENSE',
         account_id: defaultAcc?.id,
-        target_account_id: null,
+        target_account_id: accounts.value.find(a => a.id !== defaultAcc?.id)?.id || null,
         category: defaultCat,
         description: '',
         date: todayStr,
@@ -1081,10 +1081,19 @@ createApp({
       }
 
       if (!currentTx.value.amount || !currentTx.value.account_id) return alert('請填寫金額與選擇帳戶');
-      if (currentTx.value.tx_type === 'TRANSFER' && !currentTx.value.target_account_id) {
-        return alert('轉帳必須選擇轉入帳戶');
-      }
-      if (!currentTx.value.description || !currentTx.value.description.trim()) {
+      if (currentTx.value.tx_type === 'TRANSFER') {
+        if (!currentTx.value.target_account_id) {
+          return alert('轉帳必須選擇接收（轉入）帳戶');
+        }
+        if (currentTx.value.account_id === currentTx.value.target_account_id) {
+          return alert('來源帳戶與目標帳戶不能相同');
+        }
+        currentTx.value.category = '帳戶轉帳';
+        if (!currentTx.value.description || !currentTx.value.description.trim()) {
+          currentTx.value.description = 'ATM 提領 / 帳戶互轉';
+        }
+        currentTx.value.affects_balance = true;
+      } else if (!currentTx.value.description || !currentTx.value.description.trim()) {
         currentTx.value.description = currentTx.value.category || '一般消費';
       }
       // 若使用者手動輸入了新的自訂分類，自動納入常用分類清單並持久化
