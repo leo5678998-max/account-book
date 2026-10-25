@@ -740,317 +740,195 @@
 
         <!-- ==================== TAB 1: 總覽儀表板 (DASHBOARD) ==================== -->
         <div v-show="currentTab === 'dashboard'" class="space-y-4 sm:space-y-6">
-          <!-- ==================== 頂部 3 大核心指標 (Clean 3-Card Grid) ==================== -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-5">
-            <!-- 1. 個人總淨資產 (存款 + 股票) -->
-            <div class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
-              <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                <span class="flex items-center space-x-1.5">
-                  <span class="text-slate-700 font-bold">個人總淨資產</span>
-                  <button @click.stop="toggleHideAssets" class="p-0.5 text-slate-400 hover:text-slate-600 rounded transition" :title="hideAssets ? '顯示金額' : '隱藏金額'">
-                    <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-3.5 h-3.5"></i>
-                  </button>
-                </span>
-                <span class="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <i data-lucide="wallet" class="w-4 h-4"></i>
-                </span>
-              </div>
-              <div class="mt-2 sm:mt-2.5 cursor-pointer select-none" @click="toggleHideAssets" :title="hideAssets ? '點擊顯示金額' : '點擊隱藏金額'">
-                <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-mono">
-                  <span v-if="hideAssets" class="tracking-wider text-slate-400 font-sans text-xl sm:text-2xl">NT$ ••••••</span>
-                  <span v-else>NT$ {{ formatMoney(totalNetWorth) }}</span>
-                </div>
-              </div>
-              <!-- 拆分子項目與跳轉 -->
-              <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <div class="flex items-center space-x-2 truncate">
-                  <span title="活存與各帳戶現金">活存 NT$ {{ hideAssets ? '•••' : formatMoney(totalSavings) }}</span>
-                  <span class="text-slate-300">·</span>
-                  <span class="flex items-center space-x-1" title="美股證券市值">
-                    <span>股票 NT$ {{ hideAssets ? '•••' : formatMoney(stockPortfolio.total_market_value_twd) }}</span>
-                    <span v-if="!hideAssets && stockPortfolio.total_return_rate !== 0"
-                      class="font-semibold font-mono"
-                      :class="stockPortfolio.total_unrealized_pnl_twd >= 0 ? 'text-rose-600' : 'text-emerald-600'">
-                      ({{ stockPortfolio.total_return_rate >= 0 ? '+' : '' }}{{ stockPortfolio.total_return_rate.toFixed(1) }}%)
-                    </span>
-                  </span>
-                </div>
-                <button @click="switchTab('accounts')" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center flex-shrink-0 ml-1">
-                  帳戶 <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                </button>
-              </div>
+
+          <!-- 頂部標題列與自訂版面排版按鈕 -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div>
+              <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
+                <span>財務總覽儀表板</span>
+              </h3>
+              <p class="text-xs text-slate-500 mt-0.5">即時資產淨值、當月收支預算與固定常態開銷</p>
             </div>
 
-            <!-- 2. 本月開銷與月薪佔比 -->
-            <div class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
-              <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                <span class="text-slate-700 font-bold">本月總開銷 ({{ currentMonth.substring(5) }}月)</span>
-                <span class="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <i data-lucide="pie-chart" class="w-4 h-4"></i>
-                </span>
-              </div>
-              <div class="mt-2 sm:mt-2.5">
-                <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-mono">
-                  NT$ {{ formatMoney(monthlyTotalExpense) }}
-                </div>
-              </div>
-              <!-- 佔比與結餘 -->
-              <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <span class="font-semibold" :class="expenseRatio > 100 ? 'text-rose-600 font-bold' : 'text-slate-700'">
-                    佔月薪 {{ expenseRatio.toFixed(0) }}%
-                  </span>
-                  <span class="text-slate-300">·</span>
-                  <span :class="remainingSalary >= 0 ? 'text-emerald-600' : 'text-rose-600'" class="font-medium truncate">
-                    {{ remainingSalary >= 0 ? '結餘 NT$ ' + formatMoney(remainingSalary) : '透支 NT$ ' + formatMoney(Math.abs(remainingSalary)) }}
-                  </span>
-                </div>
-                <button @click="switchTab('transactions')" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center flex-shrink-0 ml-1">
-                  明細 <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- 3. 卡費待扣提醒 -->
-            <div class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition group">
-              <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                <span class="text-slate-700 font-bold">信用卡待繳款</span>
-                <span class="w-7 h-7 rounded-xl flex items-center justify-center" :class="pendingBillAmount > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'">
-                  <i :data-lucide="pendingBillAmount > 0 ? 'credit-card' : 'check-circle'" class="w-4 h-4"></i>
-                </span>
-              </div>
-              <div class="mt-2 sm:mt-2.5">
-                <div v-if="pendingBillAmount > 0" class="text-2xl sm:text-3xl font-extrabold text-rose-600 tracking-tight font-mono">
-                  NT$ {{ formatMoney(pendingBillAmount) }}
-                </div>
-                <div v-else class="text-xl sm:text-2xl font-bold text-emerald-600 tracking-tight flex items-center space-x-1.5 pt-1">
-                  <span>全數已繳清</span>
-                </div>
-              </div>
-              <!-- 最近待扣與跳轉 -->
-              <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <div class="truncate">
-                  <span v-if="nextDueBill" class="truncate">
-                    最近待繳：<strong class="text-slate-700">{{ nextDueBill.bank_name }}</strong> ({{ nextDueBill.due_date || '即將扣款' }})
-                  </span>
-                  <span v-else class="text-slate-400">目前無待扣帳單</span>
-                </div>
-                <button @click="switchTab('bills')" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center flex-shrink-0 ml-1">
-                  帳單 <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                </button>
-              </div>
+            <!-- 自訂版面開關與重設按鈕 -->
+            <div class="flex items-center space-x-2">
+              <button type="button" @click="toggleEditLayout"
+                class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none"
+                :class="isEditingLayout ? 'bg-indigo-600 text-white hover:bg-indigo-700 ring-2 ring-indigo-300' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'">
+                <i :data-lucide="isEditingLayout ? 'check' : 'layout-grid'" class="w-3.5 h-3.5 mr-1.5" :class="isEditingLayout ? 'text-white' : 'text-indigo-600'"></i>
+                <span>{{ isEditingLayout ? '完成自訂版面' : '自訂版面位置' }}</span>
+              </button>
+              <button v-if="isEditingLayout" type="button" @click="resetDashboardLayout"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer">
+                重設預設
+              </button>
             </div>
           </div>
 
-          <!-- ==================== 月薪收支與支出結構圓餅分析 ==================== -->
-          <section class="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
-            <div class="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
-              <div class="flex items-center justify-between sm:justify-start space-x-2 sm:space-x-3 w-full sm:w-auto">
-                <div class="flex items-center space-x-1.5 sm:space-x-2">
-                  <i data-lucide="chart-pie" class="w-4 h-4 text-indigo-600 flex-shrink-0"></i>
-                  <h2 class="text-xs sm:text-base font-bold text-slate-900 truncate">收支結構與佔比</h2>
-                </div>
-                <!-- 支出 / 收入 模式切換 -->
-                <div class="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold flex-shrink-0">
-                  <button @click="setChartViewMode('expense')"
-                    :class="chartViewMode === 'expense' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
-                    class="px-2 py-1 rounded-md transition flex items-center space-x-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-600" v-if="chartViewMode === 'expense'"></span>
-                    <span>支出分析</span>
-                  </button>
-                  <button @click="setChartViewMode('income')"
-                    :class="chartViewMode === 'income' ? 'bg-white text-emerald-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
-                    class="px-2 py-1 rounded-md transition flex items-center space-x-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600" v-if="chartViewMode === 'income'"></span>
-                    <span>收入結構</span>
-                    <span v-if="monthlyRecordedIncome > 0" class="text-[9px] bg-emerald-50 text-emerald-600 px-1 rounded-full font-bold">
-                      +{{ formatMoney(monthlyRecordedIncome) }}
-                    </span>
-                  </button>
-                </div>
-              </div>
+          <!-- 自訂版面編輯模式提示橫幅 -->
+          <div v-if="isEditingLayout" class="p-3 sm:p-4 bg-indigo-50/90 border border-indigo-200 rounded-2xl flex items-start sm:items-center justify-between gap-3 text-xs text-indigo-900 shadow-xs">
+            <div class="flex items-center space-x-2 min-w-0">
+              <span class="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg flex-shrink-0">
+                <i data-lucide="move" class="w-4 h-4"></i>
+              </span>
+              <span><strong>自訂版面模式中</strong>：您可以按住區塊上方的<strong>「⋮⋮ 拖曳」</strong>上下移動順序，或點擊<strong>「⬆️ 上移」「⬇️ 下移」</strong>微調；完成後請點「完成自訂版面」。</span>
+            </div>
+            <button type="button" @click="toggleEditLayout" class="px-3 py-1 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 flex-shrink-0 cursor-pointer">
+              完成儲存
+            </button>
+          </div>
 
-              <!-- 月份選擇器 -->
-              <div class="flex items-center justify-end space-x-1.5 text-xs text-slate-500 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100/60">
-                <label class="font-medium text-[11px] sm:text-xs text-slate-500">月份：</label>
-                <input type="month" v-model="selectedMonth" @change="renderChart"
-                  class="border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-50 outline-none hover:border-slate-300 focus:border-indigo-500">
+          <!-- 動態自由排版區塊列表 -->
+          <div v-for="(blockId, bIdx) in dashboardBlockOrder" :key="blockId"
+            :draggable="isEditingLayout"
+            @dragstart="onBlockDragStart(bIdx, $event)"
+            @dragover="onBlockDragOver(bIdx, $event)"
+            @drop="onBlockDrop(bIdx, $event)"
+            @dragend="onBlockDragEnd"
+            class="transition-all duration-200"
+            :class="{
+              'ring-2 ring-indigo-400 ring-dashed rounded-2xl p-2 bg-indigo-50/20': isEditingLayout,
+              'opacity-40 scale-[0.99]': isEditingLayout && draggedBlockIndex === bIdx,
+              'ring-4 ring-indigo-500 ring-offset-2': isEditingLayout && dragOverBlockIndex === bIdx && draggedBlockIndex !== bIdx
+            }">
+
+            <!-- 編輯模式專屬工具列 (區塊名稱 + 拖曳把手 + 上下移按鈕) -->
+            <div v-if="isEditingLayout" class="bg-indigo-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold mb-2.5 flex items-center justify-between shadow-xs select-none cursor-grab active:cursor-grabbing">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="grip-vertical" class="w-4 h-4 text-indigo-200"></i>
+                <span>區塊 {{ bIdx + 1 }}: {{ getBlockTitle(blockId) }}</span>
+              </div>
+              <div class="flex items-center space-x-1" @click.stop>
+                <button type="button" @click="moveBlockUp(bIdx)" :disabled="bIdx === 0"
+                  class="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 disabled:opacity-30 disabled:hover:bg-white/20 transition flex items-center space-x-0.5" title="上移此區塊">
+                  <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
+                  <span>上移</span>
+                </button>
+                <button type="button" @click="moveBlockDown(bIdx)" :disabled="bIdx === dashboardBlockOrder.length - 1"
+                  class="px-2 py-0.5 rounded bg-white/20 hover:bg-white/30 disabled:opacity-30 disabled:hover:bg-white/20 transition flex items-center space-x-0.5" title="下移此區塊">
+                  <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                  <span>下移</span>
+                </button>
               </div>
             </div>
 
-            <div class="p-3.5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-center">
-              <!-- 圓餅圖畫布 -->
-              <div class="lg:col-span-5 flex flex-col items-center justify-center">
-                <div class="relative w-44 h-44 sm:w-60 sm:h-60 mx-auto">
-                  <canvas id="expenseChart"></canvas>
-                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                    <span class="text-[10px] sm:text-xs text-slate-400 font-medium">
-                      {{ chartViewMode === 'expense' ? '當月總支出' : '當月總收入' }}
-                    </span>
-                    <span class="text-sm sm:text-xl font-extrabold font-mono px-2 truncate"
-                      :class="chartViewMode === 'expense' ? 'text-slate-800' : 'text-emerald-700'">
-                      NT$ {{ formatMoney(chartViewMode === 'expense' ? monthlyTotalExpense : chartBaseSalary) }}
-                    </span>
-                    <span v-if="chartViewMode === 'expense'" class="text-[10px] sm:text-[11px] font-semibold mt-0.5"
-                      :class="remainingSalary >= 0 ? 'text-emerald-600' : 'text-rose-600'">
-                      {{ remainingSalary >= 0 ? '結餘 ' + formatMoney(remainingSalary) : '透支 ' + formatMoney(Math.abs(remainingSalary)) }}
-                    </span>
-                    <span v-else class="text-[10px] sm:text-[11px] text-emerald-600 font-semibold mt-0.5">
-                      {{ monthlyRecordedIncome > 0 ? '含手動進帳 ' + formatMoney(monthlyRecordedIncome) : '固定底薪基準' }}
-                    </span>
+            <!-- ==================== 區塊 1: 三大核心財務指標卡片 (KPI) ==================== -->
+            <div v-if="blockId === 'kpi'">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-5">
+                <div v-for="(kpiId, kIdx) in kpiCardsOrder" :key="kpiId" class="relative group">
+                  <!-- 編輯模式下的卡片左右調整按鈕 -->
+                  <div v-if="isEditingLayout" class="absolute top-2.5 right-2.5 z-10 flex items-center space-x-1 bg-white/95 rounded-lg p-0.5 shadow-xs border border-slate-200">
+                    <button type="button" @click.stop="moveKpiCardLeft(kIdx)" :disabled="kIdx === 0"
+                      class="p-0.5 rounded text-slate-500 hover:text-indigo-600 disabled:opacity-30" title="向左移">
+                      <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button type="button" @click.stop="moveKpiCardRight(kIdx)" :disabled="kIdx === kpiCardsOrder.length - 1"
+                      class="p-0.5 rounded text-slate-500 hover:text-indigo-600 disabled:opacity-30" title="向右移">
+                      <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                    </button>
                   </div>
-                </div>
 
-                <!-- 圖表圖例 -->
-                <div v-if="chartViewMode === 'expense'" class="mt-3 flex items-center space-x-4 text-xs text-slate-500">
-                  <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> 實領結餘</span>
-                  <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-indigo-500 mr-1.5"></span> 各項開銷</span>
-                </div>
-                <div v-else class="mt-3 flex items-center space-x-2 text-xs text-slate-500">
-                  <span>共 {{ monthlyIncomesList.length }} 項收入來源</span>
-                  <span class="text-slate-300">·</span>
-                  <span class="text-emerald-600 font-semibold">結餘儲蓄 NT$ {{ formatMoney(remainingSalary) }}</span>
-                </div>
-              </div>
-
-              <!-- 右側清單 (支出排行 vs 收入排行) -->
-              <div class="lg:col-span-7">
-                <!-- 支出排行清單 -->
-                <div v-if="chartViewMode === 'expense'">
-                  <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center space-x-1.5">
-                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">支出項目佔比排行</h3>
-                      <span class="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">（點擊圓點自訂色彩）</span>
-                    </div>
-                    <span class="text-[11px] text-slate-400">
-                      總收入池 NT$ {{ formatMoney(chartBaseSalary) }}
-                      <span v-if="monthlyRecordedIncome > 0" class="text-emerald-600 font-bold">(含進帳 +{{ formatMoney(monthlyRecordedIncome) }})</span>
-                    </span>
-                  </div>
-                  <div v-if="monthlyExpensesList.length === 0" class="text-center py-8 text-slate-400 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 text-xs">
-                    <i data-lucide="inbox" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
-                    {{ selectedMonth }} 尚無任何支出紀錄
-                  </div>
-                  <div v-else class="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    <div v-for="(item, idx) in monthlyExpensesList" :key="idx" class="ranking-item p-2.5 rounded-xl transition">
-                      <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
-                        <div class="flex items-center space-x-2 truncate">
-                          <label class="relative inline-flex items-center justify-center cursor-pointer flex-shrink-0 group/color" :title="'點擊自訂「' + item.category + '」顏色'">
-                            <span class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/20 shadow-xs transition-transform transform group-hover/color:scale-130" :style="{ backgroundColor: item.color }"></span>
-                            <input type="color" :value="item.color" @change="setCategoryColor(item.category, $event.target.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
-                          </label>
-                          <span class="truncate">{{ item.category }}</span>
-                          <span v-if="item.isDeduction" class="text-[10px] font-bold text-sky-700 bg-sky-50 px-1 rounded">
-                            {{ item.deductionLabel || '預扣' }}
-                          </span>
-                          <span v-else-if="item.fixedAmount > 0" class="text-[10px] font-normal text-indigo-600 bg-indigo-50 px-1 rounded">
-                            固定
-                          </span>
-                        </div>
-                        <div class="space-x-2 text-right flex-shrink-0">
-                          <span class="font-bold text-slate-900 font-mono">NT$ {{ formatMoney(item.amount) }}</span>
-                          <span class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">
-                            {{ item.ratioOfSalary.toFixed(1) }}%
-                          </span>
+                  <!-- 1. 個人總淨資產 (存款 + 股票) -->
+                  <div v-if="kpiId === 'networth'" class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition h-full flex flex-col justify-between">
+                    <div>
+                      <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                        <span class="flex items-center space-x-1.5">
+                          <span class="text-slate-700 font-bold">個人總淨資產</span>
+                          <button @click.stop="toggleHideAssets" class="p-0.5 text-slate-400 hover:text-slate-600 rounded transition" :title="hideAssets ? '顯示金額' : '隱藏金額'">
+                            <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-3.5 h-3.5"></i>
+                          </button>
+                        </span>
+                        <span class="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                          <i data-lucide="wallet" class="w-4 h-4"></i>
+                        </span>
+                      </div>
+                      <div class="mt-2 sm:mt-2.5 cursor-pointer select-none" @click="toggleHideAssets" :title="hideAssets ? '點擊顯示金額' : '點擊隱藏金額'">
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-mono">
+                          <span v-if="hideAssets" class="tracking-wider text-slate-400 font-sans text-xl sm:text-2xl">NT$ ••••••</span>
+                          <span v-else>NT$ {{ formatMoney(totalNetWorth) }}</span>
                         </div>
                       </div>
-                      <!-- 佔比進度條 -->
-                      <div class="w-full bg-slate-200 ranking-progress-track rounded-full h-1 mt-1.5 overflow-hidden">
-                        <div class="h-1 rounded-full transition-all duration-300" :style="{ width: Math.min(item.ratioOfSalary, 100) + '%', backgroundColor: item.color }"></div>
+                    </div>
+                    <!-- 拆分子項目與跳轉 -->
+                    <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                      <div class="flex items-center space-x-2 truncate">
+                        <span title="活存與各帳戶現金">活存 NT$ {{ hideAssets ? '•••' : formatMoney(totalSavings) }}</span>
+                        <span class="text-slate-300">·</span>
+                        <span class="flex items-center space-x-1" title="美股證券市值">
+                          <span>股票 NT$ {{ hideAssets ? '•••' : formatMoney(stockPortfolio.total_market_value_twd) }}</span>
+                          <span v-if="!hideAssets && stockPortfolio.total_return_rate !== 0"
+                            class="font-semibold font-mono"
+                            :class="stockPortfolio.total_unrealized_pnl_twd >= 0 ? 'text-rose-600' : 'text-emerald-600'">
+                            ({{ stockPortfolio.total_return_rate >= 0 ? '+' : '' }}{{ stockPortfolio.total_return_rate.toFixed(1) }}%)
+                          </span>
+                        </span>
                       </div>
+                      <button @click="switchTab('accounts')" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center flex-shrink-0 ml-1 cursor-pointer">
+                        帳戶 <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                      </button>
                     </div>
                   </div>
-                </div>
 
-                <!-- 收入結構清單 -->
-                <div v-else>
-                  <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center space-x-1.5">
-                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">收入來源明細結構</h3>
-                      <span class="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">（點擊圓點自訂色彩）</span>
-                    </div>
-                    <span class="text-[11px] text-slate-400 font-semibold">
-                      當月實得總進帳 NT$ {{ formatMoney(chartBaseSalary) }}
-                    </span>
-                  </div>
-                  <div v-if="monthlyIncomesList.length === 0" class="text-center py-8 text-slate-400 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 text-xs">
-                    <i data-lucide="inbox" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
-                    {{ selectedMonth }} 尚無任何收入紀錄
-                  </div>
-                  <div v-else class="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    <div v-for="(item, idx) in monthlyIncomesList" :key="idx" class="ranking-item p-2.5 rounded-xl transition">
-                      <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
-                        <div class="flex items-center space-x-2 truncate">
-                          <label class="relative inline-flex items-center justify-center cursor-pointer flex-shrink-0 group/color" :title="'點擊自訂「' + item.category + '」顏色'">
-                            <span class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/20 shadow-xs transition-transform transform group-hover/color:scale-130" :style="{ backgroundColor: item.color }"></span>
-                            <input type="color" :value="item.color" @change="setCategoryColor(item.category, $event.target.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
-                          </label>
-                          <span class="truncate">{{ item.category }}</span>
-                          <span v-if="item.category === '固定月薪'" class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1 rounded">
-                            底薪基準
-                          </span>
-                          <span v-else class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded">
-                            實得進帳
-                          </span>
-                        </div>
-                        <div class="space-x-2 text-right flex-shrink-0">
-                          <span class="font-bold text-emerald-600 font-mono">+NT$ {{ formatMoney(item.amount) }}</span>
-                          <span class="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">
-                            {{ item.ratioOfTotal.toFixed(1) }}%
-                          </span>
+                  <!-- 2. 本月開銷與月薪佔比 -->
+                  <div v-else-if="kpiId === 'expense'" class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition h-full flex flex-col justify-between">
+                    <div>
+                      <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                        <span class="text-slate-700 font-bold">本月總開銷 ({{ currentMonth.substring(5) }}月)</span>
+                        <span class="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                          <i data-lucide="pie-chart" class="w-4 h-4"></i>
+                        </span>
+                      </div>
+                      <div class="mt-2 sm:mt-2.5">
+                        <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-mono">
+                          NT$ {{ formatMoney(monthlyTotalExpense) }}
                         </div>
                       </div>
-                      <!-- 佔比進度條 -->
-                      <div class="w-full bg-slate-200 ranking-progress-track rounded-full h-1 mt-1.5 overflow-hidden">
-                        <div class="h-1 rounded-full transition-all duration-300" :style="{ width: Math.min(item.ratioOfTotal, 100) + '%', backgroundColor: item.color }"></div>
+                    </div>
+                    <!-- 佔比與結餘 -->
+                    <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                      <div class="flex items-center space-x-1.5 truncate">
+                        <span class="font-semibold" :class="expenseRatio > 100 ? 'text-rose-600 font-bold' : 'text-slate-700'">
+                          佔月薪 {{ expenseRatio.toFixed(0) }}%
+                        </span>
+                        <span class="text-slate-300">·</span>
+                        <span :class="remainingSalary >= 0 ? 'text-emerald-600' : 'text-rose-600'" class="font-medium truncate">
+                          {{ remainingSalary >= 0 ? '結餘 NT$ ' + formatMoney(remainingSalary) : '透支 NT$ ' + formatMoney(Math.abs(remainingSalary)) }}
+                        </span>
                       </div>
+                      <button @click="switchTab('transactions')" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center flex-shrink-0 ml-1 cursor-pointer">
+                        明細 <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                      </button>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          </section>
 
-          <!-- ==================== 底部動態：近期交易 (左) + 固定開銷 (右) ==================== -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <!-- 左側 7 欄：近期收支明細 -->
-            <div class="lg:col-span-7 bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200/90 flex flex-col justify-between">
-              <div>
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div class="flex items-center space-x-2">
-                    <i data-lucide="history" class="w-4 h-4 text-indigo-600"></i>
-                    <h3 class="text-sm font-bold text-slate-900">近期收支速覽</h3>
-                  </div>
-                  <button @click="switchTab('transactions')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center transition">
-                    全部明細 ({{ transactions.length }}) <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-0.5"></i>
-                  </button>
-                </div>
-
-                <div v-if="transactions.length === 0" class="text-center py-8 text-slate-400 text-xs">
-                  <i data-lucide="receipt-text" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
-                  尚無記帳明細，點擊右上角「記一筆」新增開銷！
-                </div>
-                <div v-else class="divide-y divide-slate-100 dark:divide-slate-800 mt-1">
-                  <div v-for="t in recentTransactions" :key="t.id"
-                    @click="openEditTxModal(t)"
-                    class="group py-2.5 flex items-center justify-between text-xs hover:bg-slate-50/80 dark:hover:bg-slate-800/60 px-1.5 rounded-lg transition cursor-pointer"
-                    title="點擊編輯此筆明細">
-                    <div class="flex items-center space-x-2.5 min-w-0 pr-2">
-                      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0"
-                        :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400')">
-                        {{ t.category || t.tx_type }}
-                      </span>
-                      <span v-if="t.affects_balance === false" class="text-[9px] bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-1 rounded flex-shrink-0">不扣存款</span>
-                      <span class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ t.description || '-' }}</span>
-                      <span class="text-[11px] text-slate-400 font-mono hidden sm:inline flex-shrink-0">{{ t.date ? t.date.substring(0, 10) : '' }}</span>
-                    </div>
-                    <div class="flex items-center space-x-2 flex-shrink-0">
-                      <div class="font-mono font-bold text-xs"
-                        :class="t.tx_type === 'EXPENSE' ? 'text-rose-600 dark:text-rose-400' : (t.tx_type === 'INCOME' ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400')">
-                        {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'INCOME' ? '+' : '⇄ ') }}NT$ {{ formatMoney(t.amount) }}
+                  <!-- 3. 卡費待扣提醒 -->
+                  <div v-else-if="kpiId === 'bills'" class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition h-full flex flex-col justify-between">
+                    <div>
+                      <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                        <span class="text-slate-700 font-bold">信用卡待繳款</span>
+                        <span class="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0" :class="pendingBillAmount > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'">
+                          <i :data-lucide="pendingBillAmount > 0 ? 'credit-card' : 'check-circle'" class="w-4 h-4"></i>
+                        </span>
                       </div>
-                      <button @click.stop="openEditTxModal(t)" class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition" title="編輯此筆記帳">
-                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      <div class="mt-2 sm:mt-2.5">
+                        <div v-if="pendingBillAmount > 0" class="text-2xl sm:text-3xl font-extrabold text-rose-600 tracking-tight font-mono">
+                          NT$ {{ formatMoney(pendingBillAmount) }}
+                        </div>
+                        <div v-else class="text-xl sm:text-2xl font-bold text-emerald-600 tracking-tight flex items-center space-x-1.5 pt-1">
+                          <span>全數已繳清</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 最近待扣與跳轉 -->
+                    <div class="mt-2.5 pt-2.5 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                      <div class="truncate">
+                        <span v-if="nextDueBill" class="truncate">
+                          最近待繳：<strong class="text-slate-700">{{ nextDueBill.bank_name }}</strong> ({{ nextDueBill.due_date || '即將扣款' }})
+                        </span>
+                        <span v-else class="text-slate-400">目前無待扣帳單</span>
+                      </div>
+                      <button @click="switchTab('bills')" class="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center flex-shrink-0 ml-1 cursor-pointer">
+                        帳單 <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
                       </button>
                     </div>
                   </div>
@@ -1058,20 +936,232 @@
               </div>
             </div>
 
-            <!-- 右側 5 欄：每月固定開銷規劃速覽 -->
-            <div class="lg:col-span-5 bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200/90 flex flex-col justify-between">
-              <div>
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div class="flex items-center space-x-2">
-                    <i data-lucide="calendar-clock" class="w-4 h-4 text-indigo-600"></i>
-                    <h3 class="text-sm font-bold text-slate-900">每月固定開銷</h3>
+            <!-- ==================== 區塊 2: 月薪收支與支出結構圓餅分析 ==================== -->
+            <section v-else-if="blockId === 'chart'" class="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden">
+              <div class="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
+                <div class="flex items-center justify-between sm:justify-start space-x-2 sm:space-x-3 w-full sm:w-auto">
+                  <div class="flex items-center space-x-1.5 sm:space-x-2">
+                    <i data-lucide="chart-pie" class="w-4 h-4 text-indigo-600 flex-shrink-0"></i>
+                    <h2 class="text-xs sm:text-base font-bold text-slate-900 truncate">收支結構與佔比分析</h2>
                   </div>
-                  <button @click="switchTab('recurring')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center transition">
-                    管理 <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-0.5"></i>
-                  </button>
+                  <!-- 支出 / 收入 模式切換 -->
+                  <div class="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold flex-shrink-0">
+                    <button @click="setChartViewMode('expense')"
+                      :class="chartViewMode === 'expense' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                      class="px-2 py-1 rounded-md transition flex items-center space-x-1 cursor-pointer">
+                      <span class="w-1.5 h-1.5 rounded-full bg-indigo-600" v-if="chartViewMode === 'expense'"></span>
+                      <span>支出分析</span>
+                    </button>
+                    <button @click="setChartViewMode('income')"
+                      :class="chartViewMode === 'income' ? 'bg-white text-emerald-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                      class="px-2 py-1 rounded-md transition flex items-center space-x-1 cursor-pointer">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-600" v-if="chartViewMode === 'income'"></span>
+                      <span>收入結構</span>
+                      <span v-if="monthlyRecordedIncome > 0" class="text-[9px] bg-emerald-50 text-emerald-600 px-1 rounded-full font-bold">
+                        +{{ formatMoney(monthlyRecordedIncome) }}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
-                <div class="mt-3 bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                <!-- 月份選擇器 -->
+                <div class="flex items-center justify-end space-x-1.5 text-xs text-slate-500 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100/60">
+                  <label class="font-medium text-[11px] sm:text-xs text-slate-500">月份：</label>
+                  <input type="month" v-model="selectedMonth" @change="renderChart"
+                    class="border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-50 outline-none hover:border-slate-300 focus:border-indigo-500 cursor-pointer">
+                </div>
+              </div>
+
+              <div class="p-3.5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-center">
+                <!-- 圓餅圖畫布 -->
+                <div class="lg:col-span-5 flex flex-col items-center justify-center">
+                  <div class="relative w-44 h-44 sm:w-60 sm:h-60 mx-auto">
+                    <canvas id="expenseChart"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                      <span class="text-[10px] sm:text-xs text-slate-400 font-medium">
+                        {{ chartViewMode === 'expense' ? '當月總支出' : '當月總收入' }}
+                      </span>
+                      <span class="text-sm sm:text-xl font-extrabold font-mono px-2 truncate"
+                        :class="chartViewMode === 'expense' ? 'text-slate-800' : 'text-emerald-700'">
+                        NT$ {{ formatMoney(chartViewMode === 'expense' ? monthlyTotalExpense : chartBaseSalary) }}
+                      </span>
+                      <span v-if="chartViewMode === 'expense'" class="text-[10px] sm:text-[11px] font-semibold mt-0.5"
+                        :class="remainingSalary >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                        {{ remainingSalary >= 0 ? '結餘 ' + formatMoney(remainingSalary) : '透支 ' + formatMoney(Math.abs(remainingSalary)) }}
+                      </span>
+                      <span v-else class="text-[10px] sm:text-[11px] text-emerald-600 font-semibold mt-0.5">
+                        {{ monthlyRecordedIncome > 0 ? '含手動進帳 ' + formatMoney(monthlyRecordedIncome) : '固定底薪基準' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 圖表圖例 -->
+                  <div v-if="chartViewMode === 'expense'" class="mt-3 flex items-center space-x-4 text-xs text-slate-500">
+                    <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> 實領結餘</span>
+                    <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-indigo-500 mr-1.5"></span> 各項開銷</span>
+                  </div>
+                  <div v-else class="mt-3 flex items-center space-x-2 text-xs text-slate-500">
+                    <span>共 {{ monthlyIncomesList.length }} 項收入來源</span>
+                    <span class="text-slate-300">·</span>
+                    <span class="text-emerald-600 font-semibold">結餘儲蓄 NT$ {{ formatMoney(remainingSalary) }}</span>
+                  </div>
+                </div>
+
+                <!-- 右側清單 (支出排行 vs 收入排行) -->
+                <div class="lg:col-span-7">
+                  <!-- 支出排行清單 -->
+                  <div v-if="chartViewMode === 'expense'">
+                    <div class="flex items-center justify-between mb-3">
+                      <div class="flex items-center space-x-1.5">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">支出項目佔比排行</h3>
+                        <span class="text-[10px] text-slate-400 hidden sm:inline">（點擊圓點自訂色彩）</span>
+                      </div>
+                      <span class="text-[11px] text-slate-400">
+                        總收入池 NT$ {{ formatMoney(chartBaseSalary) }}
+                        <span v-if="monthlyRecordedIncome > 0" class="text-emerald-600 font-bold">(含進帳 +{{ formatMoney(monthlyRecordedIncome) }})</span>
+                      </span>
+                    </div>
+                    <div v-if="monthlyExpensesList.length === 0" class="text-center py-8 text-slate-400 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 text-xs">
+                      <i data-lucide="inbox" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
+                      {{ selectedMonth }} 尚無任何支出紀錄
+                    </div>
+                    <div v-else class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      <div v-for="(item, idx) in monthlyExpensesList" :key="idx" class="ranking-item p-2.5 rounded-xl transition">
+                        <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+                          <div class="flex items-center space-x-2 truncate">
+                            <label class="relative inline-flex items-center justify-center cursor-pointer flex-shrink-0 group/color" :title="'點擊自訂「' + item.category + '」顏色'">
+                              <span class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 shadow-xs transition-transform transform group-hover/color:scale-130" :style="{ backgroundColor: item.color }"></span>
+                              <input type="color" :value="item.color" @change="setCategoryColor(item.category, $event.target.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                            </label>
+                            <span class="truncate">{{ item.category }}</span>
+                            <span v-if="item.isDeduction" class="text-[10px] font-bold text-sky-700 bg-sky-50 px-1 rounded">
+                              {{ item.deductionLabel || '預扣' }}
+                            </span>
+                            <span v-else-if="item.fixedAmount > 0" class="text-[10px] font-normal text-indigo-600 bg-indigo-50 px-1 rounded">
+                              固定
+                            </span>
+                          </div>
+                          <div class="space-x-2 text-right flex-shrink-0">
+                            <span class="font-bold text-slate-900 font-mono">NT$ {{ formatMoney(item.amount) }}</span>
+                            <span class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">
+                              {{ item.ratioOfSalary.toFixed(1) }}%
+                            </span>
+                          </div>
+                        </div>
+                        <!-- 佔比進度條 -->
+                        <div class="w-full bg-slate-200 ranking-progress-track rounded-full h-1 mt-1.5 overflow-hidden">
+                          <div class="h-1 rounded-full transition-all duration-300" :style="{ width: Math.min(item.ratioOfSalary, 100) + '%', backgroundColor: item.color }"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 收入結構清單 -->
+                  <div v-else>
+                    <div class="flex items-center justify-between mb-3">
+                      <div class="flex items-center space-x-1.5">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">收入來源明細結構</h3>
+                        <span class="text-[10px] text-slate-400 hidden sm:inline">（點擊圓點自訂色彩）</span>
+                      </div>
+                      <span class="text-[11px] text-slate-400 font-semibold">
+                        當月實得總進帳 NT$ {{ formatMoney(chartBaseSalary) }}
+                      </span>
+                    </div>
+                    <div v-if="monthlyIncomesList.length === 0" class="text-center py-8 text-slate-400 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 text-xs">
+                      <i data-lucide="inbox" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
+                      {{ selectedMonth }} 尚無任何收入紀錄
+                    </div>
+                    <div v-else class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      <div v-for="(item, idx) in monthlyIncomesList" :key="idx" class="ranking-item p-2.5 rounded-xl transition">
+                        <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+                          <div class="flex items-center space-x-2 truncate">
+                            <label class="relative inline-flex items-center justify-center cursor-pointer flex-shrink-0 group/color" :title="'點擊自訂「' + item.category + '」顏色'">
+                              <span class="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 shadow-xs transition-transform transform group-hover/color:scale-130" :style="{ backgroundColor: item.color }"></span>
+                              <input type="color" :value="item.color" @change="setCategoryColor(item.category, $event.target.value)" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                            </label>
+                            <span class="truncate">{{ item.category }}</span>
+                            <span v-if="item.category === '固定月薪'" class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1 rounded">
+                              底薪基準
+                            </span>
+                            <span v-else class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded">
+                              實得進帳
+                            </span>
+                          </div>
+                          <div class="space-x-2 text-right flex-shrink-0">
+                            <span class="font-bold text-emerald-600 font-mono">+NT$ {{ formatMoney(item.amount) }}</span>
+                            <span class="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">
+                              {{ item.ratioOfTotal.toFixed(1) }}%
+                            </span>
+                          </div>
+                        </div>
+                        <!-- 佔比進度條 -->
+                        <div class="w-full bg-slate-200 ranking-progress-track rounded-full h-1 mt-1.5 overflow-hidden">
+                          <div class="h-1 rounded-full transition-all duration-300" :style="{ width: Math.min(item.ratioOfTotal, 100) + '%', backgroundColor: item.color }"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ==================== 區塊 3: 近期收支速覽明細 ==================== -->
+            <div v-else-if="blockId === 'transactions'" class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200/90">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-2">
+                  <i data-lucide="history" class="w-4 h-4 text-indigo-600"></i>
+                  <h3 class="text-sm font-bold text-slate-900">近期收支速覽</h3>
+                </div>
+                <button @click="switchTab('transactions')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center transition cursor-pointer">
+                  全部明細 ({{ transactions.length }}) <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-0.5"></i>
+                </button>
+              </div>
+
+              <div v-if="transactions.length === 0" class="text-center py-8 text-slate-400 text-xs">
+                <i data-lucide="receipt-text" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
+                尚無記帳明細，點擊右上角「記一筆」新增開銷！
+              </div>
+              <div v-else class="divide-y divide-slate-100 mt-1">
+                <div v-for="t in recentTransactions" :key="t.id"
+                  @click="openEditTxModal(t)"
+                  class="group py-2.5 flex items-center justify-between text-xs hover:bg-slate-50/80 px-1.5 rounded-lg transition cursor-pointer"
+                  title="點擊編輯此筆明細">
+                  <div class="flex items-center space-x-2.5 min-w-0 pr-2">
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0"
+                      :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700')">
+                      {{ t.category || t.tx_type }}
+                    </span>
+                    <span v-if="t.affects_balance === false" class="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded flex-shrink-0">不扣存款</span>
+                    <span class="font-medium text-slate-800 truncate">{{ t.description || '-' }}</span>
+                    <span class="text-[11px] text-slate-400 font-mono hidden sm:inline flex-shrink-0">{{ t.date ? t.date.substring(0, 10) : '' }}</span>
+                  </div>
+                  <div class="flex items-center space-x-2 flex-shrink-0">
+                    <div class="font-mono font-bold text-xs"
+                      :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600')">
+                      {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'INCOME' ? '+' : '⇄ ') }}NT$ {{ formatMoney(t.amount) }}
+                    </div>
+                    <button @click.stop="openEditTxModal(t)" class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer" title="編輯此筆記帳">
+                      <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ==================== 區塊 4: 每月固定開銷規劃速覽 ==================== -->
+            <div v-else-if="blockId === 'recurring'" class="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200/90">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-2">
+                  <i data-lucide="calendar-clock" class="w-4 h-4 text-indigo-600"></i>
+                  <h3 class="text-sm font-bold text-slate-900">每月固定開銷規劃</h3>
+                </div>
+                <button @click="switchTab('recurring')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center transition cursor-pointer">
+                  管理固定開銷 <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-0.5"></i>
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-3">
+                <div class="md:col-span-5 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 flex flex-col justify-center">
                   <div class="text-[11px] text-slate-500 font-medium">本月固定支出合計</div>
                   <div class="text-xl font-extrabold text-slate-900 font-mono mt-0.5">
                     NT$ {{ formatMoney(recurringExpenses.total_monthly_amount) }}
@@ -1082,30 +1172,35 @@
                   </div>
                 </div>
 
-                <!-- 列出前 3 項固定花費 -->
-                <div v-if="recurringExpenses.items && recurringExpenses.items.length > 0" class="mt-2.5 divide-y divide-slate-100 text-xs">
-                  <div v-for="item in (recurringExpenses.items || []).slice(0, 3)" :key="item.id" class="py-2 flex items-center justify-between text-slate-700">
-                    <div class="flex items-center space-x-2 truncate">
-                      <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0"></span>
-                      <span class="truncate font-medium">{{ item.name }}</span>
+                <!-- 列出前 4 項固定花費 -->
+                <div class="md:col-span-7">
+                  <div v-if="recurringExpenses.items && recurringExpenses.items.length > 0" class="divide-y divide-slate-100 text-xs">
+                    <div v-for="item in (recurringExpenses.items || []).slice(0, 4)" :key="item.id" class="py-2 flex items-center justify-between text-slate-700">
+                      <div class="flex items-center space-x-2 truncate">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0"></span>
+                        <span class="truncate font-medium">{{ item.name }}</span>
+                        <span v-if="item.auto_debit" class="text-[9px] px-1 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0">自動扣款</span>
+                      </div>
+                      <span class="font-mono font-bold text-slate-800 flex-shrink-0 ml-2">
+                        NT$ {{ formatMoney(item.monthly_amortized_amount || item.amount) }}
+                      </span>
                     </div>
-                    <span class="font-mono font-bold text-slate-800 flex-shrink-0">
-                      NT$ {{ formatMoney(item.monthly_amortized_amount || item.amount) }}
-                    </span>
                   </div>
-                </div>
-                <div v-else class="text-center py-6 text-slate-400 text-xs">
-                  尚無固定開銷設定
+                  <div v-else class="text-center py-6 text-slate-400 text-xs">
+                    尚無固定開銷設定
+                  </div>
                 </div>
               </div>
 
               <div class="pt-3 border-t border-slate-100 mt-3 text-right">
-                <button @click="switchTab('recurring')" class="text-xs font-semibold text-slate-500 hover:text-indigo-600 transition inline-flex items-center">
+                <button @click="switchTab('recurring')" class="text-xs font-semibold text-slate-500 hover:text-indigo-600 transition inline-flex items-center cursor-pointer">
                   查看完整扣款清單與月/年繳設定 <i data-lucide="arrow-right" class="w-3 h-3 ml-1"></i>
                 </button>
               </div>
             </div>
+
           </div>
+
         </div>
 
         <!-- ==================== TAB 2: 收支記帳 (TRANSACTIONS & RECURRING) ==================== -->

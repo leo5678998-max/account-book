@@ -611,6 +611,180 @@ createApp({
       refreshIcons();
     };
 
+    // ==================== 首頁自訂版面與自由拖曳排序 ====================
+    const isEditingLayout = ref(false);
+    const defaultDashboardBlocks = [
+      { id: 'kpi', name: '三大核心財務指標卡片' },
+      { id: 'chart', name: '收支結構與支出分析圓餅圖' },
+      { id: 'transactions', name: '近期收支流水速覽' },
+      { id: 'recurring', name: '每月固定開銷規劃速覽' }
+    ];
+
+    const dashboardBlockOrder = ref(defaultDashboardBlocks.map(b => b.id));
+    const kpiCardsOrder = ref(['networth', 'expense', 'bills']);
+
+    const draggedBlockIndex = ref(null);
+    const dragOverBlockIndex = ref(null);
+
+    const getBlockTitle = (id) => {
+      const map = {
+        'kpi': '三大核心財務指標卡片',
+        'chart': '收支結構與支出分析圓餅圖',
+        'transactions': '近期收支流水速覽',
+        'recurring': '每月固定開銷規劃速覽'
+      };
+      return map[id] || id;
+    };
+
+    const loadDashboardLayout = () => {
+      try {
+        const saved = localStorage.getItem('account_book_dashboard_layout');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const allIds = defaultDashboardBlocks.map(b => b.id);
+          if (Array.isArray(parsed) && parsed.length === allIds.length && allIds.every(id => parsed.includes(id))) {
+            dashboardBlockOrder.value = parsed;
+          }
+        }
+        const savedKpis = localStorage.getItem('account_book_kpi_order');
+        if (savedKpis) {
+          const parsedKpi = JSON.parse(savedKpis);
+          const kpiIds = ['networth', 'expense', 'bills'];
+          if (Array.isArray(parsedKpi) && parsedKpi.length === 3 && kpiIds.every(id => parsedKpi.includes(id))) {
+            kpiCardsOrder.value = parsedKpi;
+          }
+        }
+      } catch (e) {
+        console.warn('載入自訂版面設定失敗:', e);
+      }
+    };
+
+    const saveDashboardLayout = () => {
+      try {
+        localStorage.setItem('account_book_dashboard_layout', JSON.stringify(dashboardBlockOrder.value));
+        localStorage.setItem('account_book_kpi_order', JSON.stringify(kpiCardsOrder.value));
+      } catch (e) {
+        console.warn('儲存自訂版面設定失敗:', e);
+      }
+    };
+
+    const resetDashboardLayout = () => {
+      dashboardBlockOrder.value = defaultDashboardBlocks.map(b => b.id);
+      kpiCardsOrder.value = ['networth', 'expense', 'bills'];
+      try {
+        localStorage.removeItem('account_book_dashboard_layout');
+        localStorage.removeItem('account_book_kpi_order');
+      } catch (e) {}
+      nextTick(() => {
+        renderChart();
+        refreshIcons();
+      });
+    };
+
+    const toggleEditLayout = () => {
+      isEditingLayout.value = !isEditingLayout.value;
+      if (!isEditingLayout.value) {
+        saveDashboardLayout();
+      }
+      nextTick(() => {
+        renderChart();
+        refreshIcons();
+      });
+    };
+
+    const moveBlockUp = (index) => {
+      if (index <= 0) return;
+      const list = [...dashboardBlockOrder.value];
+      const temp = list[index - 1];
+      list[index - 1] = list[index];
+      list[index] = temp;
+      dashboardBlockOrder.value = list;
+      saveDashboardLayout();
+      nextTick(() => {
+        renderChart();
+        refreshIcons();
+      });
+    };
+
+    const moveBlockDown = (index) => {
+      if (index >= dashboardBlockOrder.value.length - 1) return;
+      const list = [...dashboardBlockOrder.value];
+      const temp = list[index + 1];
+      list[index + 1] = list[index];
+      list[index] = temp;
+      dashboardBlockOrder.value = list;
+      saveDashboardLayout();
+      nextTick(() => {
+        renderChart();
+        refreshIcons();
+      });
+    };
+
+    const moveKpiCardLeft = (index) => {
+      if (index <= 0) return;
+      const list = [...kpiCardsOrder.value];
+      const temp = list[index - 1];
+      list[index - 1] = list[index];
+      list[index] = temp;
+      kpiCardsOrder.value = list;
+      saveDashboardLayout();
+      nextTick(refreshIcons);
+    };
+
+    const moveKpiCardRight = (index) => {
+      if (index >= kpiCardsOrder.value.length - 1) return;
+      const list = [...kpiCardsOrder.value];
+      const temp = list[index + 1];
+      list[index + 1] = list[index];
+      list[index] = temp;
+      kpiCardsOrder.value = list;
+      saveDashboardLayout();
+      nextTick(refreshIcons);
+    };
+
+    const onBlockDragStart = (index, event) => {
+      if (!isEditingLayout.value) return;
+      draggedBlockIndex.value = index;
+      if (event && event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(index));
+      }
+    };
+
+    const onBlockDragOver = (index, event) => {
+      if (!isEditingLayout.value) return;
+      if (event) event.preventDefault();
+      dragOverBlockIndex.value = index;
+      if (event && event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+    };
+
+    const onBlockDrop = (index, event) => {
+      if (!isEditingLayout.value) return;
+      if (event) event.preventDefault();
+      const fromIndex = draggedBlockIndex.value;
+      const toIndex = index;
+      if (fromIndex !== null && fromIndex !== toIndex) {
+        const list = [...dashboardBlockOrder.value];
+        const [moved] = list.splice(fromIndex, 1);
+        list.splice(toIndex, 0, moved);
+        dashboardBlockOrder.value = list;
+        saveDashboardLayout();
+        nextTick(() => {
+          renderChart();
+          refreshIcons();
+        });
+      }
+      draggedBlockIndex.value = null;
+      dragOverBlockIndex.value = null;
+    };
+
+    const onBlockDragEnd = () => {
+      draggedBlockIndex.value = null;
+      dragOverBlockIndex.value = null;
+    };
+
     // 財務趨勢分析狀態
     const analyticsRange = ref(6); // 6 | 12 | 24
     const analyticsChartMode = ref('savings'); // 'savings' (月末總存款) | 'net' (當月淨結餘)
@@ -1935,6 +2109,7 @@ createApp({
     });
 
     onMounted(async () => {
+      loadDashboardLayout();
       const hash = window.location.hash.replace('#', '');
       const validTabs = ['dashboard', 'transactions', 'recurring', 'bills', 'stocks', 'accounts', 'assets', 'trends'];
       if (validTabs.includes(hash)) {
@@ -2014,7 +2189,10 @@ createApp({
       hideAssets, toggleHideAssets,
       isDarkMode, toggleDarkMode,
       analyticsRange, analyticsChartMode, analyticsData, loadingAnalytics,
-      fetchAnalytics, setAnalyticsRange, setAnalyticsChartMode, jumpToTransactionsMonth
+      fetchAnalytics, setAnalyticsRange, setAnalyticsChartMode, jumpToTransactionsMonth,
+      isEditingLayout, dashboardBlockOrder, kpiCardsOrder, draggedBlockIndex, dragOverBlockIndex,
+      getBlockTitle, toggleEditLayout, resetDashboardLayout, moveBlockUp, moveBlockDown,
+      moveKpiCardLeft, moveKpiCardRight, onBlockDragStart, onBlockDragOver, onBlockDrop, onBlockDragEnd
     };
   }
 }).mount('#app');
