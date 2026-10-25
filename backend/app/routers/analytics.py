@@ -5,8 +5,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Transaction, Account
+from ..models import User, Transaction, Account, RecurringExpense
+from ..services.accounting_service import get_setting
 from ..services.auth_service import get_current_user
+from ..services.insurance_service import calculate_insurance_summary
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
@@ -34,13 +36,86 @@ def get_monthly_trends(
         dt = today - relativedelta(months=i)
         month_keys.append(dt.strftime("%Y-%m"))
 
+    uid = current_user.id
+
     # 取得使用者目前所有資產帳戶的總餘額
-    user_accounts = db.query(Account).filter(Account.user_id == current_user.id).all()
+    user_accounts = db.query(Account).filter(Account.user_id == uid).all()
     current_balance = sum(float(a.balance or 0.0) for a in user_accounts)
+
+    # 讀取使用者設定的基準薪資與法定扣繳設定
+    salary_str = get_setting(db, "MONTHLY_SALARY", "", user_id=uid)
+    base_salary = float(salary_str) if salary_str else 0.0
+
+    deduct_labor_health_str = get_setting(db, "DEDUCT_LABOR_HEALTH", "false", user_id=uid)
+    deduct_labor_health = deduct_labor_health_str.lower() in ("true", "1")
+
+    show_chart_str = get_setting(db, "SHOW_DEDUCTIONS_IN_CHART", "true", user_id=uid)
+    show_deductions_in_chart = show_chart_str.lower() in ("true", "1")
+
+    dependents_str = get_setting(db, "HEALTH_INSURANCE_DEPENDENTS", "1", user_id=uid)
+    dependents = int(dependents_str) if dependents_str and dependents_str.isdigit() else 1
+
+    auto_calc_str = get_setting(db, "LABOR_HEALTH_AUTO_CALC", "true", user_id=uid)
+    auto_calc = auto_calc_str.lower() in ("true", "1")
+
+    pension_rate_str = get_setting(db, "PENSION_RATE", "0.0", user_id=uid)
+    try:
+        pension_rate = float(pension_rate_str)
+    except (ValueError, TypeError):
+        pension_rate = 0.0
+
+    tax_rate_str = get_setting(db, "TAX_RATE", "0.0", user_id=uid)
+    try:
+        tax_rate = float(tax_rate_str)
+    except (ValueError, TypeError):
+        tax_rate = 0.0
+
+    labor_fee_str = get_setting(db, "LABOR_INSURANCE_FEE", "", user_id=uid) or None
+    health_fee_str = get_setting(db, "HEALTH_INSURANCE_FEE", "", user_id=uid) or None
+    pension_fee_str = get_setting(db, "PENSION_FEE", "", user_id=uid) or None
+    tax_fee_str = get_setting(db, "TAX_FEE", "", user_id=uid) or None
+
+    if deduct_labor_health:
+        if auto_calc or labor_fee_str is None or health_fee_str is None or pension_fee_str is None or tax_fee_str is None:
+            calc = calculate_insurance_summary(base_salary, dependents, pension_rate, tax_rate)
+            labor_fee = float(calc["labor_insurance"]["fee"])
+            health_fee = float(calc["health_insurance"]["fee"])
+            pension_fee = float(calc["labor_pension"]["fee"])
+            tax_fee = float(calc["income_tax"]["fee"])
+        else:
+            labor_fee = float(labor_fee_str)
+            health_fee = float(health_fee_str)
+            pension_fee = float(pension_fee_str)
+            tax_fee = float(tax_fee_str)
+    else:
+        labor_fee = health_fee = pension_fee = tax_fee = 0.0
+
+    # 依系統扣繳配置決定基準收入與扣繳費用項目
+    if deduct_labor_health:
+        if show_deductions_in_chart:
+            monthly_base_income = base_salary
+            statutory_deductions = {
+                "全民健保費": health_fee,
+                "勞工保險費": labor_fee,
+                "勞退自提": pension_fee,
+                "預繳所得稅": tax_fee
+            }
+        else:
+            monthly_base_income = max(0.0, base_salary - labor_fee - health_fee - pension_fee - tax_fee)
+            statutory_deductions = {}
+    else:
+        monthly_base_income = base_salary
+        statutory_deductions = {}
+
+    # 讀取使用者啟用中的每日常態/固定開銷項目
+    recurring_items = db.query(RecurringExpense).filter(
+        RecurringExpense.user_id == uid,
+        RecurringExpense.is_active == True
+    ).all()
 
     # 撈取該使用者的流水帳交易
     txs = db.query(Transaction).filter(
-        Transaction.user_id == current_user.id
+        Transaction.user_id == uid
     ).all()
 
     # 初始化各月份統計
@@ -53,6 +128,10 @@ def get_monthly_trends(
         for m in month_keys
     }
 
+    # 判定手動流水帳中是否已記錄該月份的薪資（避免重複加計基準月薪）
+    SALARY_KEYWORDS = ("薪資收入", "固定月薪", "薪資", "薪水", "salary")
+    manual_salary_months = set()
+
     for tx in txs:
         if not tx.date:
             continue
@@ -61,11 +140,43 @@ def get_monthly_trends(
             amt = float(tx.amount or 0.0)
             if tx.tx_type == "INCOME":
                 monthly_stats[m_str]["income"] += amt
+                cat = tx.category or ""
+                desc = tx.description or ""
+                if cat in SALARY_KEYWORDS or any(kw in desc.lower() for kw in ("薪資", "固定月薪", "薪水")):
+                    manual_salary_months.add(m_str)
             elif tx.tx_type == "EXPENSE":
                 monthly_stats[m_str]["expense"] += amt
                 cat = tx.category or "其他"
                 monthly_stats[m_str]["categories"][cat] = (
                     monthly_stats[m_str]["categories"].get(cat, 0.0) + amt
+                )
+
+    # 整合基準月薪、法定扣繳與固定常態開銷至各月份
+    for m in month_keys:
+        # 若該月尚未手動記入薪資流水帳且有設定基準月薪，納入當月總收入
+        if m not in manual_salary_months and monthly_base_income > 0:
+            monthly_stats[m]["income"] += monthly_base_income
+
+        # 納入薪資法定扣繳項目（若開啟於圖表顯示扣繳）
+        for cat_name, fee_amt in statutory_deductions.items():
+            if fee_amt > 0:
+                monthly_stats[m]["expense"] += fee_amt
+                monthly_stats[m]["categories"][cat_name] = (
+                    monthly_stats[m]["categories"].get(cat_name, 0.0) + fee_amt
+                )
+
+        # 納入啟用中的常態固定開銷（月平攤額，若該月流水帳未有同名扣款）
+        for item in recurring_items:
+            amt = round(item.amount / 12, 2) if item.frequency == "YEARLY" else float(item.amount or 0.0)
+            already_charged = any(
+                t.date and t.date.strftime("%Y-%m") == m and item.name in (t.description or "")
+                for t in txs
+            )
+            if not already_charged:
+                cat = item.category or "其他"
+                monthly_stats[m]["expense"] += amt
+                monthly_stats[m]["categories"][cat] = (
+                    monthly_stats[m]["categories"].get(cat, 0.0) + amt
                 )
 
     # 目標分析月份列表 (排除多抓的前一個月)
