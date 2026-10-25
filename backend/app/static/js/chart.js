@@ -2,7 +2,7 @@
  * Chart.js 圓餅圖渲染封裝模組 (Isolating Charting Library Details)
  */
 
-import { SAVINGS_COLOR } from './formatters.js?v=2.4.5';
+import { SAVINGS_COLOR } from './formatters.js?v=2.5.0';
 
 let chartInstance = null;
 

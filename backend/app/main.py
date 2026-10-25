@@ -58,6 +58,34 @@ def serve_index():
     return {"message": "Account Book API is running"}
 
 
+@app.get("/manifest.json")
+@app.get("/manifest.webmanifest")
+def serve_manifest():
+    manifest_file = os.path.join(static_dir, "manifest.json")
+    if os.path.exists(manifest_file):
+        return FileResponse(
+            manifest_file,
+            media_type="application/manifest+json",
+            headers={"Cache-Control": "no-cache"}
+        )
+    return {"error": "Manifest not found"}
+
+
+@app.get("/sw.js")
+def serve_sw():
+    sw_file = os.path.join(static_dir, "sw.js")
+    if os.path.exists(sw_file):
+        return FileResponse(
+            sw_file,
+            media_type="application/javascript",
+            headers={
+                "Service-Worker-Allowed": "/",
+                "Cache-Control": "no-cache, no-store, must-revalidate"
+            }
+        )
+    return {"error": "Service worker not found"}
+
+
 @app.on_event("startup")
 def on_startup():
     start_scheduler()

@@ -14,15 +14,29 @@ import {
   formatStockPrice,
   formatStockShares,
   formatStockTotal,
-  isDueSoon
-} from './formatters.js?v=2.4.5';
-import { ApiService, AuthStorage } from './api.js?v=2.4.5';
-import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.4.5';
+  isDueSoon,
+  evaluateMathExpression
+} from './formatters.js?v=2.5.0';
+import { ApiService, AuthStorage } from './api.js?v=2.5.0';
+import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.5.0';
 import {
   calculateLaborInsurance,
   calculateHealthInsurance,
   calculateInsuranceSummary
-} from './insurance.js?v=2.4.5';
+} from './insurance.js?v=2.5.0';
+
+// PWA Service Worker 註冊
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then((reg) => {
+        console.log('[PWA] Service Worker 註冊成功，管理範圍:', reg.scope);
+      })
+      .catch((err) => {
+        console.warn('[PWA] Service Worker 註冊失敗:', err);
+      });
+  });
+}
 
 const safeCategoryColor = (cat, idx = 0, customColors = {}) => {
   try {
@@ -928,12 +942,89 @@ createApp({
       }
     };
 
-    // 記帳管理 (方案 C: 極簡記帳體驗)
+    // PWA 手機主畫面安裝提示管理
+    const deferredPwaPrompt = ref(null);
+    const canInstallPwa = ref(false);
+    const isPwaInstalled = ref(
+      (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) ||
+      (typeof navigator !== 'undefined' && navigator.standalone === true)
+    );
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPwaPrompt.value = e;
+        canInstallPwa.value = true;
+      });
+
+      window.addEventListener('appinstalled', () => {
+        deferredPwaPrompt.value = null;
+        canInstallPwa.value = false;
+        isPwaInstalled.value = true;
+        console.log('[PWA] 記帳本已成功安裝至手機主畫面！');
+      });
+    }
+
+    const installPwa = async () => {
+      if (deferredPwaPrompt.value) {
+        deferredPwaPrompt.value.prompt();
+        const { outcome } = await deferredPwaPrompt.value.userChoice;
+        if (outcome === 'accepted') {
+          canInstallPwa.value = false;
+          deferredPwaPrompt.value = null;
+        }
+      } else {
+        const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        if (isIos) {
+          alert('📱 加入 iPhone / iPad 主畫面步驟：\n\n1. 點擊 Safari 底部工具列中央的「分享」圖示（方形向上箭頭）\n2. 於選單中往下滑動，選擇「加入主畫面」\n3. 點擊右上角「新增」即完成！\n\n即可在手機桌面以原生 App 全螢幕體驗使用記帳本。');
+        } else {
+          alert('📱 請點擊瀏覽器選單（右上角或右下角 ⋮），選擇「加到主畫面」或「安裝應用程式」即可建立手機桌面捷徑！');
+        }
+      }
+    };
+
+    // 記帳管理 (方案 C: 極簡記帳體驗 + 簡易算式計算機)
     const showTxAdvanced = ref(false);
     const editingTxId = ref(null);
+    const txAmountFormula = ref('');
+
+    const txEvaluatedAmount = computed(() => {
+      if (!txAmountFormula.value) return null;
+      return evaluateMathExpression(txAmountFormula.value);
+    });
+
+    const txHasFormula = computed(() => {
+      return /[+\-*/×✕÷%]/.test(txAmountFormula.value);
+    });
+
+    const applyTxFormula = () => {
+      const evaluated = txEvaluatedAmount.value;
+      if (evaluated !== null && !isNaN(evaluated)) {
+        currentTx.value.amount = evaluated;
+        txAmountFormula.value = String(evaluated);
+      }
+    };
+
+    const appendTxFormulaOp = (op) => {
+      if (op === '=') {
+        applyTxFormula();
+        return;
+      }
+      if (op === 'C') {
+        txAmountFormula.value = '';
+        currentTx.value.amount = null;
+        return;
+      }
+      if (!txAmountFormula.value && ['+', '-', '×', '÷', '*', '/'].includes(op)) {
+        txAmountFormula.value = (currentTx.value.amount || 0) + op;
+      } else {
+        txAmountFormula.value += op;
+      }
+    };
 
     const openTxModal = () => {
       editingTxId.value = null;
+      txAmountFormula.value = '';
       const defaultAcc = accounts.value.find(a => a.is_dbs_default_debit) || accounts.value[0];
       const defaultCat = quickCategories.value[0] || '飲食';
       currentTx.value = {
@@ -955,6 +1046,7 @@ createApp({
 
     const openEditTxModal = (tx) => {
       editingTxId.value = tx.id;
+      txAmountFormula.value = (tx.amount !== undefined && tx.amount !== null) ? String(tx.amount) : '';
       currentTx.value = {
         amount: tx.amount,
         tx_type: tx.tx_type || 'EXPENSE',
@@ -979,6 +1071,15 @@ createApp({
     };
 
     const saveTx = async () => {
+      // 若金額欄位包含算式，優先進行安全求值計算
+      if (txEvaluatedAmount.value !== null) {
+        currentTx.value.amount = txEvaluatedAmount.value;
+        txAmountFormula.value = String(txEvaluatedAmount.value);
+      } else if (txAmountFormula.value) {
+        const parsed = parseFloat(txAmountFormula.value);
+        if (!isNaN(parsed)) currentTx.value.amount = parsed;
+      }
+
       if (!currentTx.value.amount || !currentTx.value.account_id) return alert('請填寫金額與選擇帳戶');
       if (currentTx.value.tx_type === 'TRANSFER' && !currentTx.value.target_account_id) {
         return alert('轉帳必須選擇轉入帳戶');
@@ -1501,7 +1602,45 @@ createApp({
       }
     };
 
+    // 固定花費金額簡易算式計算機狀態
+    const recurringAmountFormula = ref('');
+
+    const recurringEvaluatedAmount = computed(() => {
+      if (!recurringAmountFormula.value) return null;
+      return evaluateMathExpression(recurringAmountFormula.value);
+    });
+
+    const recurringHasFormula = computed(() => {
+      return /[+\-*/×✕÷%]/.test(recurringAmountFormula.value);
+    });
+
+    const applyRecurringFormula = () => {
+      const evaluated = recurringEvaluatedAmount.value;
+      if (evaluated !== null && !isNaN(evaluated)) {
+        currentRecurring.value.amount = evaluated;
+        recurringAmountFormula.value = String(evaluated);
+      }
+    };
+
+    const appendRecurringFormulaOp = (op) => {
+      if (op === '=') {
+        applyRecurringFormula();
+        return;
+      }
+      if (op === 'C') {
+        recurringAmountFormula.value = '';
+        currentRecurring.value.amount = null;
+        return;
+      }
+      if (!recurringAmountFormula.value && ['+', '-', '×', '÷', '*', '/'].includes(op)) {
+        recurringAmountFormula.value = (currentRecurring.value.amount || 0) + op;
+      } else {
+        recurringAmountFormula.value += op;
+      }
+    };
+
     const openAddRecurringModal = () => {
+      recurringAmountFormula.value = '';
       currentRecurring.value = {
         id: null,
         name: '',
@@ -1519,6 +1658,7 @@ createApp({
     };
 
     const openEditRecurringModal = (item) => {
+      recurringAmountFormula.value = (item.amount !== undefined && item.amount !== null) ? String(item.amount) : '';
       currentRecurring.value = {
         ...item,
         frequency: item.frequency || 'MONTHLY',
@@ -1529,6 +1669,15 @@ createApp({
     };
 
     const saveRecurring = async () => {
+      // 若金額欄位包含算式，優先進行安全求值
+      if (recurringEvaluatedAmount.value !== null) {
+        currentRecurring.value.amount = recurringEvaluatedAmount.value;
+        recurringAmountFormula.value = String(recurringEvaluatedAmount.value);
+      } else if (recurringAmountFormula.value) {
+        const parsed = parseFloat(recurringAmountFormula.value);
+        if (!isNaN(parsed)) currentRecurring.value.amount = parsed;
+      }
+
       if (!currentRecurring.value.name || !currentRecurring.value.amount) {
         return alert('請填寫固定花費項目名稱與金額');
       }
@@ -1806,6 +1955,9 @@ createApp({
       customCategoryColors, getCategoryColorDisplay, setCategoryColor, resetCategoryColors,
       stockPortfolio, showStockModal, refreshingStocks, savingStock, currentStock,
       recurringExpenses, showRecurringModal, savingRecurring, currentRecurring,
+      canInstallPwa, isPwaInstalled, installPwa,
+      txAmountFormula, txEvaluatedAmount, txHasFormula, applyTxFormula, appendTxFormulaOp,
+      recurringAmountFormula, recurringEvaluatedAmount, recurringHasFormula, applyRecurringFormula, appendRecurringFormulaOp,
       totalSavings, totalNetWorth, pendingBillAmount, nextDueBill, monthlyExpensesList, monthlyTotalExpense, monthlyLivingExpense,
       expenseRatio, remainingSalary, freeBudget, isDeductionsInChart, chartBaseSalary,
       effectiveSalary, totalInsuranceDeduction, settingsInsurancePreview, onInsuranceSettingChange, resetToAutoInsuranceFees,

@@ -2,8 +2,18 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>智能記帳 & 多銀行帳單/薪資單 AI 辨識系統</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>記帳本 - 個人資產與預算管理</title>
+  <!-- PWA & Mobile Web App Meta -->
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="記帳本">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <!-- Tailwind CSS (Local Vendor) -->
   <script src="/static/vendor/tailwindcss.js"></script>
   <script>
@@ -656,9 +666,17 @@
               {{ isDarkMode ? 'Dark' : 'Light' }}
             </span>
           </button>
-          <button @click="openSettingsModal(); mobileMenuOpen = false;" class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-slate-700 hover:bg-slate-100">
+          <button @click="openSettingsModal(); mobileMenuOpen = false;" class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
             <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
             <span>系統設定</span>
+          </button>
+          <!-- PWA 安裝到手機主畫面按鈕 -->
+          <button v-if="!isPwaInstalled" @click="installPwa(); mobileMenuOpen = false;" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition shadow-2xs">
+            <span class="flex items-center space-x-2">
+              <i data-lucide="smartphone" class="w-4 h-4"></i>
+              <span>安裝到手機主畫面</span>
+            </span>
+            <span class="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold">PWA</span>
           </button>
         </div>
       </div>
@@ -2287,14 +2305,44 @@
             </button>
           </div>
 
-          <!-- 2. 大金額輸入框 (Hero Amount Input) -->
+          <!-- 2. 大金額輸入框 (Hero Amount Input with Formula Calculator) -->
           <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">金額 (TWD)</label>
-            <div class="hero-amount-box flex items-center rounded-xl border border-slate-200 bg-white transition focus-within:ring-2"
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-semibold text-slate-500">金額 (TWD)</label>
+              <!-- 即時算式預覽徽章 -->
+              <span v-if="txHasFormula && txEvaluatedAmount !== null"
+                class="text-[11px] font-bold font-mono text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 animate-in fade-in flex items-center space-x-1">
+                <span>= NT$ {{ formatMoney(txEvaluatedAmount) }}</span>
+              </span>
+              <span v-else class="text-[10px] text-slate-400 select-none">
+                💡 支援簡易算式 (如：50+35*2)
+              </span>
+            </div>
+            <div class="hero-amount-box flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 transition focus-within:ring-2"
               :class="currentTx.tx_type === 'EXPENSE' ? 'focus-within:ring-rose-500/20 focus-within:border-rose-500' : 'focus-within:ring-emerald-500/20 focus-within:border-emerald-500'">
               <span class="pl-4 pr-1 text-xl sm:text-2xl font-extrabold font-mono text-slate-400 select-none">NT$</span>
-              <input type="number" step="any" v-model.number="currentTx.amount" required autofocus placeholder="0"
-                class="w-full pr-4 py-3 bg-transparent text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono outline-none border-0 shadow-none focus:ring-0">
+              <input type="text" inputmode="text" v-model="txAmountFormula" @blur="applyTxFormula" @keydown.enter.prevent="applyTxFormula" autofocus placeholder="0"
+                class="w-full pr-3 py-3 bg-transparent text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 font-mono outline-none border-0 shadow-none focus:ring-0">
+              <button v-if="txHasFormula && txEvaluatedAmount !== null" type="button" @click="applyTxFormula"
+                class="mr-3 px-2.5 py-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xs transition flex items-center flex-shrink-0 select-none"
+                title="計算並帶入結果">
+                = 計算
+              </button>
+            </div>
+            <!-- 快速計算機符號小鍵盤 (優化手機操作，不需反覆切換注音/英文/符號鍵盤) -->
+            <div class="flex items-center space-x-1 mt-1.5 overflow-x-auto py-0.5 scrollbar-none">
+              <span class="text-[10px] text-slate-400 font-medium flex-shrink-0 select-none mr-0.5">算式:</span>
+              <button type="button" v-for="op in ['+', '-', '×', '÷', '%', '(', ')', '=']" :key="op"
+                @click="appendTxFormulaOp(op)"
+                :class="op === '=' ? 'bg-indigo-600 text-white hover:bg-indigo-700 font-bold' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'"
+                class="px-2.5 py-1 text-xs rounded-lg font-mono font-bold transition flex-shrink-0 shadow-2xs select-none active:scale-95">
+                {{ op }}
+              </button>
+              <button type="button" @click="appendTxFormulaOp('C')"
+                class="px-2 py-1 text-xs rounded-lg font-mono font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition flex-shrink-0 shadow-2xs select-none active:scale-95"
+                title="清空金額">
+                C
+              </button>
             </div>
           </div>
 
@@ -3239,6 +3287,27 @@
           </div>
         </div>
 
+        <!-- 📱 手機 PWA 主畫面應用程式支援 -->
+        <div class="bg-indigo-50/60 dark:bg-slate-800/60 p-3.5 sm:p-4 rounded-xl border border-indigo-100 dark:border-slate-700 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="smartphone" class="w-4 h-4 text-indigo-600"></i>
+              <h4 class="text-xs font-bold text-slate-800 dark:text-slate-100">手機 PWA 桌面應用程式</h4>
+            </div>
+            <span v-if="isPwaInstalled" class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 flex items-center space-x-1">
+              <span>✓ 已安裝 App</span>
+            </span>
+            <button v-else type="button" @click="installPwa"
+              class="px-3 py-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xs transition flex items-center space-x-1">
+              <i data-lucide="download" class="w-3.5 h-3.5 mr-0.5"></i>
+              <span>加到主畫面</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            支援完整 Progressive Web App 技術。加入 iPhone/Android 手機主畫面後即可享受全螢幕秒開體驗、離線快取支援與原生應用手感。
+          </p>
+        </div>
+
         <div class="flex justify-end space-x-2 pt-2 border-t">
           <button @click="showSettingsModal = false" class="px-4 py-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50">關閉</button>
           <button @click="saveSettings" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold">儲存設定</button>
@@ -3350,14 +3419,26 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                {{ currentRecurring.frequency === 'YEARLY' ? '年繳總金額 (NT$) *' : '每月固定金額 (NT$) *' }}
-              </label>
-              <input type="number" step="any" v-model.number="currentRecurring.amount"
-                :placeholder="currentRecurring.frequency === 'YEARLY' ? '例如：36000' : '例如：15000'"
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  {{ currentRecurring.frequency === 'YEARLY' ? '年繳總金額 *' : '每月固定金額 *' }}
+                </label>
+                <span v-if="recurringHasFormula && recurringEvaluatedAmount !== null" class="text-[10px] font-bold font-mono text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 dark:text-indigo-300 px-1.5 py-0.2 rounded border border-indigo-200 dark:border-indigo-800">
+                  = NT$ {{ formatMoney(recurringEvaluatedAmount) }}
+                </span>
+              </div>
+              <input type="text" inputmode="text" v-model="recurringAmountFormula" @blur="applyRecurringFormula" @keydown.enter.prevent="applyRecurringFormula"
+                :placeholder="currentRecurring.frequency === 'YEARLY' ? '例如：36000' : '例如：15000 或 12000/12'"
                 class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono font-bold bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-              <div v-if="currentRecurring.frequency === 'YEARLY' && currentRecurring.amount > 0" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                💡 每月平攤預備金：約 NT$ {{ formatMoney(Math.round(currentRecurring.amount / 12)) }}
+              <div class="flex items-center space-x-1 mt-1 overflow-x-auto py-0.5">
+                <button type="button" v-for="op in ['+', '-', '×', '÷', '=']" :key="op"
+                  @click="appendRecurringFormulaOp(op)"
+                  class="px-1.5 py-0.5 text-[11px] rounded font-mono font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition">
+                  {{ op }}
+                </button>
+              </div>
+              <div v-if="currentRecurring.frequency === 'YEARLY' && (recurringEvaluatedAmount || currentRecurring.amount) > 0" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                💡 每月平攤預備金：約 NT$ {{ formatMoney(Math.round((recurringEvaluatedAmount || currentRecurring.amount) / 12)) }}
               </div>
             </div>
             <div>
@@ -3413,7 +3494,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.4.5"></script>
+  <script type="module" src="/static/js/app.js?v=2.5.0"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

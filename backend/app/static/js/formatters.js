@@ -212,3 +212,131 @@ export const isDueSoon = (dueDateStr) => {
   return diffDays >= 0 && diffDays <= 5;
 };
 
+/**
+ * 簡易算式安全求值器 (Token-based Recursive Descent Parser)
+ * 支援四則運算 (+ - * /)、全形運算符、百分比 (如 500*5%)、括號與即時輸入預覽
+ */
+export const evaluateMathExpression = (expr) => {
+  if (expr === undefined || expr === null) return null;
+  let str = String(expr).trim();
+  if (!str) return null;
+
+  // 1. 符號正規化 (支援全形運算子、中文乘除號、逗號與百分比轉換)
+  str = str
+    .replace(/,/g, '')
+    .replace(/[×✕*]/g, '*')
+    .replace(/[÷/]/g, '/')
+    .replace(/[—–－]/g, '-')
+    .replace(/[＋]/g, '+')
+    .replace(/[（]/g, '(')
+    .replace(/[）]/g, ')')
+    .replace(/([0-9.]+)%/g, '($1/100)')
+    .trim();
+
+  // 若使用者輸入中斷在運算子（如 '50+'），忽略末尾運算子以提供平滑即時計算
+  let sanitized = str.replace(/[+\-*/.]+$/, '').trim();
+  if (!sanitized) return null;
+
+  // 2. 詞法分析 (Tokenizer)
+  const tokens = [];
+  let i = 0;
+  while (i < sanitized.length) {
+    const ch = sanitized[i];
+    if (/\s/.test(ch)) {
+      i++;
+      continue;
+    }
+    if (/[0-9.]/.test(ch)) {
+      let numStr = '';
+      while (i < sanitized.length && /[0-9.]/.test(sanitized[i])) {
+        numStr += sanitized[i];
+        i++;
+      }
+      const num = parseFloat(numStr);
+      if (isNaN(num)) return null;
+      tokens.push({ type: 'NUM', val: num });
+      continue;
+    }
+    if (ch === '+' || ch === '-' || ch === '*' || ch === '/' || ch === '(' || ch === ')') {
+      // 處理單元負數 (Unary Minus: 如 -50 或 10 * (-2))
+      if (ch === '-' && (tokens.length === 0 || tokens[tokens.length - 1].type === 'OP' || (tokens[tokens.length - 1].type === 'PAREN' && tokens[tokens.length - 1].val === '('))) {
+        i++;
+        let numStr = '-';
+        while (i < sanitized.length && /[0-9.]/.test(sanitized[i])) {
+          numStr += sanitized[i];
+          i++;
+        }
+        if (numStr === '-') return null;
+        const num = parseFloat(numStr);
+        if (isNaN(num)) return null;
+        tokens.push({ type: 'NUM', val: num });
+        continue;
+      }
+      tokens.push({ type: (ch === '(' || ch === ')') ? 'PAREN' : 'OP', val: ch });
+      i++;
+      continue;
+    }
+    return null; // 非法字元
+  }
+
+  if (tokens.length === 0) return null;
+
+  // 3. 語法解析 (Recursive Descent Parser: Expression -> Term -> Factor)
+  let pos = 0;
+  function peek() { return tokens[pos]; }
+  function consume() { return tokens[pos++]; }
+
+  function parseExpression() {
+    let result = parseTerm();
+    while (pos < tokens.length && peek() && peek().type === 'OP' && (peek().val === '+' || peek().val === '-')) {
+      const op = consume().val;
+      const nextTerm = parseTerm();
+      if (nextTerm === null) return null;
+      result = (op === '+') ? result + nextTerm : result - nextTerm;
+    }
+    return result;
+  }
+
+  function parseTerm() {
+    let result = parseFactor();
+    while (pos < tokens.length && peek() && peek().type === 'OP' && (peek().val === '*' || peek().val === '/')) {
+      const op = consume().val;
+      const nextFactor = parseFactor();
+      if (nextFactor === null) return null;
+      if (op === '/') {
+        if (nextFactor === 0) return null; // 防止除以零
+        result = result / nextFactor;
+      } else {
+        result = result * nextFactor;
+      }
+    }
+    return result;
+  }
+
+  function parseFactor() {
+    if (pos >= tokens.length) return null;
+    const token = consume();
+    if (token.type === 'NUM') {
+      return token.val;
+    }
+    if (token.type === 'PAREN' && token.val === '(') {
+      const inner = parseExpression();
+      if (pos < tokens.length && peek() && peek().type === 'PAREN' && peek().val === ')') {
+        consume();
+      }
+      return inner;
+    }
+    return null;
+  }
+
+  try {
+    const val = parseExpression();
+    if (typeof val === 'number' && !isNaN(val) && isFinite(val)) {
+      return Math.round(val * 100) / 100;
+    }
+  } catch (_) {
+    return null;
+  }
+  return null;
+};
+

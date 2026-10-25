@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#3730A3" />
+    </linearGradient>
+    <linearGradient id="coinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#1E1B4B" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Base Squircle -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bgGrad)" filter="url(#shadow)" />
+
+  <!-- Ledger / Notebook Body -->
+  <g transform="translate(116, 120)">
+    <!-- Back Cover / Spine -->
+    <rect x="0" y="0" width="280" height="272" rx="24" fill="#FFFFFF" fill-opacity="0.15" />
+    <!-- Main Book Cover -->
+    <rect x="8" y="8" width="264" height="256" rx="20" fill="#FFFFFF" />
+    
+    <!-- Ledger Bookmark Ribbon -->
+    <path d="M 190 8 L 190 90 L 210 75 L 230 90 L 230 8 Z" fill="#F43F5E" />
+
+    <!-- Ledger Content Lines -->
+    <rect x="44" y="54" width="120" height="16" rx="8" fill="#E0E7FF" />
+    <rect x="44" y="86" width="90" height="14" rx="7" fill="#E0E7FF" />
+    
+    <!-- Mini Financial Chart Bars -->
+    <rect x="44" y="180" width="22" height="40" rx="6" fill="#818CF8" />
+    <rect x="78" y="150" width="22" height="70" rx="6" fill="#6366F1" />
+    <rect x="112" y="130" width="22" height="90" rx="6" fill="#4F46E5" />
+
+    <!-- Golden Coin Badge -->
+    <circle cx="195" cy="180" r="46" fill="url(#coinGrad)" />
+    <circle cx="195" cy="180" r="38" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.6" stroke-dasharray="6 4" />
+    <!-- Dollar / Wealth Glyph in Coin -->
+    <text x="195" y="196" font-family="system-ui, -apple-system, sans-serif" font-size="46" font-weight="900" fill="#FFFFFF" text-anchor="middle">$</text>
+  </g>
+</svg>
