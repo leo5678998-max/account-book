@@ -45,6 +45,7 @@ def create_recurring_expense(
         due_month=req.due_month,
         due_day=req.due_day,
         account_id=req.account_id,
+        auto_debit=req.auto_debit or False,
         is_active=req.is_active,
         notes=req.notes
     )
@@ -83,6 +84,8 @@ def update_recurring_expense(
         item.due_day = req.due_day
     if req.account_id is not None:
         item.account_id = req.account_id
+    if req.auto_debit is not None:
+        item.auto_debit = req.auto_debit
     if req.is_active is not None:
         item.is_active = req.is_active
     if req.notes is not None:

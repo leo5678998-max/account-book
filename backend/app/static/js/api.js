@@ -177,6 +177,7 @@ export const ApiService = {
     return authFetch(url, { method, headers: jsonHeaders, body: JSON.stringify(item) });
   },
   deleteRecurring: (id) => authFetch(`/api/recurring-expenses/${id}`, { method: 'DELETE' }),
+  chargeRecurring: (id) => authFetch(`/api/recurring-expenses/${id}/charge`, { method: 'POST' }).then(r => r.json()),
 
   // 系統設定與 IMAP / OAuth API
   getSettings: () => authFetch('/api/settings').then(r => (r.ok ? r.json() : {})),

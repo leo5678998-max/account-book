@@ -1659,6 +1659,7 @@ createApp({
         due_month: new Date().getMonth() + 1,
         due_day: null,
         account_id: accounts.value[0]?.id || null,
+        auto_debit: false,
         is_active: true,
         notes: ''
       };
@@ -1670,6 +1671,8 @@ createApp({
       recurringAmountFormula.value = (item.amount !== undefined && item.amount !== null) ? String(item.amount) : '';
       currentRecurring.value = {
         ...item,
+        account_id: item.account_id || accounts.value[0]?.id || null,
+        auto_debit: !!item.auto_debit,
         frequency: item.frequency || 'MONTHLY',
         due_month: item.due_month || (new Date().getMonth() + 1)
       };
@@ -1695,7 +1698,12 @@ createApp({
         const res = await ApiService.saveRecurring(currentRecurring.value);
         if (res.ok) {
           showRecurringModal.value = false;
-          await fetchRecurringExpenses();
+          await Promise.all([
+            fetchRecurringExpenses(),
+            fetchAccounts(),
+            fetchTransactions(),
+            fetchAnalytics()
+          ]);
         } else {
           const err = await res.json();
           alert(err.detail || '儲存失敗');
@@ -1715,6 +1723,28 @@ createApp({
         await fetchRecurringExpenses();
       } else {
         alert('刪除失敗');
+      }
+    };
+
+    const chargeRecurring = async (item) => {
+      if (!confirm(`確定立即為【${item.name}】扣款記帳 NT$ ${formatMoney(item.amount)} 嗎？`)) return;
+      try {
+        const res = await ApiService.chargeRecurring(item.id);
+        if (res && res.status === 'success') {
+          alert(res.message);
+          await Promise.all([
+            fetchRecurringExpenses(),
+            fetchAccounts(),
+            fetchTransactions(),
+            fetchAnalytics()
+          ]);
+        } else {
+          alert((res && res.detail) || (res && res.message) || '扣款失敗');
+        }
+      } catch (e) {
+        alert('扣款操作失敗: ' + e);
+      } finally {
+        refreshIcons();
       }
     };
 
@@ -1974,7 +2004,7 @@ createApp({
       openAccountModal, saveAccount, deleteAccount, setDefaultDebit,
       openTxModal, openEditTxModal, editingTxId, saveTx, deleteTx, toggleAffectsBalance, refreshIcons, openAddBillModal, openEditBillModal, saveBill, deleteBill,
       openAddStockModal, openEditStockModal, saveStock, deleteStock, refreshStockQuotes,
-      openAddRecurringModal, openEditRecurringModal, saveRecurring, deleteRecurring,
+      openAddRecurringModal, openEditRecurringModal, saveRecurring, deleteRecurring, chargeRecurring,
       submitParseDocument, confirmApplyParsedData,
       syncGmail, triggerDebitCheck, payBillNow,
       openSettingsModal, saveSettings, connectGoogle, updateSalary, renderChart,

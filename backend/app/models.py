@@ -112,6 +112,7 @@ class RecurringExpense(Base):
     due_day = Column(Integer, nullable=True) # 預定繳款/扣款日 (1~31)
     category = Column(String(50), default="其他") # 居住, 電信網路, 娛樂, 交通, 保險, 醫療, 孝親, 其他
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True) # 預設扣款帳戶
+    auto_debit = Column(Boolean, default=False, nullable=True) # 是否到達扣款日自動扣除帳戶存款
     is_active = Column(Boolean, default=True) # 是否啟用此固定花費
     notes = Column(String(255), nullable=True) # 備註
     last_charged_month = Column(String(20), nullable=True) # 最近一次扣款月份 (e.g. "2026-10") 防重複扣款

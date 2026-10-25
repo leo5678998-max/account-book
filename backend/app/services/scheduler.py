@@ -18,6 +18,7 @@ from .imap_service import ImapService
 from .dbs_parser import parse_dbs_pdf, normalize_date
 from .ai_parser import parse_document_with_gemini
 from .stock_service import refresh_all_stock_prices
+from .recurring_service import execute_auto_recurring_debits
 
 scheduler = BackgroundScheduler()
 
@@ -211,6 +212,7 @@ def scheduled_daily_routine():
         for u in users:
             sync_bills_from_gmail(db, user_id=u.id)
         execute_auto_debits(db)
+        execute_auto_recurring_debits(db)
         refresh_all_stock_prices(db)
     except Exception as e:
         print(f"[Scheduler] 每日巡檢任務發生錯誤: {e}")

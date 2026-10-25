@@ -287,6 +287,7 @@ class RecurringExpenseBase(BaseModel):
     due_month: Optional[int] = None # 1~12 (年繳時生效)
     due_day: Optional[int] = None # 1~31
     account_id: Optional[int] = None
+    auto_debit: bool = False # 是否到達扣款日自動扣除帳戶存款
     is_active: bool = True
     notes: Optional[str] = None
 
@@ -301,6 +302,7 @@ class RecurringExpenseUpdate(BaseModel):
     due_month: Optional[int] = None
     due_day: Optional[int] = None
     account_id: Optional[int] = None
+    auto_debit: Optional[bool] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
 

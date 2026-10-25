@@ -152,8 +152,11 @@ def run_schema_migrations(engine) -> None:
                 else:
                     conn.execute(text(f"UPDATE {table} SET user_id = 1 WHERE user_id IS NULL"))
 
-                if table == "recurring_expenses" and "updated_at" not in col_names:
-                    conn.execute(text("ALTER TABLE recurring_expenses ADD COLUMN updated_at DATETIME"))
+                if table == "recurring_expenses":
+                    if "updated_at" not in col_names:
+                        conn.execute(text("ALTER TABLE recurring_expenses ADD COLUMN updated_at DATETIME"))
+                    if "auto_debit" not in col_names:
+                        conn.execute(text("ALTER TABLE recurring_expenses ADD COLUMN auto_debit BOOLEAN DEFAULT 0"))
 
                 if table == "transactions" and "affects_balance" not in col_names:
                     conn.execute(text("ALTER TABLE transactions ADD COLUMN affects_balance BOOLEAN DEFAULT 1"))
