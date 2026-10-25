@@ -119,6 +119,12 @@ createApp({
       (!('theme' in localStorage) && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
     );
 
+    const updateThemeColorMeta = () => {
+      const metas = document.querySelectorAll('meta[name="theme-color"]');
+      const color = isDarkMode.value ? '#1e293b' : '#ffffff';
+      metas.forEach(m => m.setAttribute('content', color));
+    };
+
     const toggleDarkMode = () => {
       isDarkMode.value = !isDarkMode.value;
       if (isDarkMode.value) {
@@ -128,6 +134,7 @@ createApp({
         document.documentElement.classList.remove('dark');
         localStorage.setItem('theme', 'light');
       }
+      updateThemeColorMeta();
       refreshIcons();
       renderChart();
       if (typeof renderTrendChart === 'function') {

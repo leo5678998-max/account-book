@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>記帳本 - 個人資產與預算管理</title>
   <!-- PWA & Mobile Web App Meta -->
-  <meta name="theme-color" content="#4f46e5">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="記帳本">
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon.png">
@@ -74,11 +75,32 @@
       width: 100%;
       min-width: 0;
     }
+    /* ================= iOS SAFE AREA UTILITIES ================= */
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+    }
+    .pt-safe {
+      padding-top: constant(safe-area-inset-top) !important;
+      padding-top: env(safe-area-inset-top, 0px) !important;
+    }
+    .top-safe {
+      top: env(safe-area-inset-top, 0px) !important;
+    }
     .pb-safe {
       padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem)) !important;
     }
     .bottom-fab-safe {
       bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* Standalone iOS (PWA Home Screen) fallback to guarantee control bar is never blocked by notch/Dynamic Island */
+    @media all and (display-mode: standalone) {
+      header.pt-safe {
+        padding-top: max(16px, env(safe-area-inset-top, 16px)) !important;
+      }
     }
 
     /* ================= DARK MODE SYSTEM ================= */
@@ -609,15 +631,15 @@
     <!-- ==================== MOBILE DRAWER OVERLAY ==================== -->
     <div v-if="mobileMenuOpen" class="fixed inset-0 z-50 lg:hidden flex">
       <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="mobileMenuOpen = false"></div>
-      <div class="relative w-64 bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
-        <div class="h-16 flex items-center justify-between px-5 border-b border-slate-100">
+      <div class="relative w-64 bg-white dark:bg-slate-800 h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200 pt-safe pb-safe">
+        <div class="h-16 flex items-center justify-between px-5 border-b border-slate-100 dark:border-slate-700">
           <div class="flex items-center space-x-2.5">
             <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
               <i data-lucide="wallet" class="w-4 h-4"></i>
             </div>
-            <span class="font-bold text-slate-900 text-sm">MoneyTracker</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100 text-sm">MoneyTracker</span>
           </div>
-          <button @click="mobileMenuOpen = false" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg">
+          <button @click="mobileMenuOpen = false" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg touch-manipulation cursor-pointer" aria-label="關閉選單">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
@@ -685,51 +707,51 @@
 
     <!-- ==================== MAIN CONTENT AREA ==================== -->
     <div class="flex-1 flex flex-col min-w-0">
-      <!-- 頂部通用導航列 -->
-      <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
+      <!-- 頂部通用導航列 (支援 iPhone 動態島 / 瀏海 Safe Area) -->
+      <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700/80 sticky top-0 z-30 shadow-xs pt-safe select-none">
         <div class="px-3 sm:px-6 lg:px-8 h-13 sm:h-16 flex items-center justify-between min-w-0">
           <div class="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 mr-2">
-            <button @click="mobileMenuOpen = true" class="lg:hidden p-1.5 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100 flex-shrink-0">
+            <button @click="mobileMenuOpen = true" class="lg:hidden p-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/60 flex-shrink-0 touch-manipulation cursor-pointer" aria-label="打開導航選單">
               <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
-            <h2 class="text-sm sm:text-lg font-bold text-slate-900 truncate flex-1 min-w-0">
+            <h2 class="text-sm sm:text-lg font-bold text-slate-900 dark:text-slate-100 truncate flex-1 min-w-0">
               {{ currentTabTitle }}
             </h2>
           </div>
 
-          <div class="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+          <div class="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
             <!-- 深色 / 淺色模式切換按鈕 -->
-            <button @click="toggleDarkMode" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition" :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'">
+            <button @click="toggleDarkMode" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition touch-manipulation cursor-pointer" :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'">
               <i :data-lucide="isDarkMode ? 'sun' : 'moon'" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1" :class="isDarkMode ? 'text-amber-400' : 'text-indigo-500'"></i>
               <span class="hidden sm:inline">{{ isDarkMode ? '淺色' : '深色' }}</span>
             </button>
 
             <!-- 資產隱私開關按鈕 -->
-            <button @click="toggleHideAssets" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition" :title="hideAssets ? '點擊顯示資產金額' : '點擊隱藏資產金額'">
+            <button @click="toggleHideAssets" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition touch-manipulation cursor-pointer" :title="hideAssets ? '點擊顯示資產金額' : '點擊隱藏資產金額'">
               <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1 text-slate-500"></i>
               <span class="hidden sm:inline">{{ hideAssets ? '顯示資產' : '隱藏資產' }}</span>
             </button>
 
             <!-- 同步信箱按鈕 -->
-            <button @click="syncGmail" :disabled="syncing" class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition disabled:opacity-50" title="同步信箱帳單">
+            <button @click="syncGmail" :disabled="syncing" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition disabled:opacity-50 touch-manipulation cursor-pointer" title="同步信箱帳單">
               <i data-lucide="refresh-cw" :class="['w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1', syncing ? 'animate-spin' : '']"></i>
               <span class="hidden sm:inline">{{ syncing ? '同步中' : '同步 Gmail' }}</span>
             </button>
 
             <!-- 快速記帳 (電腦/平板保留文字，手機版由常駐 FAB 提供) -->
-            <button @click="openTxModal()" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm">
+            <button @click="openTxModal()" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm touch-manipulation cursor-pointer">
               <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i>
               <span>記一筆</span>
             </button>
 
             <!-- 單據辨識 (電腦/平板保留文字，手機版由常駐 FAB 提供) -->
-            <button @click="showUploadModal = true" class="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition" title="AI 單據與薪資單辨識">
+            <button @click="showUploadModal = true" class="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition touch-manipulation cursor-pointer" title="AI 單據與薪資單辨識">
               <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:mr-1 text-purple-600"></i>
               <span>單據辨識</span>
             </button>
 
             <!-- 設定 -->
-            <button @click="openSettingsModal" class="p-1.5 sm:p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition" title="系統設定">
+            <button @click="openSettingsModal" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition touch-manipulation cursor-pointer" title="系統設定">
               <i data-lucide="settings" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </button>
           </div>
@@ -2468,7 +2490,7 @@
     <!-- ==================== MODALS ==================== -->
 
     <!-- Modal 1: 帳戶新增/編輯 -->
-    <div v-if="showAccountModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showAccountModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <h3 class="text-base sm:text-lg font-bold text-slate-900">{{ currentAcc.id ? '編輯帳戶' : '新增帳戶' }}</h3>
         <div class="space-y-3">
@@ -2501,7 +2523,7 @@
     </div>
 
     <!-- Modal 2: 快速記帳 (方案 C: 極簡極速記帳) -->
-    <div v-if="showTxModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showTxModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 my-auto border border-slate-100 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
         <!-- 彈窗頂部：標題與關閉按鈕 -->
         <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -2808,7 +2830,7 @@
     </div>
 
     <!-- Modal 3: 🤖 AI 智慧單據辨識上傳 (支援多張照片/收據/各家信用卡/薪資單批次排隊辨識) -->
-    <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
@@ -2871,7 +2893,7 @@
     </div>
 
     <!-- Modal 4: 🤖 AI 單筆辨識成果預覽與確認 Modal -->
-    <div v-if="showParseResultModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showParseResultModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-4 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto my-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <div class="flex items-center space-x-2">
@@ -3002,7 +3024,7 @@
     </div>
 
     <!-- Modal 4.5: 📑 AI 多筆單據批次排隊辨識成果核對與一鍵入庫 Modal -->
-    <div v-if="showBatchResultModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showBatchResultModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl max-w-4xl w-full p-4 sm:p-6 space-y-4 max-h-[94vh] flex flex-col my-auto">
         <!-- 頂部標題與統計 -->
         <div class="flex items-center justify-between border-b pb-3 flex-shrink-0">
@@ -3133,7 +3155,7 @@
     </div>
 
     <!-- Modal 5: ✏️ 帳單手動新增 / 編輯 Modal (可自由修正 0 元) -->
-    <div v-if="showEditBillModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showEditBillModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <h3 class="text-base sm:text-lg font-bold text-slate-900">{{ currentBill.id ? '編輯信用卡帳單' : '手動補登信用卡帳單' }}</h3>
         <div class="space-y-3">
@@ -3178,7 +3200,7 @@
     </div>
 
     <!-- Modal 6: 系統設定 (個人帳號、自備 Gemini API Key、月薪勞健保、IMAP 應用程式密碼) -->
-    <div v-if="showSettingsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showSettingsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-4 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto my-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <div>
@@ -3585,7 +3607,7 @@
     </div>
 
     <!-- Modal 7: 📈 持股新增 / 編輯 Modal -->
-    <div v-if="showStockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showStockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
@@ -3649,7 +3671,7 @@
     </div>
 
     <!-- Modal 8: 🗓️ 每月固定花費新增 / 編輯 Modal -->
-    <div v-if="showRecurringModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div v-if="showRecurringModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-xl space-y-4 my-auto border border-slate-100 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <h3 class="font-bold text-slate-900 dark:text-slate-100 text-base sm:text-lg flex items-center">
