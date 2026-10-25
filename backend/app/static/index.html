@@ -905,14 +905,20 @@
                   <div v-else-if="kpiId === 'bills'" class="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200/90 hover:border-slate-300 transition h-full flex flex-col justify-between">
                     <div>
                       <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                        <span class="text-slate-700 font-bold">信用卡待繳款</span>
+                        <span class="flex items-center space-x-1.5">
+                          <span class="text-slate-700 font-bold">信用卡待繳款</span>
+                          <button @click.stop="toggleHideAssets" class="p-0.5 text-slate-400 hover:text-slate-600 rounded transition" :title="hideAssets ? '顯示金額' : '隱藏金額'">
+                            <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-3.5 h-3.5"></i>
+                          </button>
+                        </span>
                         <span class="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0" :class="pendingBillAmount > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'">
                           <i :data-lucide="pendingBillAmount > 0 ? 'credit-card' : 'check-circle'" class="w-4 h-4"></i>
                         </span>
                       </div>
-                      <div class="mt-2 sm:mt-2.5">
+                      <div class="mt-2 sm:mt-2.5 cursor-pointer select-none" @click="toggleHideAssets" :title="hideAssets ? '點擊顯示金額' : '點擊隱藏金額'">
                         <div v-if="pendingBillAmount > 0" class="text-2xl sm:text-3xl font-extrabold text-rose-600 tracking-tight font-mono">
-                          NT$ {{ formatMoney(pendingBillAmount) }}
+                          <span v-if="hideAssets" class="tracking-wider text-slate-400 font-sans text-xl sm:text-2xl">NT$ ••••••</span>
+                          <span v-else>NT$ {{ formatMoney(pendingBillAmount) }}</span>
                         </div>
                         <div v-else class="text-xl sm:text-2xl font-bold text-emerald-600 tracking-tight flex items-center space-x-1.5 pt-1">
                           <span>全數已繳清</span>
@@ -1588,28 +1594,38 @@
 
         <!-- ==================== TAB 3: 資產與帳單 (ASSETS: ACCOUNTS, BILLS, STOCKS) ==================== -->
         <div v-show="currentTab === 'assets'" class="space-y-5">
-          <!-- 子分頁切換選單 (Sub-Tab Segmented Control) -->
-          <div class="flex items-center space-x-1.5 bg-slate-200/60 dark:bg-slate-800 p-1 rounded-xl w-full sm:max-w-sm">
-            <button @click="switchTab('assets', 'accounts')"
-              :class="assetSubTab === 'accounts' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
-              class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
-              <i data-lucide="landmark" class="w-3.5 h-3.5"></i>
-              <span>存款帳戶</span>
-            </button>
-            <button @click="switchTab('assets', 'bills')"
-              :class="assetSubTab === 'bills' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
-              class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
-              <i data-lucide="credit-card" class="w-3.5 h-3.5"></i>
-              <span>信用卡帳單</span>
-              <span v-if="pendingBillAmount > 0" class="text-[10px] font-mono bg-rose-50 text-rose-600 px-1 rounded font-bold">
-                待扣
-              </span>
-            </button>
-            <button @click="switchTab('assets', 'stocks')"
-              :class="assetSubTab === 'stocks' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
-              class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
-              <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
-              <span>美股投資</span>
+          <!-- 子分頁切換選單與隱私開關 -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div class="flex items-center space-x-1.5 bg-slate-200/60 dark:bg-slate-800 p-1 rounded-xl w-full sm:max-w-sm">
+              <button @click="switchTab('assets', 'accounts')"
+                :class="assetSubTab === 'accounts' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                <i data-lucide="landmark" class="w-3.5 h-3.5"></i>
+                <span>存款帳戶</span>
+              </button>
+              <button @click="switchTab('assets', 'bills')"
+                :class="assetSubTab === 'bills' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                <i data-lucide="credit-card" class="w-3.5 h-3.5"></i>
+                <span>信用卡帳單</span>
+                <span v-if="pendingBillAmount > 0" class="text-[10px] font-mono bg-rose-50 text-rose-600 px-1 rounded font-bold">
+                  待扣
+                </span>
+              </button>
+              <button @click="switchTab('assets', 'stocks')"
+                :class="assetSubTab === 'stocks' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
+                <span>美股投資</span>
+              </button>
+            </div>
+
+            <!-- 資產隱私金額開關按鈕 -->
+            <button @click="toggleHideAssets"
+              class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition shadow-xs cursor-pointer select-none w-fit"
+              :title="hideAssets ? '點擊顯示資產金額' : '點擊隱藏資產金額'">
+              <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-3.5 h-3.5" :class="hideAssets ? 'text-slate-400' : 'text-indigo-600'"></i>
+              <span>{{ hideAssets ? '金額已隱藏 (點擊顯示)' : '隱藏資產金額' }}</span>
             </button>
           </div>
 
@@ -1631,6 +1647,29 @@
             </button>
             <button @click="triggerDebitCheck" class="inline-flex items-center px-2.5 sm:px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold transition">
               <i data-lucide="zap" class="w-3.5 h-3.5 mr-1 text-rose-600"></i> 扣款檢驗
+            </button>
+          </div>
+        </div>
+
+        <!-- 信用卡待扣總額概況 (支援隱藏) -->
+        <div class="p-3.5 sm:p-5 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <span class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="credit-card" class="w-5 h-5"></i>
+            </span>
+            <div>
+              <div class="text-xs text-slate-500 font-medium">信用卡待扣款總額</div>
+              <div class="text-xl sm:text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+                <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider text-lg sm:text-xl">NT$ ••••••</span>
+                <span v-else>NT$ {{ formatMoney(pendingBillAmount) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 flex items-center space-x-2">
+            <span>共 {{ bills.length }} 筆帳單</span>
+            <span class="text-slate-300">·</span>
+            <button @click="toggleHideAssets" class="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer">
+              {{ hideAssets ? '顯示金額' : '隱藏金額' }}
             </button>
           </div>
         </div>
@@ -1658,7 +1697,8 @@
               <div>
                 <span class="text-[10px] text-slate-400">本期應繳</span>
                 <div class="text-xl font-extrabold font-mono text-slate-900">
-                  NT$ {{ formatMoney(b.total_amount) }}
+                  <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider text-base sm:text-lg">NT$ ••••••</span>
+                  <span v-else>NT$ {{ formatMoney(b.total_amount) }}</span>
                 </div>
               </div>
               <div class="text-right text-xs">
@@ -1718,8 +1758,9 @@
                   <span class="block text-[11px] text-slate-400 truncate max-w-[150px]" v-if="b.pdf_filename" :title="b.pdf_filename">{{ b.pdf_filename }}</span>
                 </td>
                 <td class="py-4 px-6 font-bold text-base" :class="b.total_amount === 0 ? 'text-amber-600' : 'text-slate-900'">
-                  NT$ {{ formatMoney(b.total_amount) }}
-                  <span v-if="b.total_amount === 0" class="block text-[11px] font-normal text-amber-500">(請點擊編輯核對)</span>
+                  <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider">NT$ ••••••</span>
+                  <span v-else>NT$ {{ formatMoney(b.total_amount) }}</span>
+                  <span v-if="!hideAssets && b.total_amount === 0" class="block text-[11px] font-normal text-amber-500">(請點擊編輯核對)</span>
                 </td>
                 <td class="py-4 px-6 font-medium text-slate-700">
                   <span :class="{'text-rose-600 font-bold': isDueSoon(b.due_date) && b.status === 'PENDING'}">
@@ -1787,17 +1828,24 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 p-3.5 sm:p-6 bg-slate-50/50 border-b border-slate-100">
           <div class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200">
             <div class="text-[11px] sm:text-xs text-slate-500 font-medium">股票總市值 (TWD)</div>
-            <div class="text-lg sm:text-2xl font-extrabold text-slate-900 font-mono mt-1">NT$ {{ formatStockTotal(stockPortfolio.total_market_value_twd) }}</div>
+            <div class="text-lg sm:text-2xl font-extrabold text-slate-900 font-mono mt-1">
+              <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider">NT$ ••••••</span>
+              <span v-else>NT$ {{ formatStockTotal(stockPortfolio.total_market_value_twd) }}</span>
+            </div>
           </div>
           <div class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200">
             <div class="text-[11px] sm:text-xs text-slate-500 font-medium">總投入成本 (TWD)</div>
-            <div class="text-lg sm:text-2xl font-extrabold text-slate-700 font-mono mt-1">NT$ {{ formatStockTotal(stockPortfolio.total_cost_twd) }}</div>
+            <div class="text-lg sm:text-2xl font-extrabold text-slate-700 font-mono mt-1">
+              <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider">NT$ ••••••</span>
+              <span v-else>NT$ {{ formatStockTotal(stockPortfolio.total_cost_twd) }}</span>
+            </div>
           </div>
           <div class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200">
             <div class="text-[11px] sm:text-xs text-slate-500 font-medium">未實現總損益</div>
             <div class="text-lg sm:text-2xl font-extrabold font-mono mt-1"
-              :class="stockPortfolio.total_unrealized_pnl_twd >= 0 ? 'text-rose-600' : 'text-emerald-600'">
-              {{ stockPortfolio.total_unrealized_pnl_twd >= 0 ? '+' : '' }}NT$ {{ formatStockTotal(stockPortfolio.total_unrealized_pnl_twd) }}
+              :class="hideAssets ? 'text-slate-400' : (stockPortfolio.total_unrealized_pnl_twd >= 0 ? 'text-rose-600' : 'text-emerald-600')">
+              <span v-if="hideAssets" class="font-sans tracking-wider">NT$ ••••••</span>
+              <span v-else>{{ stockPortfolio.total_unrealized_pnl_twd >= 0 ? '+' : '' }}NT$ {{ formatStockTotal(stockPortfolio.total_unrealized_pnl_twd) }}</span>
             </div>
           </div>
           <div class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200">
@@ -1835,7 +1883,8 @@
               <div>
                 <span class="text-slate-400">持有 / 成本：</span>
                 <div class="font-mono font-semibold text-slate-700 mt-0.5">
-                  {{ formatStockShares(s.shares) }} 股 · {{ s.currency === 'USD' ? '$' : 'NT$' }}{{ formatStockPrice(s.cost_price) }}
+                  <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider">{{ formatStockShares(s.shares) }} 股 · ••••••</span>
+                  <span v-else>{{ formatStockShares(s.shares) }} 股 · {{ s.currency === 'USD' ? '$' : 'NT$' }}{{ formatStockPrice(s.cost_price) }}</span>
                 </div>
               </div>
               <div>
@@ -1849,13 +1898,16 @@
             <div class="flex items-center justify-between text-xs pt-0.5">
               <span class="text-slate-400 font-medium">市值 / 損益：</span>
               <div class="text-right">
-                <span class="font-bold font-mono text-slate-900 mr-2">
-                  {{ s.currency === 'USD' ? '$' : 'NT$' }}{{ formatStockTotal(s.market_value, s.currency) }}
-                </span>
-                <span class="font-mono font-bold" :class="s.unrealized_pnl >= 0 ? 'text-rose-600' : 'text-emerald-600'">
-                  {{ s.unrealized_pnl >= 0 ? '+' : '' }}{{ s.currency === 'USD' ? '$' : 'NT$' }}{{ formatStockTotal(s.unrealized_pnl, s.currency) }}
-                  ({{ s.return_rate >= 0 ? '+' : '' }}{{ s.return_rate.toFixed(2) }}%)
-                </span>
+                <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider">••••••</span>
+                <template v-else>
+                  <span class="font-bold font-mono text-slate-900 mr-2">
+                    {{ s.currency === 'USD' ? '$' : 'NT$' }}{{ formatStockTotal(s.market_value, s.currency) }}
+                  </span>
+                  <span class="font-mono font-bold" :class="s.unrealized_pnl >= 0 ? 'text-rose-600' : 'text-emerald-600'">
+                    {{ s.unrealized_pnl >= 0 ? '+' : '' }}{{ s.currency === 'USD' ? '$' : 'NT$' }}{{ formatStockTotal(s.unrealized_pnl, s.currency) }}
+                    ({{ s.return_rate >= 0 ? '+' : '' }}{{ s.return_rate.toFixed(2) }}%)
+                  </span>
+                </template>
               </div>
             </div>
           </div>
@@ -1891,23 +1943,30 @@
                   {{ formatStockShares(s.shares) }} 股
                 </td>
                 <td class="py-3.5 px-6 font-mono text-slate-600">
-                  {{ s.currency === 'USD' ? '$' : 'NT$ ' }}{{ formatStockPrice(s.cost_price) }}
+                  <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider">••••••</span>
+                  <span v-else>{{ s.currency === 'USD' ? '$' : 'NT$ ' }}{{ formatStockPrice(s.cost_price) }}</span>
                 </td>
                 <td class="py-3.5 px-6 font-mono font-bold text-slate-900">
                   {{ s.currency === 'USD' ? '$' : 'NT$ ' }}{{ formatStockPrice(s.current_price) }}
                 </td>
                 <td class="py-3.5 px-6 font-mono font-extrabold text-slate-900">
-                  {{ s.currency === 'USD' ? '$' : 'NT$ ' }}{{ formatStockTotal(s.market_value, s.currency) }}
-                  <div v-if="s.currency === 'USD'" class="text-[11px] text-slate-400 font-normal">
-                    ≈ NT$ {{ formatStockTotal(s.market_value_twd, 'TWD') }}
-                  </div>
+                  <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider">NT$ ••••••</span>
+                  <template v-else>
+                    {{ s.currency === 'USD' ? '$' : 'NT$ ' }}{{ formatStockTotal(s.market_value, s.currency) }}
+                    <div v-if="s.currency === 'USD'" class="text-[11px] text-slate-400 font-normal">
+                      ≈ NT$ {{ formatStockTotal(s.market_value_twd, 'TWD') }}
+                    </div>
+                  </template>
                 </td>
                 <td class="py-3.5 px-6 font-mono font-bold"
-                  :class="s.unrealized_pnl >= 0 ? 'text-rose-600' : 'text-emerald-600'">
-                  <div>{{ s.unrealized_pnl >= 0 ? '+' : '' }}{{ s.currency === 'USD' ? '$' : 'NT$ ' }}{{ formatStockTotal(s.unrealized_pnl, s.currency) }}</div>
-                  <div class="text-xs font-semibold">
-                    ({{ s.return_rate >= 0 ? '+' : '' }}{{ s.return_rate.toFixed(2) }}%)
-                  </div>
+                  :class="hideAssets ? 'text-slate-400' : (s.unrealized_pnl >= 0 ? 'text-rose-600' : 'text-emerald-600')">
+                  <span v-if="hideAssets" class="font-sans tracking-wider">••••••</span>
+                  <template v-else>
+                    <div>{{ s.unrealized_pnl >= 0 ? '+' : '' }}{{ s.currency === 'USD' ? '$' : 'NT$ ' }}{{ formatStockTotal(s.unrealized_pnl, s.currency) }}</div>
+                    <div class="text-xs font-semibold">
+                      ({{ s.return_rate >= 0 ? '+' : '' }}{{ s.return_rate.toFixed(2) }}%)
+                    </div>
+                  </template>
                 </td>
                 <td class="py-3.5 px-6 text-right">
                   <div class="inline-flex items-center space-x-1">
@@ -1938,9 +1997,32 @@
             </h2>
             <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5">管理各銀行活存、現金與信用卡扣款帳戶</p>
           </div>
-          <button @click="openAccountModal()" class="inline-flex items-center px-2.5 sm:px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-sm">
+          <button @click="openAccountModal()" class="inline-flex items-center px-2.5 sm:px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer">
             <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> 新增帳戶
           </button>
+        </div>
+
+        <!-- 存款資產總覽概況 (支援隱藏) -->
+        <div class="p-3.5 sm:p-5 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <span class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="wallet" class="w-5 h-5"></i>
+            </span>
+            <div>
+              <div class="text-xs text-slate-500 font-medium">活期存款與現金額度合計</div>
+              <div class="text-xl sm:text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+                <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider text-lg sm:text-xl">NT$ ••••••</span>
+                <span v-else>NT$ {{ formatMoney(totalSavings) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 flex items-center space-x-2">
+            <span>共 {{ accounts.length }} 個資產帳戶</span>
+            <span class="text-slate-300">·</span>
+            <button @click="toggleHideAssets" class="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer">
+              {{ hideAssets ? '顯示金額' : '隱藏金額' }}
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-4 sm:p-6">
@@ -1963,7 +2045,10 @@
             
             <div class="mt-3 sm:mt-4">
               <div class="text-[11px] text-slate-400">目前餘額</div>
-              <div class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight font-mono">NT$ {{ formatMoney(acc.balance) }}</div>
+              <div class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight font-mono">
+                <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider text-base sm:text-lg">NT$ ••••••</span>
+                <span v-else>NT$ {{ formatMoney(acc.balance) }}</span>
+              </div>
             </div>
 
             <div class="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -2038,6 +2123,13 @@
                 class="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition" title="重新整理報表">
                 <i data-lucide="refresh-cw" class="w-4 h-4" :class="loadingAnalytics ? 'animate-spin text-indigo-600' : ''"></i>
               </button>
+
+              <!-- 隱藏金額開關 -->
+              <button @click="toggleHideAssets"
+                class="p-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition"
+                :title="hideAssets ? '顯示存款金額' : '隱藏存款金額'">
+                <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-4 h-4" :class="hideAssets ? 'text-slate-400' : 'text-indigo-600'"></i>
+              </button>
             </div>
           </div>
 
@@ -2094,12 +2186,18 @@
             <!-- 3. 目前總存款與區間淨增長 -->
             <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
               <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                <span>當前存款總資產</span>
+                <span class="flex items-center space-x-1.5">
+                  <span>當前存款總資產</span>
+                  <button @click.stop="toggleHideAssets" class="p-0.5 text-slate-400 hover:text-slate-600 rounded transition" :title="hideAssets ? '顯示金額' : '隱藏金額'">
+                    <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-3.5 h-3.5"></i>
+                  </button>
+                </span>
                 <span class="p-1 bg-emerald-50 text-emerald-600 rounded-lg"><i data-lucide="wallet" class="w-4 h-4"></i></span>
               </div>
-              <div class="mt-2.5">
+              <div class="mt-2.5 cursor-pointer select-none" @click="toggleHideAssets" :title="hideAssets ? '點擊顯示金額' : '點擊隱藏金額'">
                 <div class="text-xl sm:text-2xl font-extrabold text-slate-900 font-mono">
-                  NT$ {{ formatMoney(analyticsData.current_balance) }}
+                  <span v-if="hideAssets" class="tracking-wider text-slate-400 font-sans">NT$ ••••••</span>
+                  <span v-else>NT$ {{ formatMoney(analyticsData.current_balance) }}</span>
                 </div>
                 <div class="mt-1.5 flex items-center text-xs">
                   <span class="font-bold text-[11px]"
@@ -2203,7 +2301,7 @@
 
                 <!-- 底部：月末總存款與較上月 -->
                 <div class="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
-                  <span class="truncate">月末存款：<strong class="font-mono text-slate-800">NT$ {{ formatMoney(row.end_balance) }}</strong></span>
+                  <span class="truncate">月末存款：<strong class="font-mono text-slate-800">{{ hideAssets ? 'NT$ ••••••' : 'NT$ ' + formatMoney(row.end_balance) }}</strong></span>
                   <span v-if="row.expense_mom_diff < 0" class="text-emerald-600 font-semibold text-[10px] flex items-center flex-shrink-0 ml-1">
                     <i data-lucide="trending-down" class="w-3 h-3 mr-0.5"></i> 省 ${{ formatMoney(Math.abs(row.expense_mom_diff)) }} (-{{ Math.abs(row.expense_mom_pct) }}%)
                   </span>
@@ -2290,7 +2388,8 @@
 
                     <!-- 月末存款總額 -->
                     <td class="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
-                      NT$ {{ formatMoney(row.end_balance) }}
+                      <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider">NT$ ••••••</span>
+                      <span v-else>NT$ {{ formatMoney(row.end_balance) }}</span>
                     </td>
 
                     <!-- 跳轉流水帳 -->
@@ -3649,7 +3748,7 @@
             <select v-model="currentRecurring.account_id" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold">
               <option :value="null">-- 未指定帳戶 (純預算試算) --</option>
               <option v-for="acc in accounts" :key="acc.id" :value="acc.id">
-                {{ acc.name }} (目前餘額 NT$ {{ formatMoney(acc.balance) }})
+                {{ acc.name }} (目前餘額 NT$ {{ hideAssets ? '••••••' : formatMoney(acc.balance) }})
               </option>
             </select>
             <p class="text-[11px] text-slate-400 mt-0.5">指定自動扣款或手動扣款時扣除餘額的存款帳戶</p>
