@@ -324,3 +324,28 @@ class RecurringExpenseSummary(BaseModel):
     yearly_count: int = 0                 # 年繳項目筆數
     items: List[RecurringExpenseResponse] = []
 
+
+# ================= Webhook (Apple Pay / iOS 捷徑) Schema =================
+class ApplePayWebhookPayload(BaseModel):
+    amount: Any  # 支援數值 (150) 或帶幣別字串 ("NT$ 150", "$150")
+    merchant: Optional[str] = None  # 商家名稱 (例如：全家、星巴克、高鐵)
+    card_name: Optional[str] = None  # 信用卡/帳戶名稱 (例如：國泰世華 CUBE、台新、玉山)
+    category: Optional[str] = None  # 分類 (可選，未填時系統依商家自動智能推導)
+    note: Optional[str] = None  # 自訂備註
+    date: Optional[str] = None  # 交易時間 (ISO 8601 或自訂日期格式)
+    token: Optional[str] = None  # 可選：若不想放在 Query 或 Header，亦可置於 JSON body
+
+class ApplePayWebhookResponse(BaseModel):
+    status: str = "success"
+    message: str
+    transaction_id: int
+    amount: float
+    category: str
+    account_name: str
+    account_balance: float
+
+class WebhookTokenResponse(BaseModel):
+    webhook_token: str
+    webhook_url: str
+
+

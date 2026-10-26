@@ -194,5 +194,14 @@ export const ApiService = {
   calculateInsurance: (salary, dependents, pensionRate = 0, taxRate = 0) =>
     fetch(`/api/settings/calculate-insurance?salary=${encodeURIComponent(salary)}&dependents=${encodeURIComponent(dependents)}&pension_rate=${encodeURIComponent(pensionRate)}&tax_rate=${encodeURIComponent(taxRate)}`).then(r => r.json()),
   getGoogleAuthUrl: (redirectUri) =>
-    authFetch(`/api/auth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`).then(r => r.json())
+    authFetch(`/api/auth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`).then(r => r.json()),
+
+  // Webhook (Apple Pay / iOS 捷徑自動化) API
+  getWebhookToken: () => authFetch('/api/webhook/token').then(r => (r.ok ? r.json() : null)),
+  regenerateWebhookToken: () => authFetch('/api/webhook/token/regenerate', { method: 'POST' }).then(r => (r.ok ? r.json() : null)),
+  testWebhookTransaction: (payload) => authFetch('/api/webhook/apple-pay/test', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(payload)
+  }).then(r => r.json())
 };

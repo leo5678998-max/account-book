@@ -78,6 +78,15 @@ createApp({
     });
     const testingImap = ref(false);
     const imapTestResult = ref(null);
+
+    // Apple Pay / iOS 捷徑 Webhook 狀態
+    const webhookToken = ref('');
+    const webhookUrl = ref('');
+    const webhookCopySuccess = ref(false);
+    const webhookTutorialOpen = ref(false);
+    const testingWebhook = ref(false);
+    const webhookTestResult = ref(null);
+
     const profileForm = ref({
       display_name: '',
       current_password: '',
@@ -1932,6 +1941,8 @@ createApp({
     // 系統設定
     const openSettingsModal = () => {
       imapTestResult.value = null;
+      webhookTestResult.value = null;
+      fetchWebhookToken();
       profileForm.value = {
         display_name: currentUser.value?.display_name || currentUser.value?.username || '',
         current_password: '',
@@ -2033,6 +2044,83 @@ createApp({
         }
       } catch (e) {
         alert('請先填寫正確的 Google Client ID 與 Client Secret');
+      }
+    };
+
+    const fetchWebhookToken = async () => {
+      try {
+        const data = await ApiService.getWebhookToken();
+        if (data && data.webhook_token) {
+          webhookToken.value = data.webhook_token;
+          webhookUrl.value = window.location.origin + data.webhook_url;
+        }
+      } catch (e) {
+        console.warn('載入 Webhook Token 失敗:', e);
+      }
+    };
+
+    const regenerateWebhook = async () => {
+      if (!confirm('確定要重新生成 Webhook 金鑰嗎？\n生成後舊金鑰將立即失效，需同步更新 iPhone 捷徑中的網址。')) {
+        return;
+      }
+      try {
+        const data = await ApiService.regenerateWebhookToken();
+        if (data && data.webhook_token) {
+          webhookToken.value = data.webhook_token;
+          webhookUrl.value = window.location.origin + data.webhook_url;
+          alert('Webhook 金鑰已重新生成！請記得更新 iPhone 捷徑中的網址。');
+        }
+      } catch (e) {
+        alert('重新生成金鑰失敗，請稍後再試');
+      }
+    };
+
+    const copyWebhookUrl = async () => {
+      if (!webhookUrl.value) return;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(webhookUrl.value);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = webhookUrl.value;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+        webhookCopySuccess.value = true;
+        setTimeout(() => {
+          webhookCopySuccess.value = false;
+        }, 2500);
+      } catch (e) {
+        alert('複製失敗，請手動選取網址複製');
+      }
+    };
+
+    const runWebhookTest = async () => {
+      testingWebhook.value = true;
+      webhookTestResult.value = null;
+      try {
+        const res = await ApiService.testWebhookTransaction({
+          amount: 65,
+          merchant: "星巴克咖啡 (測試交易)",
+          category: "飲食",
+          note: "Apple Pay 捷徑測試"
+        });
+        webhookTestResult.value = {
+          success: true,
+          message: `測試成功！已自動建立 NT$ ${res.amount} 支出，記入【${res.account_name}】，餘額更新為 NT$ ${Number(res.account_balance).toLocaleString()}`
+        };
+        await fetchTransactions();
+        await fetchAccounts();
+      } catch (err) {
+        webhookTestResult.value = {
+          success: false,
+          message: err.message || '測試記帳失敗，請確認伺服器日誌'
+        };
+      } finally {
+        testingWebhook.value = false;
+        refreshIcons();
       }
     };
 
@@ -2177,6 +2265,8 @@ createApp({
       stockPortfolio, showStockModal, refreshingStocks, savingStock, currentStock,
       recurringExpenses, showRecurringModal, savingRecurring, currentRecurring,
       canInstallPwa, isPwaInstalled, installPwa,
+      webhookToken, webhookUrl, webhookCopySuccess, webhookTutorialOpen, testingWebhook, webhookTestResult,
+      fetchWebhookToken, regenerateWebhook, copyWebhookUrl, runWebhookTest,
       txAmountFormula, txEvaluatedAmount, txHasFormula, applyTxFormula, appendTxFormulaOp,
       recurringAmountFormula, recurringEvaluatedAmount, recurringHasFormula, applyRecurringFormula, appendRecurringFormulaOp,
       totalSavings, totalNetWorth, pendingBillAmount, nextDueBill, monthlyExpensesList, monthlyTotalExpense, monthlyLivingExpense,
