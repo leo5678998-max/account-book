@@ -16,14 +16,14 @@ import {
   formatStockTotal,
   isDueSoon,
   evaluateMathExpression
-} from './formatters.js?v=2.5.0';
-import { ApiService, AuthStorage } from './api.js?v=2.5.0';
-import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.5.0';
+} from './formatters.js?v=2.6.0';
+import { ApiService, AuthStorage } from './api.js?v=2.6.0';
+import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.6.0';
 import {
   calculateLaborInsurance,
   calculateHealthInsurance,
   calculateInsuranceSummary
-} from './insurance.js?v=2.5.0';
+} from './insurance.js?v=2.6.0';
 
 // PWA Service Worker 註冊
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -923,6 +923,11 @@ createApp({
       settingsForm.value.health_insurance_fee = Number(data.health_insurance_fee) || 0;
       settingsForm.value.pension_fee = Number(data.pension_fee) || 0;
       settingsForm.value.tax_fee = Number(data.tax_fee) || 0;
+
+      if (data.webhook_token) {
+        webhookToken.value = data.webhook_token;
+        webhookUrl.value = window.location.origin + (data.webhook_url || `/api/webhook/apple-pay?token=${data.webhook_token}`);
+      }
 
       renderChart();
       refreshIcons();
@@ -1942,6 +1947,10 @@ createApp({
     const openSettingsModal = () => {
       imapTestResult.value = null;
       webhookTestResult.value = null;
+      if (settings.value && settings.value.webhook_token) {
+        webhookToken.value = settings.value.webhook_token;
+        webhookUrl.value = window.location.origin + (settings.value.webhook_url || `/api/webhook/apple-pay?token=${settings.value.webhook_token}`);
+      }
       fetchWebhookToken();
       profileForm.value = {
         display_name: currentUser.value?.display_name || currentUser.value?.username || '',
@@ -2076,7 +2085,17 @@ createApp({
     };
 
     const copyWebhookUrl = async () => {
-      if (!webhookUrl.value) return;
+      if (!webhookUrl.value) {
+        if (settings.value && settings.value.webhook_token) {
+          webhookUrl.value = window.location.origin + (settings.value.webhook_url || `/api/webhook/apple-pay?token=${settings.value.webhook_token}`);
+        } else {
+          await fetchWebhookToken();
+        }
+      }
+      if (!webhookUrl.value) {
+        alert('尚未取得 Webhook 網址，請點擊右上方「重新生成金鑰」試試！');
+        return;
+      }
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(webhookUrl.value);
@@ -2133,7 +2152,8 @@ createApp({
         fetchRecurringExpenses(),
         fetchSettings(),
         fetchCategories(),
-        fetchCategoryColors()
+        fetchCategoryColors(),
+        fetchWebhookToken()
       ]);
       refreshIcons();
     };

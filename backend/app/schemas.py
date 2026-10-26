@@ -232,6 +232,8 @@ class SettingsStatus(BaseModel):
     imap_server: Optional[str] = "imap.gmail.com"
     google_client_id: Optional[str] = ""
     google_redirect_uri: Optional[str] = ""
+    webhook_token: Optional[str] = ""
+    webhook_url: Optional[str] = ""
 
 
 # ================= 股票持股相關 Schema =================

@@ -9,6 +9,7 @@ from ..core.database import get_db
 from ..models import User, Account
 from ..schemas import SettingsUpdate, SettingsStatus
 from ..services.accounting_service import get_setting, save_setting, get_default_debit_account
+from ..services.webhook_service import get_or_create_webhook_token
 from ..services.auth_service import get_current_user
 from ..services.integrations.gmail_service import GmailService
 from ..services.integrations.imap_service import ImapService
@@ -207,6 +208,9 @@ def get_settings_status(
     is_imap_ok = imap_service.is_configured()
     is_gmail_ok = gmail_service.is_connected()
 
+    webhook_tok = get_or_create_webhook_token(db, uid)
+    webhook_path = f"/api/webhook/apple-pay?token={webhook_tok}"
+
     return SettingsStatus(
         is_google_connected=(is_imap_ok or is_gmail_ok),
         is_imap_configured=is_imap_ok,
@@ -233,7 +237,9 @@ def get_settings_status(
         imap_app_password=imap_pwd_val,
         imap_server=imap_server_val,
         google_client_id=cid_val,
-        google_redirect_uri=uri_val
+        google_redirect_uri=uri_val,
+        webhook_token=webhook_tok,
+        webhook_url=webhook_path
     )
 
 
