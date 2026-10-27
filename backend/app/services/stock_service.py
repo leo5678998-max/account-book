@@ -1,3 +1,4 @@
+import re
 import sys
 if sys.platform.startswith('win'):
     try:
@@ -24,6 +25,8 @@ POPULAR_NAMES = {
     "00878.TW": "國泰永續高股息",
     "00919.TW": "群益台灣精選高息",
     "00929.TW": "復華台灣科技優息",
+    "00981A.TW": "主動統一台股增長",
+    "00981A.TWO": "主動統一台股增長",
     "2881.TW": "富邦金",
     "2882.TW": "國泰金",
     "2891.TW": "中信金",
@@ -77,13 +80,13 @@ def get_usd_to_twd_rate() -> float:
     return get_currency_rate_to_twd("USD")
 
 def resolve_symbol(raw_symbol: str) -> str:
-    """自動規範化股票代號，台股自動補上 .TW 或 .TWO，美股轉大寫"""
+    """自動規範化股票代號，台股 (含純數字代號、特別股與主動式 ETF 如 00981A) 自動補上 .TW 或 .TWO，美股轉大寫"""
     sym = raw_symbol.strip().upper()
     if "." in sym:
         return sym
     
-    # 4碼或更多數字開頭，通常為台股
-    if sym.isdigit():
+    # 台股特徵判斷：4~6 碼純數字 (如 2330, 0050)，或 4~5 碼數字加上 1~2 碼英文字母後綴 (如 00981A, 2882A, 00632R)
+    if re.match(r"^\d{4,6}[A-Z]{0,2}$", sym):
         return f"{sym}.TW"
     
     return sym
@@ -142,7 +145,9 @@ def refresh_all_stock_prices(db: Session, user_id: Optional[int] = None) -> int:
         if quote.get("price", 0) > 0:
             h.current_price = quote["price"]
             h.currency = quote.get("currency", h.currency)
-            if not h.name and quote.get("name"):
+            if quote.get("symbol") and quote["symbol"] != h.symbol:
+                h.symbol = quote["symbol"]
+            if (not h.name or h.name == h.symbol or h.name == "00981A") and quote.get("name"):
                 h.name = quote["name"]
             h.updated_at = datetime.utcnow()
             updated_count += 1
