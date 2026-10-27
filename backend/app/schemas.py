@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Any
 from datetime import datetime, date
 
@@ -329,7 +329,8 @@ class RecurringExpenseSummary(BaseModel):
 
 # ================= Webhook (Apple Pay / iOS 捷徑) Schema =================
 class ApplePayWebhookPayload(BaseModel):
-    amount: Any  # 支援數值 (150) 或帶幣別字串 ("NT$ 150", "$150")
+    model_config = ConfigDict(extra="allow")
+    amount: Optional[Any] = None  # 支援數值 (150)、帶幣別字串 ("NT$ 150") 或倒置容錯
     merchant: Optional[str] = None  # 商家名稱 (例如：全家、星巴克、高鐵)
     card_name: Optional[str] = None  # 信用卡/帳戶名稱 (例如：國泰世華 CUBE、台新、玉山)
     category: Optional[str] = None  # 分類 (可選，未填時系統依商家自動智能推導)

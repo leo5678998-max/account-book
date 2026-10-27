@@ -211,6 +211,19 @@ class TestWebhookServiceAndEndpoints(unittest.TestCase):
         self.assertEqual(data["category"], "交通")
         self.assertEqual(data["amount"], 250.0)
 
+    def test_inverted_apple_pay_payload(self):
+        # When iOS Shortcuts inverts key and value:
+        inverted_payload = {
+            "88": 0,
+            "全聯福利中心": "文字",
+            "國泰世華 CUBE 卡": "文字"
+        }
+        tx = process_apple_pay_transaction(self.db, user_id=self.user.id, payload=inverted_payload)
+        self.assertEqual(tx.amount, 88.0)
+        self.assertEqual(tx.category, "日常採買")
+        self.assertIn("全聯", tx.description)
+        self.assertEqual(tx.account_id, self.card_acc.id)
+
     def test_webhook_api_invalid_token(self):
         res = self.client.post(
             "/api/webhook/apple-pay?token=invalid_token_123",

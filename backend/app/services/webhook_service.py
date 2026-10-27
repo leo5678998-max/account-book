@@ -276,11 +276,92 @@ def resolve_target_account(db: Session, user_id: int, card_name: Optional[str] =
     return user_accounts[0]
 
 
+def normalize_apple_pay_payload(payload: dict, db: Session, user_id: int) -> dict:
+    """
+    容錯前處理：若使用者在 iOS 捷徑中誤將變數選在「左邊 (Key)」，
+    將導致傳遞結構為 {'150': 0, '7-11': '文字', '星展': '文字'}。
+    本函式自動偵測並還原為標準字典結構。
+    """
+    cleaned = {k: v for k, v in payload.items() if v is not None}
+    if cleaned.get("amount") is not None and str(cleaned.get("amount")).strip() != "":
+        return cleaned
+
+    STANDARD_KEYS = {"amount", "merchant", "card_name", "category", "note", "date", "token"}
+    numeric_keys = []
+    other_keys = []
+    for k in payload.keys():
+        if k in STANDARD_KEYS:
+            continue
+        try:
+            val = parse_webhook_amount(k)
+            numeric_keys.append((k, val))
+        except (ValueError, TypeError):
+            other_keys.append(k)
+
+    if numeric_keys:
+        cleaned["amount"] = numeric_keys[0][1]
+        user_accounts = db.query(Account).filter(Account.user_id == user_id).all()
+        account_names = [(a.name or "").lower() for a in user_accounts]
+
+        for k in other_keys:
+            if not k or not isinstance(k, str) or k in STANDARD_KEYS:
+                continue
+            k_strip = k.strip()
+            if k_strip in ("文字", "0", "未命名", "null", "undefined"):
+                continue
+            k_lower = k_strip.lower()
+            if any(k_lower in acc_name or acc_name in k_lower for acc_name in account_names if acc_name):
+                cleaned["card_name"] = k_strip
+            else:
+                if not cleaned.get("merchant"):
+                    cleaned["merchant"] = k_strip
+                else:
+                    cleaned["merchant"] += f" {k_strip}"
+
+    return cleaned
+
+    numeric_keys = []
+    other_keys = []
+    for k in payload.keys():
+        if k in ("token",):
+            continue
+        try:
+            val = parse_webhook_amount(k)
+            numeric_keys.append((k, val))
+        except (ValueError, TypeError):
+            other_keys.append(k)
+
+    if numeric_keys:
+        cleaned["amount"] = numeric_keys[0][1]
+        user_accounts = db.query(Account).filter(Account.user_id == user_id).all()
+        account_names = [(a.name or "").lower() for a in user_accounts]
+
+        for k in other_keys:
+            if not k or not isinstance(k, str):
+                continue
+            k_strip = k.strip()
+            if k_strip in ("文字", "0", "未命名", "null", "undefined"):
+                continue
+            k_lower = k_strip.lower()
+            if any(k_lower in acc_name or acc_name in k_lower for acc_name in account_names if acc_name):
+                cleaned["card_name"] = k_strip
+            else:
+                if not cleaned.get("merchant"):
+                    cleaned["merchant"] = k_strip
+                else:
+                    cleaned["merchant"] += f" {k_strip}"
+
+    return cleaned
+
+
 def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> Transaction:
     """
     核心記帳流程：
     解析 Webhook Payload、驗證數值、智能匹配帳戶與分類，呼叫 record_transaction 建立交易並更新餘額。
     """
+    # 0. 容錯正規化 (支援 iOS 捷徑鍵值倒置自動校正)
+    payload = normalize_apple_pay_payload(payload, db, user_id)
+
     # 1. 金額解析
     raw_amount = payload.get("amount")
     try:
