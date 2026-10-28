@@ -16,14 +16,14 @@ import {
   formatStockTotal,
   isDueSoon,
   evaluateMathExpression
-} from './formatters.js?v=2.6.0';
-import { ApiService, AuthStorage } from './api.js?v=2.6.0';
-import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.6.0';
+} from './formatters.js?v=2.7.0';
+import { ApiService, AuthStorage } from './api.js?v=2.7.0';
+import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.7.0';
 import {
   calculateLaborInsurance,
   calculateHealthInsurance,
   calculateInsuranceSummary
-} from './insurance.js?v=2.6.0';
+} from './insurance.js?v=2.7.0';
 
 // PWA Service Worker 註冊
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -2267,6 +2267,41 @@ createApp({
         window.history.replaceState({}, document.title, window.location.pathname);
         await fetchSettings();
       }
+
+      // 📱 手機多工切回 / 解鎖螢幕 / 視窗獲得焦點時，自動靜默更新最新流水帳與餘額 (Apple Pay 刷完切回立即可見)
+      let lastAutoRefreshTime = 0;
+      const autoRefreshOnActive = async () => {
+        if (!isAuthenticated.value) return;
+        const now = Date.now();
+        if (now - lastAutoRefreshTime < 2500) return; // 避免 2.5 秒內重複觸發
+        lastAutoRefreshTime = now;
+        try {
+          await Promise.all([
+            fetchTransactions(),
+            fetchAccounts()
+          ]);
+          refreshIcons();
+        } catch (e) {
+          console.debug('[AutoRefresh] 靜默同步略過:', e);
+        }
+      };
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          autoRefreshOnActive();
+        }
+      });
+
+      window.addEventListener('focus', () => {
+        autoRefreshOnActive();
+      });
+
+      // 前景每 20 秒輕量靜默檢查一次 (若手機一直停在 App 畫面中，刷卡完數秒內自動出現)
+      setInterval(() => {
+        if (document.visibilityState === 'visible' && isAuthenticated.value) {
+          autoRefreshOnActive();
+        }
+      }, 20000);
     });
 
     return {
