@@ -1,6 +1,6 @@
 import re
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Any, Tuple, List
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -161,6 +161,93 @@ def parse_webhook_datetime(date_raw: Any) -> datetime:
     return datetime.utcnow()
 
 
+def parse_notification_text(text: str, app: Optional[str] = None, title: Optional[str] = None) -> dict:
+    """
+    純商業邏輯：從推播通知原始文字 (App 通知 / 簡訊) 提取金額、店家、卡片與備註。
+    支援 LINE Pay、台灣各大銀行推播 (國泰、中信、台新、玉山、星展、富邦、渣打、華南等) 及 Apple Pay / Google 錢包。
+    """
+    if not text and not title:
+        return {"amount": None, "merchant": None, "card_name": None}
+
+    raw_text = str(text or "").strip()
+    raw_title = str(title or "").strip()
+    raw_app = str(app or "").strip()
+    combined = f"{raw_app} {raw_title} {raw_text}".strip()
+
+    # 1. 提取金額
+    amount = None
+    # 模式 A: 貨幣符號或字樣 + 數字 (例如: NT$ 85, 新台幣 120, $150, TWD 300)
+    m_amt = re.search(r'(?:NT\$|NTD|TWD|HKD|USD|\$|新台幣)\s*([0-9,]+(?:\.[0-9]+)?)', combined, re.IGNORECASE)
+    if not m_amt:
+        # 模式 B: 數字 + 元/TWD (例如: 85元, 150 元)
+        m_amt = re.search(r'([0-9,]+(?:\.[0-9]+)?)\s*(?:元|TWD|NTD)', combined, re.IGNORECASE)
+    if not m_amt:
+        # 模式 C: 消費/扣款/付款/刷卡/金額 後方跟隨之金額數值
+        m_amt = re.search(r'(?:消費|扣款|付款|刷卡|金額|交易)[^\d\r\n]{0,8}([0-9,]+(?:\.[0-9]+)?)', combined)
+
+    if m_amt:
+        raw_val = m_amt.group(1).replace(",", "").strip()
+        try:
+            val = float(raw_val)
+            if val > 0:
+                amount = val
+        except ValueError:
+            pass
+
+    # 2. 提取商家名稱
+    merchant = None
+    # 先清除日期時間 (例如 10/29 02:00, 2026/10/29) 以免誤觸「於 10/29 在 XX 消費」
+    cleaned_for_mer = re.sub(r'\d{1,4}[/\-]\d{1,2}(?:[/\-]\d{1,2})?', '', raw_text)
+    cleaned_for_mer = re.sub(r'\d{1,2}:\d{2}(?::\d{2})?', '', cleaned_for_mer)
+
+    # 模式 A: 特店/店家/特店名稱/特約商店/商店: [店家]
+    m_mer = re.search(r'(?:特店|店家|特店名稱|特約商店|商店)[：:\s]+([^\r\n,，。!！]+)', raw_text)
+    if not m_mer:
+        # 模式 B: 在/於 [店家] 消費/扣款/付款
+        m_mer = re.search(r'(?:在|於)\s*([^\r\n,，。!！\s]{2,25}?)\s*(?:消費|扣款|付款|刷卡|成功)', cleaned_for_mer)
+
+    if m_mer:
+        merchant = m_mer.group(1).strip()
+
+    # 模式 C: 比對常見知名連鎖商家清單
+    if not merchant:
+        lower_text = combined.lower()
+        for cat, keywords in MERCHANT_CATEGORY_RULES:
+            for kw in keywords:
+                if len(kw) >= 2 and kw.lower() in lower_text:
+                    merchant = kw
+                    break
+            if merchant:
+                break
+
+    # 3. 提取卡片或帳戶名稱
+    card_name = None
+    m_digits = re.search(r'(?:末四碼|卡號(?:末四碼)?|後四碼)[：:\s]*(\d{4})', combined)
+    if m_digits:
+        card_name = m_digits.group(1)
+
+    known_banks = [
+        "國泰世華", "國泰", "中國信託", "中信", "台新", "玉山", "星展", "富邦", "台北富邦",
+        "渣打", "華南", "郵局", "中華郵政", "永豐", "聯邦", "第一銀行", "兆豐", "新光", "LINE Pay", "街口"
+    ]
+    for b in known_banks:
+        if b.lower() in combined.lower():
+            if not card_name:
+                card_name = b
+            else:
+                card_name = f"{b} {card_name}"
+            break
+
+    if not card_name and raw_app:
+        card_name = raw_app.strip()
+
+    return {
+        "amount": amount,
+        "merchant": merchant,
+        "card_name": card_name
+    }
+
+
 # ==============================================================================
 # 資料存取與領域服務函式 (Data Access & Service Layer)
 # ==============================================================================
@@ -278,15 +365,32 @@ def resolve_target_account(db: Session, user_id: int, card_name: Optional[str] =
 
 def normalize_apple_pay_payload(payload: dict, db: Session, user_id: int) -> dict:
     """
-    容錯前處理：若使用者在 iOS 捷徑中誤將變數選在「左邊 (Key)」，
-    將導致傳遞結構為 {'150': 0, '7-11': '文字', '星展': '文字'}。
-    本函式自動偵測並還原為標準字典結構。
+    容錯前處理：
+    1. 支援推播通知原始文字解析 (text / body / message)，自動提取金額、店家與卡片。
+    2. 若使用者在 iOS 捷徑中誤將變數選在「左邊 (Key)」，導致鍵值倒置，自動偵測並還原。
     """
     cleaned = {k: v for k, v in payload.items() if v is not None}
+
+    # 1. 支援推播通知原始文字解析 (例如 iOS 通知自動化傳入的 text / body)
+    raw_text = str(cleaned.get("text") or cleaned.get("body") or cleaned.get("message") or "").strip()
+    if raw_text:
+        parsed = parse_notification_text(
+            raw_text,
+            app=cleaned.get("app"),
+            title=cleaned.get("title")
+        )
+        if (cleaned.get("amount") is None or str(cleaned.get("amount")).strip() == "") and parsed.get("amount"):
+            cleaned["amount"] = parsed["amount"]
+        if not cleaned.get("merchant") and parsed.get("merchant"):
+            cleaned["merchant"] = parsed["merchant"]
+        if not cleaned.get("card_name") and parsed.get("card_name"):
+            cleaned["card_name"] = parsed["card_name"]
+
     if cleaned.get("amount") is not None and str(cleaned.get("amount")).strip() != "":
         return cleaned
 
-    STANDARD_KEYS = {"amount", "merchant", "card_name", "category", "note", "date", "token"}
+    # 2. 鍵值倒置容錯 (Key 為金額或商家名稱)
+    STANDARD_KEYS = {"amount", "merchant", "card_name", "category", "note", "date", "token", "text", "app", "title", "body"}
     numeric_keys = []
     other_keys = []
     for k in payload.keys():
@@ -320,46 +424,13 @@ def normalize_apple_pay_payload(payload: dict, db: Session, user_id: int) -> dic
 
     return cleaned
 
-    numeric_keys = []
-    other_keys = []
-    for k in payload.keys():
-        if k in ("token",):
-            continue
-        try:
-            val = parse_webhook_amount(k)
-            numeric_keys.append((k, val))
-        except (ValueError, TypeError):
-            other_keys.append(k)
-
-    if numeric_keys:
-        cleaned["amount"] = numeric_keys[0][1]
-        user_accounts = db.query(Account).filter(Account.user_id == user_id).all()
-        account_names = [(a.name or "").lower() for a in user_accounts]
-
-        for k in other_keys:
-            if not k or not isinstance(k, str):
-                continue
-            k_strip = k.strip()
-            if k_strip in ("文字", "0", "未命名", "null", "undefined"):
-                continue
-            k_lower = k_strip.lower()
-            if any(k_lower in acc_name or acc_name in k_lower for acc_name in account_names if acc_name):
-                cleaned["card_name"] = k_strip
-            else:
-                if not cleaned.get("merchant"):
-                    cleaned["merchant"] = k_strip
-                else:
-                    cleaned["merchant"] += f" {k_strip}"
-
-    return cleaned
-
 
 def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> Transaction:
     """
     核心記帳流程：
     解析 Webhook Payload、驗證數值、智能匹配帳戶與分類，呼叫 record_transaction 建立交易並更新餘額。
     """
-    # 0. 容錯正規化 (支援 iOS 捷徑鍵值倒置自動校正)
+    # 0. 容錯正規化 (支援推播文字解析與 iOS 捷徑鍵值倒置自動校正)
     payload = normalize_apple_pay_payload(payload, db, user_id)
 
     # 1. 金額解析
@@ -395,6 +466,30 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
 
     # 5. 時間處理
     tx_date = parse_webhook_datetime(payload.get("date"))
+
+    # 5.5. 雙重通知智慧去重/合併 (Twin Notifications Auto-Merge within 90s)
+    # 例如：同一筆消費同時觸發 LINE Pay 付款通知 與 銀行信用卡刷卡通知
+    time_window = timedelta(seconds=90)
+    recent_duplicate = (
+        db.query(Transaction)
+        .filter(
+            Transaction.user_id == user_id,
+            Transaction.amount == amount,
+            Transaction.tx_type == TX_TYPE_EXPENSE,
+            Transaction.date >= tx_date - time_window,
+            Transaction.date <= tx_date + time_window,
+        )
+        .order_by(Transaction.id.desc())
+        .first()
+    )
+    if recent_duplicate:
+        # 若新通知帶有更具體的商家名稱 (非 LINE Pay / 非預設)，補強原紀錄描述
+        if merchant and merchant != "LINE Pay" and recent_duplicate.description == "LINE Pay":
+            recent_duplicate.description = merchant
+            recent_duplicate.category = category
+            db.commit()
+            db.refresh(recent_duplicate)
+        return recent_duplicate
 
     # 6. 寫入交易紀錄
     tx_in = TransactionCreate(

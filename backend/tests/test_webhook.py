@@ -18,6 +18,7 @@ from app.services.webhook_service import (
     parse_webhook_amount,
     auto_categorize_merchant,
     parse_webhook_datetime,
+    parse_notification_text,
     get_or_create_webhook_token,
     regenerate_webhook_token,
     find_user_by_webhook_token,
@@ -258,6 +259,66 @@ class TestWebhookServiceAndEndpoints(unittest.TestCase):
         )
         self.assertEqual(res_test.status_code, 200)
         self.assertEqual(res_test.json()["amount"], 65.0)
+
+    def test_parse_notification_text(self):
+        # 1. LINE Pay
+        line_pay_res = parse_notification_text("您已於 7-ELEVEN 成功付款 NT$ 85 元。", app="LINE Pay", title="付款成功")
+        self.assertEqual(line_pay_res["amount"], 85.0)
+        self.assertEqual(line_pay_res["merchant"], "7-ELEVEN")
+        self.assertEqual(line_pay_res["card_name"], "LINE Pay")
+
+        # 2. Bank card (國泰世華 CUBE)
+        cube_res = parse_notification_text("您於 10/29 02:00 在 蝦皮購物 消費 NT$ 1,299", app="國泰世華 CUBE", title="刷卡通知")
+        self.assertEqual(cube_res["amount"], 1299.0)
+        self.assertEqual(cube_res["merchant"], "蝦皮購物")
+        self.assertEqual(cube_res["card_name"], "國泰世華")
+
+        # 3. Bank card with store prefix
+        ctbc_res = parse_notification_text("您於 10/29 02:00 消費 NT$ 550 元，特店：Uber Eats", app="中國信託 Home Bank")
+        self.assertEqual(ctbc_res["amount"], 550.0)
+        self.assertEqual(ctbc_res["merchant"], "Uber Eats")
+        self.assertEqual(ctbc_res["card_name"], "中國信託")
+
+    def test_webhook_with_raw_notification_text(self):
+        token = get_or_create_webhook_token(self.db, user_id=self.user.id)
+        # Send raw notification text without amount field
+        res = self.client.post(
+            f"/api/webhook/apple-pay?token={token}",
+            json={
+                "text": "您已於 7-ELEVEN 成功付款 NT$ 95 元。",
+                "app": "LINE Pay",
+                "title": "付款成功"
+            }
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["amount"], 95.0)
+        self.assertEqual(data["category"], "飲食")
+
+    def test_twin_notification_auto_merge(self):
+        token = get_or_create_webhook_token(self.db, user_id=self.user.id)
+        # Notification 1 from LINE Pay
+        res1 = self.client.post(
+            f"/api/webhook/apple-pay?token={token}",
+            json={"amount": 135.0, "merchant": "LINE Pay"}
+        )
+        self.assertEqual(res1.status_code, 200)
+        tx_id_1 = res1.json()["transaction_id"]
+
+        # Notification 2 from Credit card 2 seconds later (same amount)
+        res2 = self.client.post(
+            f"/api/webhook/apple-pay?token={token}",
+            json={"amount": 135.0, "merchant": "路易莎咖啡", "card_name": "國泰世華"}
+        )
+        self.assertEqual(res2.status_code, 200)
+        tx_id_2 = res2.json()["transaction_id"]
+
+        # Must merge into the same transaction, not duplicate
+        self.assertEqual(tx_id_1, tx_id_2)
+        # Merchant should be upgraded to 路易莎咖啡
+        merged_tx = self.db.query(Transaction).filter(Transaction.id == tx_id_1).first()
+        self.assertEqual(merged_tx.description, "路易莎咖啡")
+        self.assertEqual(merged_tx.category, "飲食")
 
 
 if __name__ == "__main__":

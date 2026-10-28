@@ -337,6 +337,10 @@ class ApplePayWebhookPayload(BaseModel):
     note: Optional[str] = None  # 自訂備註
     date: Optional[str] = None  # 交易時間 (ISO 8601 或自訂日期格式)
     token: Optional[str] = None  # 可選：若不想放在 Query 或 Header，亦可置於 JSON body
+    text: Optional[str] = None  # 推播通知或簡訊原始文字 (例如 "LINE Pay 付款成功 NT$85")
+    app: Optional[str] = None  # 發送通知之應用程式名稱 (例如 "LINE Pay", "國泰世華 CUBE")
+    title: Optional[str] = None  # 通知標題
+    body: Optional[str] = None  # 通知內文
 
 class ApplePayWebhookResponse(BaseModel):
     status: str = "success"
