@@ -3,7 +3,7 @@
  * Version: 2.7.0
  */
 
-const CACHE_NAME = 'account-book-v2.7.0';
+const CACHE_NAME = 'account-book-v2.8.0';
 
 const PRECACHE_ASSETS = [
   '/',

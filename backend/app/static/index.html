@@ -602,10 +602,13 @@
             <span :class="settings.is_google_connected ? 'bg-emerald-500' : 'bg-slate-400'" class="w-1.5 h-1.5 rounded-full mr-1.5"></span>
             帳單信箱 (IMAP)
           </span>
+          <!-- [相容保留 / 潛在 Dead Code] 側欄同步按鈕 (使用者選擇自 UI 隱藏/移除) -->
+          <!--
           <button @click="syncGmail" :disabled="syncing" class="inline-flex items-center text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold disabled:opacity-50">
             <i data-lucide="refresh-cw" :class="['w-3 h-3 mr-1', syncing ? 'animate-spin' : '']"></i>
             {{ syncing ? '同步中' : '同步' }}
           </button>
+          -->
         </div>
 
         <button @click="toggleDarkMode" class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
@@ -732,11 +735,13 @@
               <span class="hidden sm:inline">{{ hideAssets ? '顯示資產' : '隱藏資產' }}</span>
             </button>
 
-            <!-- 同步信箱按鈕 -->
+            <!-- [相容保留 / 潛在 Dead Code] 既有同步信箱按鈕 (使用者選擇自 UI 隱藏/移除) -->
+            <!--
             <button @click="syncGmail" :disabled="syncing" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition disabled:opacity-50 touch-manipulation cursor-pointer" title="同步信箱帳單">
               <i data-lucide="refresh-cw" :class="['w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1', syncing ? 'animate-spin' : '']"></i>
               <span class="hidden sm:inline">{{ syncing ? '同步中' : '同步 Gmail' }}</span>
             </button>
+            -->
 
             <!-- 快速記帳 (電腦/平板保留文字，手機版由常駐 FAB 提供) -->
             <button @click="openTxModal()" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm touch-manipulation cursor-pointer">
@@ -3909,7 +3914,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.7.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.8.0"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {
