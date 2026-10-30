@@ -16,14 +16,14 @@ import {
   formatStockTotal,
   isDueSoon,
   evaluateMathExpression
-} from './formatters.js?v=2.7.0';
-import { ApiService, AuthStorage } from './api.js?v=2.7.0';
-import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.7.0';
+} from './formatters.js?v=2.9.0';
+import { ApiService, AuthStorage } from './api.js?v=2.9.0';
+import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
   calculateHealthInsurance,
   calculateInsuranceSummary
-} from './insurance.js?v=2.7.0';
+} from './insurance.js?v=2.9.0';
 
 // PWA Service Worker 註冊
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
