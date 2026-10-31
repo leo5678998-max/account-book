@@ -1,3 +1,5 @@
+import logging
+import os
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
@@ -16,6 +18,21 @@ from ..services.webhook_service import (
     find_user_by_webhook_token,
     process_apple_pay_transaction,
 )
+
+# 專屬 Webhook 交易與除錯日誌設置
+LOG_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
+os.makedirs(LOG_DIR, exist_ok=True)
+WEBHOOK_LOG_FILE = os.path.join(LOG_DIR, "webhook.log")
+
+webhook_logger = logging.getLogger("account_book.webhook")
+webhook_logger.setLevel(logging.INFO)
+if not webhook_logger.handlers:
+    _fh = logging.FileHandler(WEBHOOK_LOG_FILE, encoding="utf-8")
+    _fh.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+    webhook_logger.addHandler(_fh)
+    _sh = logging.StreamHandler()
+    _sh.setFormatter(logging.Formatter("[%(asctime)s] [WEBHOOK-%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+    webhook_logger.addHandler(_sh)
 
 router = APIRouter(prefix="/api/webhook", tags=["Webhook Automation"])
 
@@ -74,6 +91,7 @@ def handle_apple_pay_webhook(
     )
 
     if not resolved_token:
+        webhook_logger.warning("[認證失敗] 未提供 Webhook 金鑰")
         raise HTTPException(
             status_code=401,
             detail="未提供 Webhook 金鑰。請於網址參數加上 ?token=<金鑰> 或傳入 Header 'X-Webhook-Token'"
@@ -81,16 +99,30 @@ def handle_apple_pay_webhook(
 
     user = find_user_by_webhook_token(db, resolved_token)
     if not user:
+        webhook_logger.warning(f"[認證失敗] Webhook 金鑰無效: {resolved_token[:6]}***")
         raise HTTPException(
             status_code=401,
             detail="Webhook 金鑰無效或不存在，請至系統設定中確認或重新生成金鑰"
         )
 
     # 執行記帳處理
-    tx = process_apple_pay_transaction(db, user_id=user.id, payload=payload_dict)
+    try:
+        tx = process_apple_pay_transaction(db, user_id=user.id, payload=payload_dict)
+    except HTTPException as he:
+        webhook_logger.warning(
+            f"[記帳失敗] 原因: {he.detail} | App: {payload_dict.get('app')} | 標題: {payload_dict.get('title')} | 內文: {payload_dict.get('text')}"
+        )
+        raise he
+    except Exception as e:
+        webhook_logger.error(f"[系統異常] 錯誤: {e} | Payload: {payload_dict}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"記帳處理失敗: {str(e)}")
 
     # 查詢受影響帳戶最新資訊
     account = db.query(Account).filter(Account.id == tx.account_id).first()
+    acc_name = account.name if account else "未知帳戶"
+    webhook_logger.info(
+        f"[記帳成功] NT$ {tx.amount} ({tx.category}) | 商家: {tx.description} | 帳戶: {acc_name} | App: {payload_dict.get('app')}"
+    )
 
     return ApplePayWebhookResponse(
         status="success",
@@ -152,3 +184,19 @@ def regenerate_user_webhook_token(
         webhook_token=new_tok,
         webhook_url=f"/api/webhook/apple-pay?token={new_tok}"
     )
+
+
+@router.get("/logs")
+def get_webhook_logs(
+    limit: int = 40,
+    current_user: User = Depends(get_current_user)
+):
+    """取得最近的 Webhook 自動記帳日誌 (包含成功、失敗原因與原始推播紀錄)"""
+    if not os.path.exists(WEBHOOK_LOG_FILE):
+        return {"logs": []}
+    try:
+        with open(WEBHOOK_LOG_FILE, "r", encoding="utf-8") as f:
+            lines = [l.strip() for l in f.readlines() if l.strip()]
+        return {"logs": lines[-limit:]}
+    except Exception as e:
+        return {"logs": [f"讀取日誌失敗: {str(e)}"]}
