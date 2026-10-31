@@ -158,8 +158,11 @@ def run_schema_migrations(engine) -> None:
                     if "auto_debit" not in col_names:
                         conn.execute(text("ALTER TABLE recurring_expenses ADD COLUMN auto_debit BOOLEAN DEFAULT 0"))
 
-                if table == "transactions" and "affects_balance" not in col_names:
-                    conn.execute(text("ALTER TABLE transactions ADD COLUMN affects_balance BOOLEAN DEFAULT 1"))
+                if table == "transactions":
+                    if "affects_balance" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN affects_balance BOOLEAN DEFAULT 1"))
+                    if "related_transaction_id" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN related_transaction_id INTEGER NULL"))
             except Exception as e:
                 print(f"[Migration] 檢查資料表 {table} 時發生警告: {e}")
 

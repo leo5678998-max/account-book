@@ -331,6 +331,28 @@ class TestWebhookServiceAndEndpoints(unittest.TestCase):
         self.assertEqual(merged_tx.description, "路易莎咖啡")
         self.assertEqual(merged_tx.category, "飲食")
 
+    def test_webhook_refund_auto_detection(self):
+        token = get_or_create_webhook_token(self.db, user_id=self.user.id)
+        # Send a refund notification
+        res = self.client.post(
+            f"/api/webhook/apple-pay?token={token}",
+            json={
+                "text": "您於 10/30 在 BREEZE CENTER 刷退成功 NT$ 812元",
+                "app": "星展 Card+",
+                "title": "星展信用卡退刷通知"
+            }
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["amount"], 812.0)
+        self.assertEqual(data["category"], "日常採買")
+
+        # Verify transaction in database
+        tx = self.db.query(Transaction).filter(Transaction.id == data["transaction_id"]).first()
+        self.assertIsNotNone(tx)
+        self.assertEqual(tx.tx_type, "REFUND")
+        self.assertIn("[退款]", tx.description)
+
 
 if __name__ == "__main__":
     unittest.main()

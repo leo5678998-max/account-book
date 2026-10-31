@@ -204,6 +204,7 @@ createApp({
       let inc = 0;
       filteredTransactions.value.forEach(t => {
         if (t.tx_type === 'EXPENSE') exp += (t.amount || 0);
+        else if (t.tx_type === 'REFUND') exp -= Math.abs(t.amount || 0);
         else if (t.tx_type === 'INCOME') inc += (t.amount || 0);
       });
       return {
@@ -501,6 +502,12 @@ createApp({
           if (txMonth === targetMonth) {
             const cat = tx.category || '其他';
             expensesByCategory[cat] = (expensesByCategory[cat] || 0) + tx.amount;
+          }
+        } else if (tx.tx_type === 'REFUND') {
+          const txMonth = (tx.date || '').substring(0, 7);
+          if (txMonth === targetMonth) {
+            const cat = tx.category || '其他';
+            expensesByCategory[cat] = (expensesByCategory[cat] || 0) - Math.abs(tx.amount);
           }
         }
       });
@@ -1250,10 +1257,33 @@ createApp({
         category: tx.category || '其它',
         description: tx.description || '',
         date: tx.date ? tx.date.substring(0, 10) : todayStr,
-        affects_balance: tx.affects_balance !== false
+        affects_balance: tx.affects_balance !== false,
+        related_transaction_id: tx.related_transaction_id || null
       };
       // 若有填寫備註、自訂日期或轉帳，自動展開進階選單以方便瀏覽修改
-      showTxAdvanced.value = Boolean(tx.description || (tx.date && tx.date.substring(0, 10) !== todayStr) || tx.tx_type === 'TRANSFER');
+      showTxAdvanced.value = Boolean(tx.description || (tx.date && tx.date.substring(0, 10) !== todayStr) || tx.tx_type === 'TRANSFER' || tx.tx_type === 'REFUND');
+      showAddCategoryInline.value = false;
+      isManagingCategories.value = false;
+      showTxModal.value = true;
+      refreshIcons();
+    };
+
+    const openRefundModal = (tx) => {
+      editingTxId.value = null; // 建立新的關聯退款紀錄
+      const refundAmt = Math.abs(tx.amount || 0);
+      txAmountFormula.value = String(refundAmt);
+      currentTx.value = {
+        amount: refundAmt,
+        tx_type: 'REFUND',
+        account_id: tx.account_id,
+        target_account_id: null,
+        category: tx.category || '其它',
+        description: tx.description ? `[退款] ${tx.description}` : '[退款] 消費刷退',
+        date: todayStr,
+        affects_balance: tx.affects_balance !== false,
+        related_transaction_id: tx.id
+      };
+      showTxAdvanced.value = true;
       showAddCategoryInline.value = false;
       isManagingCategories.value = false;
       showTxModal.value = true;
@@ -2329,7 +2359,7 @@ createApp({
       effectiveSalary, totalInsuranceDeduction, settingsInsurancePreview, onInsuranceSettingChange, resetToAutoInsuranceFees,
       formatMoney, formatStockPrice, formatStockShares, formatStockTotal, getAccountName, isDueSoon,
       openAccountModal, saveAccount, deleteAccount, setDefaultDebit,
-      openTxModal, openEditTxModal, editingTxId, saveTx, deleteTx, toggleAffectsBalance, refreshIcons, openAddBillModal, openEditBillModal, saveBill, deleteBill,
+      openTxModal, openEditTxModal, openRefundModal, editingTxId, saveTx, deleteTx, toggleAffectsBalance, refreshIcons, openAddBillModal, openEditBillModal, saveBill, deleteBill,
       openAddStockModal, openEditStockModal, saveStock, deleteStock, refreshStockQuotes,
       openAddRecurringModal, openEditRecurringModal, saveRecurring, deleteRecurring, chargeRecurring,
       submitParseDocument, confirmApplyParsedData,

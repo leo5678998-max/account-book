@@ -38,18 +38,20 @@ class Transaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), default=1, index=True, nullable=True)
     date = Column(DateTime, default=datetime.utcnow)
     amount = Column(Float, nullable=False)
-    tx_type = Column(String(20), nullable=False) # EXPENSE, INCOME, TRANSFER
+    tx_type = Column(String(20), nullable=False) # EXPENSE, INCOME, TRANSFER, REFUND
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     target_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True) # 轉帳目標帳戶
     category = Column(String(50), default="其他") # 餐飲, 交通, 信用卡費, 薪資...
     description = Column(String(255), nullable=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), nullable=True)
+    related_transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True) # 退款關聯原消費紀錄
     affects_balance = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     account = relationship("Account", foreign_keys=[account_id], back_populates="transactions")
     target_account = relationship("Account", foreign_keys=[target_account_id])
     bill = relationship("Bill", foreign_keys=[bill_id])
+    related_transaction = relationship("Transaction", remote_side=[id], foreign_keys=[related_transaction_id])
 
 class Bill(Base):
     __tablename__ = "bills"

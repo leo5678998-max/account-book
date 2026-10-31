@@ -23,3 +23,7 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Application logs
+backend/logs/
+*.log
+

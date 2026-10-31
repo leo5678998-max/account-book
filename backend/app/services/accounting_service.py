@@ -12,6 +12,7 @@ from ..schemas import TransactionCreate, TransactionUpdate, SalaryApplyRequest
 TX_TYPE_EXPENSE = "EXPENSE"
 TX_TYPE_INCOME = "INCOME"
 TX_TYPE_TRANSFER = "TRANSFER"
+TX_TYPE_REFUND = "REFUND"
 
 BILL_STATUS_PAID = "PAID"
 BILL_STATUS_PENDING = "PENDING"
@@ -54,6 +55,8 @@ def _calculate_balance_delta(tx_type: str, amount: float, reverse: bool = False)
         return -amount * multiplier
     elif tx_type == TX_TYPE_INCOME:
         return amount * multiplier
+    elif tx_type == TX_TYPE_REFUND:
+        return abs(amount) * multiplier
     return 0.0
 
 
@@ -163,16 +166,20 @@ def record_transaction(db: Session, tx_in: TransactionCreate, user_id: int = 1) 
             raise HTTPException(status_code=400, detail="轉帳必須指定目標帳戶")
         target_acc = _get_account_or_404(db, tx_in.target_account_id, user_id, detail="轉帳目標帳戶不存在")
 
+    tx_data = tx_in.dict() if hasattr(tx_in, "dict") else tx_in.model_dump()
+    if tx_in.tx_type == TX_TYPE_REFUND:
+        tx_data["amount"] = abs(tx_in.amount)
+        tx_data["target_account_id"] = None
+
     if getattr(tx_in, "affects_balance", True):
         _apply_balance_impact(
             source_acc=source_acc,
             target_acc=target_acc,
             tx_type=tx_in.tx_type,
-            amount=tx_in.amount,
+            amount=tx_data["amount"],
             reverse=False
         )
 
-    tx_data = tx_in.dict() if hasattr(tx_in, "dict") else tx_in.model_dump()
     if not tx_data.get("date"):
         tx_data["date"] = datetime.utcnow()
 
@@ -210,22 +217,24 @@ def modify_transaction(
 
     # 3. 套用新交易對帳戶餘額的影響
     new_affects_balance = getattr(tx_in, "affects_balance", True)
+    new_amount = abs(tx_in.amount) if tx_in.tx_type == TX_TYPE_REFUND else tx_in.amount
     if new_affects_balance:
         _apply_balance_impact(
             source_acc=new_source_acc,
             target_acc=new_target_acc,
             tx_type=tx_in.tx_type,
-            amount=tx_in.amount,
+            amount=new_amount,
             reverse=False
         )
 
     # 4. 更新交易紀錄欄位
-    tx.amount = tx_in.amount
+    tx.amount = new_amount
     tx.tx_type = tx_in.tx_type
     tx.account_id = tx_in.account_id
     tx.target_account_id = tx_in.target_account_id if tx_in.tx_type == TX_TYPE_TRANSFER else None
     tx.category = tx_in.category or CATEGORY_DEFAULT
     tx.description = tx_in.description
+    tx.related_transaction_id = getattr(tx_in, "related_transaction_id", None)
     if tx_in.date:
         tx.date = tx_in.date
     tx.affects_balance = new_affects_balance

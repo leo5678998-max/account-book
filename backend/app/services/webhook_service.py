@@ -13,6 +13,7 @@ from .accounting_service import (
     get_default_debit_account,
     record_transaction,
     TX_TYPE_EXPENSE,
+    TX_TYPE_REFUND,
     CATEGORY_DEFAULT,
 )
 
@@ -245,10 +246,15 @@ def parse_notification_text(text: str, app: Optional[str] = None, title: Optiona
     if not card_name and raw_app:
         card_name = raw_app.strip()
 
+    # 4. 判斷是否為退款/退刷通知
+    REFUND_KEYWORDS = ["退款", "退刷", "刷退", "沖正", "取消交易", "退貨"]
+    is_refund = any(kw in combined for kw in REFUND_KEYWORDS)
+
     return {
         "amount": amount,
         "merchant": merchant,
-        "card_name": card_name
+        "card_name": card_name,
+        "is_refund": is_refund
     }
 
 
@@ -390,6 +396,8 @@ def normalize_apple_pay_payload(payload: dict, db: Session, user_id: int) -> dic
             cleaned["merchant"] = parsed["merchant"]
         if not cleaned.get("card_name") and parsed.get("card_name"):
             cleaned["card_name"] = parsed["card_name"]
+        if parsed.get("is_refund"):
+            cleaned["is_refund"] = True
 
     if cleaned.get("amount") is not None and str(cleaned.get("amount")).strip() != "":
         return cleaned
@@ -469,6 +477,15 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
     else:
         category = auto_categorize_merchant(merchant or description)
 
+    # 4.5. 判斷是否為退款/退刷交易 (Refund)
+    is_refund = (
+        payload.get("tx_type") == "REFUND"
+        or payload.get("is_refund") is True
+    )
+    final_tx_type = TX_TYPE_REFUND if is_refund else TX_TYPE_EXPENSE
+    if is_refund and not description.startswith("[退款]"):
+        description = f"[退款] {description}"
+
     # 5. 時間處理
     tx_date = parse_webhook_datetime(payload.get("date"))
 
@@ -480,7 +497,7 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
         .filter(
             Transaction.user_id == user_id,
             Transaction.amount == amount,
-            Transaction.tx_type == TX_TYPE_EXPENSE,
+            Transaction.tx_type == final_tx_type,
             Transaction.date >= tx_date - time_window,
             Transaction.date <= tx_date + time_window,
         )
@@ -500,7 +517,7 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
     tx_in = TransactionCreate(
         account_id=target_acc.id,
         amount=amount,
-        tx_type=TX_TYPE_EXPENSE,
+        tx_type=final_tx_type,
         category=category,
         description=description,
         date=tx_date,

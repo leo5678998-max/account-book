@@ -125,6 +125,37 @@ class TestAccountingService(unittest.TestCase):
         self.assertEqual(self.acc1.balance, 10000.0)
         self.assertIsNone(self.db.query(Transaction).filter(Transaction.id == tx.id).first())
 
+    def test_refund_transaction_workflow(self):
+        # 1. 原始支出 2000 元 (帳戶餘額從 10000 扣減至 8000)
+        tx_in = TransactionCreate(
+            account_id=1,
+            amount=2000.0,
+            tx_type="EXPENSE",
+            category="日常採買",
+            description="購買外套"
+        )
+        orig_tx = record_transaction(self.db, tx_in, user_id=1)
+        self.assertEqual(self.acc1.balance, 8000.0)
+
+        # 2. 進行退款 800 元 (負支出，帳戶餘額應增加回補至 8800)
+        refund_in = TransactionCreate(
+            account_id=1,
+            amount=800.0,
+            tx_type="REFUND",
+            category="日常採買",
+            description="[退款] 購買外套",
+            related_transaction_id=orig_tx.id
+        )
+        refund_tx = record_transaction(self.db, refund_in, user_id=1)
+        self.assertEqual(refund_tx.amount, 800.0)
+        self.assertEqual(refund_tx.tx_type, "REFUND")
+        self.assertEqual(refund_tx.related_transaction_id, orig_tx.id)
+        self.assertEqual(self.acc1.balance, 8800.0)
+
+        # 3. 刪除退款紀錄 (帳戶餘額應扣回 800 至 8000)
+        remove_transaction(self.db, refund_tx.id, rollback_balance=True, user_id=1)
+        self.assertEqual(self.acc1.balance, 8000.0)
+
     def test_execute_bill_payment(self):
         bill = Bill(
             user_id=1,

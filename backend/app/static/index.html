@@ -1162,8 +1162,8 @@
                   title="點擊編輯此筆明細">
                   <div class="flex items-center space-x-2.5 min-w-0 pr-2">
                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0"
-                      :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700')">
-                      {{ t.category || t.tx_type }}
+                      :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'REFUND' ? 'bg-purple-50 text-purple-700 border border-purple-200' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'))">
+                      {{ t.tx_type === 'REFUND' ? '↩ ' + (t.category || '退款') : (t.category || t.tx_type) }}
                     </span>
                     <span v-if="t.affects_balance === false" class="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded flex-shrink-0">不扣存款</span>
                     <span class="font-medium text-slate-800 truncate">{{ t.description || '-' }}</span>
@@ -1171,9 +1171,12 @@
                   </div>
                   <div class="flex items-center space-x-2 flex-shrink-0">
                     <div class="font-mono font-bold text-xs"
-                      :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600')">
-                      {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'INCOME' ? '+' : '⇄ ') }}NT$ {{ formatMoney(t.amount) }}
+                      :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'REFUND' ? 'text-purple-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600'))">
+                      {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'REFUND' ? '↩ +' : (t.tx_type === 'INCOME' ? '+' : '⇄ ')) }}NT$ {{ formatMoney(t.amount) }}
                     </div>
+                    <button v-if="t.tx_type === 'EXPENSE'" @click.stop="openRefundModal(t)" class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-purple-600 rounded transition cursor-pointer" title="以此筆支出建立退款 (負支出)">
+                      <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    </button>
                     <button @click.stop="openEditTxModal(t)" class="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer" title="編輯此筆記帳">
                       <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                     </button>
@@ -1273,13 +1276,16 @@
             <div class="sm:col-span-4 flex items-center space-x-1 bg-slate-100 p-1 rounded-lg text-xs">
               <button @click="txTypeFilter = 'ALL'"
                 :class="txTypeFilter === 'ALL' ? 'bg-white font-bold text-slate-900 shadow-xs' : 'text-slate-500'"
-                class="flex-1 py-1 rounded-md text-center transition">全部</button>
+                class="flex-1 py-1 rounded-md text-center transition cursor-pointer">全部</button>
               <button @click="txTypeFilter = 'EXPENSE'"
                 :class="txTypeFilter === 'EXPENSE' ? 'bg-rose-50 text-rose-700 font-bold shadow-xs' : 'text-slate-500'"
-                class="flex-1 py-1 rounded-md text-center transition">支出</button>
+                class="flex-1 py-1 rounded-md text-center transition cursor-pointer">支出</button>
+              <button @click="txTypeFilter = 'REFUND'"
+                :class="txTypeFilter === 'REFUND' ? 'bg-purple-50 text-purple-700 font-bold shadow-xs' : 'text-slate-500'"
+                class="flex-1 py-1 rounded-md text-center transition cursor-pointer">退款</button>
               <button @click="txTypeFilter = 'INCOME'"
                 :class="txTypeFilter === 'INCOME' ? 'bg-emerald-50 text-emerald-700 font-bold shadow-xs' : 'text-slate-500'"
-                class="flex-1 py-1 rounded-md text-center transition">收入</button>
+                class="flex-1 py-1 rounded-md text-center transition cursor-pointer">收入</button>
             </div>
 
             <!-- 月份篩選 -->
@@ -1340,8 +1346,8 @@
             <div class="min-w-0 pr-2">
               <div class="flex items-center space-x-1.5">
                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold"
-                  :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700')">
-                  {{ t.category || t.tx_type }}
+                  :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'REFUND' ? 'bg-purple-50 text-purple-700 border border-purple-200' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'))">
+                  {{ t.tx_type === 'REFUND' ? '↩ ' + (t.category || '退款') : (t.category || t.tx_type) }}
                 </span>
                 <span class="text-xs font-semibold text-slate-800 truncate">{{ t.description || '-' }}</span>
               </div>
@@ -1354,13 +1360,16 @@
             </div>
             <div class="flex items-center space-x-1.5 flex-shrink-0">
               <span class="font-extrabold font-mono text-sm"
-                :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600')">
-                {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'INCOME' ? '+' : '⇄ ') }}NT$ {{ formatMoney(t.amount) }}
+                :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'REFUND' ? 'text-purple-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600'))">
+                {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'REFUND' ? '↩ +' : (t.tx_type === 'INCOME' ? '+' : '⇄ ')) }}NT$ {{ formatMoney(t.amount) }}
               </span>
-              <button @click="openEditTxModal(t)" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition" title="編輯此筆記帳">
+              <button v-if="t.tx_type === 'EXPENSE'" @click="openRefundModal(t)" class="p-1.5 text-slate-400 hover:text-purple-600 rounded transition cursor-pointer" title="以此筆支出建立退款 (負支出)">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              </button>
+              <button @click="openEditTxModal(t)" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer" title="編輯此筆記帳">
                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
               </button>
-              <button @click="deleteTx(t.id)" class="p-1.5 text-slate-300 hover:text-rose-600 rounded transition" title="刪除此筆記帳">
+              <button @click="deleteTx(t.id)" class="p-1.5 text-slate-300 hover:text-rose-600 rounded transition cursor-pointer" title="刪除此筆記帳">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
               </button>
             </div>
@@ -1388,8 +1397,8 @@
                 <td class="py-3.5 px-6 text-slate-600 font-mono text-xs">{{ t.date ? t.date.substring(0, 10) : '' }}</td>
                 <td class="py-3.5 px-6">
                   <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                    :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700')">
-                    {{ t.category || t.tx_type }}
+                    :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'REFUND' ? 'bg-purple-50 text-purple-700 border border-purple-200' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'))">
+                    {{ t.tx_type === 'REFUND' ? '↩ ' + (t.category || '退款') : (t.category || t.tx_type) }}
                   </span>
                 </td>
                 <td class="py-3.5 px-6 text-slate-800 font-medium">{{ t.description || '-' }}</td>
@@ -1403,15 +1412,18 @@
                   <span v-if="t.affects_balance === false" class="ml-1.5 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-sans">不扣存款</span>
                 </td>
                 <td class="py-3.5 px-6 text-right font-extrabold font-mono text-base"
-                  :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600')">
-                  {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'INCOME' ? '+' : '⇄ ') }}NT$ {{ formatMoney(t.amount) }}
+                  :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'REFUND' ? 'text-purple-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600'))">
+                  {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'REFUND' ? '↩ +' : (t.tx_type === 'INCOME' ? '+' : '⇄ ')) }}NT$ {{ formatMoney(t.amount) }}
                 </td>
                 <td class="py-3.5 px-6 text-right">
                   <div class="flex items-center justify-end space-x-1">
-                    <button @click="openEditTxModal(t)" class="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="編輯此筆記帳">
+                    <button v-if="t.tx_type === 'EXPENSE'" @click="openRefundModal(t)" class="p-1.5 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 rounded hover:bg-purple-50 dark:hover:bg-purple-950/50 transition cursor-pointer" title="以此筆支出建立退款 (負支出)">
+                      <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </button>
+                    <button @click="openEditTxModal(t)" class="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" title="編輯此筆記帳">
                       <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
-                    <button @click="deleteTx(t.id)" class="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="刪除此筆記帳並還原餘額">
+                    <button @click="deleteTx(t.id)" class="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" title="刪除此筆記帳並還原餘額">
                       <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                   </div>
@@ -2534,12 +2546,12 @@
         <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div class="flex items-center space-x-2">
             <span class="w-8 h-8 rounded-xl flex items-center justify-center font-bold"
-              :class="currentTx.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' : (currentTx.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400')">
-              <i :data-lucide="currentTx.tx_type === 'EXPENSE' ? 'arrow-up-right' : (currentTx.tx_type === 'INCOME' ? 'arrow-down-left' : 'arrow-left-right')" class="w-4 h-4"></i>
+              :class="currentTx.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' : (currentTx.tx_type === 'REFUND' ? 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400' : (currentTx.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'))">
+              <i :data-lucide="currentTx.tx_type === 'EXPENSE' ? 'arrow-up-right' : (currentTx.tx_type === 'REFUND' ? 'rotate-ccw' : (currentTx.tx_type === 'INCOME' ? 'arrow-down-left' : 'arrow-left-right'))" class="w-4 h-4"></i>
             </span>
             <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
-              <span v-if="editingTxId">編輯{{ currentTx.tx_type === 'EXPENSE' ? '支出明細' : (currentTx.tx_type === 'INCOME' ? '收入明細' : '轉帳/提款明細') }}</span>
-              <span v-else>{{ currentTx.tx_type === 'EXPENSE' ? '記錄一筆支出' : (currentTx.tx_type === 'INCOME' ? '記錄一筆收入' : '記錄帳戶轉帳 / ATM提款') }}</span>
+              <span v-if="editingTxId">編輯{{ currentTx.tx_type === 'EXPENSE' ? '支出明細' : (currentTx.tx_type === 'REFUND' ? '退款明細 (負支出)' : (currentTx.tx_type === 'INCOME' ? '收入明細' : '轉帳/提款明細')) }}</span>
+              <span v-else>{{ currentTx.tx_type === 'EXPENSE' ? '記錄一筆支出' : (currentTx.tx_type === 'REFUND' ? '記錄一筆消費退款 (負支出)' : (currentTx.tx_type === 'INCOME' ? '記錄一筆收入' : '記錄帳戶轉帳 / ATM提款')) }}</span>
             </h3>
           </div>
           <button @click="showTxModal = false; editingTxId = null" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg">
@@ -2548,21 +2560,27 @@
         </div>
 
         <form @submit.prevent="saveTx" class="space-y-4">
-          <!-- 1. 收支/轉帳類型 Segmented Switch -->
-          <div class="grid grid-cols-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
+          <!-- 1. 收支/退款/轉帳類型 Segmented Switch -->
+          <div class="grid grid-cols-4 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold gap-1">
             <button type="button" @click="currentTx.tx_type = 'EXPENSE'"
               :class="currentTx.tx_type === 'EXPENSE' ? 'bg-rose-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'"
-              class="py-2 rounded-lg transition flex items-center justify-center space-x-1">
+              class="py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer">
               <span>開銷支出</span>
+            </button>
+            <button type="button" @click="currentTx.tx_type = 'REFUND'"
+              :class="currentTx.tx_type === 'REFUND' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'"
+              class="py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer"
+              title="退貨刷退：記為負支出扣減當月消費統計">
+              <span>消費退款</span>
             </button>
             <button type="button" @click="currentTx.tx_type = 'INCOME'"
               :class="currentTx.tx_type === 'INCOME' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'"
-              class="py-2 rounded-lg transition flex items-center justify-center space-x-1">
+              class="py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer">
               <span>收入進帳</span>
             </button>
             <button type="button" @click="currentTx.tx_type = 'TRANSFER'"
               :class="currentTx.tx_type === 'TRANSFER' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'"
-              class="py-2 rounded-lg transition flex items-center justify-center space-x-1"
+              class="py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer"
               title="ATM提款、帳戶互轉、存入現金">
               <span>轉帳/提款</span>
             </button>
@@ -2571,18 +2589,21 @@
           <!-- 2. 大金額輸入框 (Hero Amount Input with Formula Calculator) -->
           <div>
             <div class="flex items-center justify-between mb-1">
-              <label class="block text-xs font-semibold text-slate-500">{{ currentTx.tx_type === 'TRANSFER' ? '轉帳 / 提款金額 (TWD)' : '金額 (TWD)' }}</label>
+              <label class="block text-xs font-semibold text-slate-500">{{ currentTx.tx_type === 'TRANSFER' ? '轉帳 / 提款金額 (TWD)' : (currentTx.tx_type === 'REFUND' ? '退款金額 (TWD)' : '金額 (TWD)') }}</label>
               <!-- 即時算式預覽徽章 -->
               <span v-if="txHasFormula && txEvaluatedAmount !== null"
                 class="text-[11px] font-bold font-mono text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 animate-in fade-in flex items-center space-x-1">
                 <span>= NT$ {{ formatMoney(txEvaluatedAmount) }}</span>
+              </span>
+              <span v-else-if="currentTx.tx_type === 'REFUND'" class="text-[10px] text-purple-600 dark:text-purple-400 font-semibold select-none">
+                ↩ 自動扣減當月【{{ currentTx.category || '該類別' }}】支出，不計入收入
               </span>
               <span v-else class="text-[10px] text-slate-400 select-none">
                 💡 支援簡易算式 (如：50+35*2)
               </span>
             </div>
             <div class="hero-amount-box flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 transition focus-within:ring-2"
-              :class="currentTx.tx_type === 'EXPENSE' ? 'focus-within:ring-rose-500/20 focus-within:border-rose-500' : (currentTx.tx_type === 'INCOME' ? 'focus-within:ring-emerald-500/20 focus-within:border-emerald-500' : 'focus-within:ring-blue-500/20 focus-within:border-blue-500')">
+              :class="currentTx.tx_type === 'EXPENSE' ? 'focus-within:ring-rose-500/20 focus-within:border-rose-500' : (currentTx.tx_type === 'REFUND' ? 'focus-within:ring-purple-500/20 focus-within:border-purple-500' : (currentTx.tx_type === 'INCOME' ? 'focus-within:ring-emerald-500/20 focus-within:border-emerald-500' : 'focus-within:ring-blue-500/20 focus-within:border-blue-500'))">
               <span class="pl-4 pr-1 text-xl sm:text-2xl font-extrabold font-mono text-slate-400 select-none">NT$</span>
               <input type="text" inputmode="text" v-model="txAmountFormula" @blur="applyTxFormula" @keydown.enter.prevent="applyTxFormula" autofocus placeholder="0"
                 class="w-full pr-3 py-3 bg-transparent text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 font-mono outline-none border-0 shadow-none focus:ring-0">
@@ -2825,9 +2846,9 @@
             </button>
             <button type="submit"
               class="flex-1 py-3 rounded-xl text-sm font-bold text-white shadow-md transition flex items-center justify-center space-x-1.5"
-              :class="currentTx.tx_type === 'EXPENSE' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 dark:shadow-none' : (currentTx.tx_type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100 dark:shadow-none')">
+              :class="currentTx.tx_type === 'EXPENSE' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 dark:shadow-none' : (currentTx.tx_type === 'REFUND' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-100 dark:shadow-none' : (currentTx.tx_type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100 dark:shadow-none'))">
               <i data-lucide="check" class="w-4 h-4"></i>
-              <span>{{ editingTxId ? '儲存變更' : (currentTx.tx_type === 'EXPENSE' ? '確認記下這筆支出' : (currentTx.tx_type === 'INCOME' ? '確認記下這筆收入' : '確認執行轉帳 / ATM提款')) }}</span>
+              <span>{{ editingTxId ? '儲存變更' : (currentTx.tx_type === 'EXPENSE' ? '確認記下這筆支出' : (currentTx.tx_type === 'REFUND' ? '確認記錄此筆退款 (負支出)' : (currentTx.tx_type === 'INCOME' ? '確認記下這筆收入' : '確認執行轉帳 / ATM提款'))) }}</span>
             </button>
           </div>
         </form>
@@ -3914,7 +3935,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.9.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.10.0"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

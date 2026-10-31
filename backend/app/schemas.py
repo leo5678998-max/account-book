@@ -60,13 +60,14 @@ class AccountResponse(AccountBase):
 
 class TransactionCreate(BaseModel):
     amount: float
-    tx_type: str = "EXPENSE" # EXPENSE, INCOME, TRANSFER
+    tx_type: str = "EXPENSE" # EXPENSE, INCOME, TRANSFER, REFUND
     account_id: int
     target_account_id: Optional[int] = None
     category: str = "其他"
     description: Optional[str] = None
     date: Optional[datetime] = None
     affects_balance: bool = True
+    related_transaction_id: Optional[int] = None
 
 class TransactionUpdate(TransactionCreate):
     pass
@@ -81,6 +82,7 @@ class TransactionResponse(BaseModel):
     description: Optional[str] = None
     date: datetime
     bill_id: Optional[int] = None
+    related_transaction_id: Optional[int] = None
     affects_balance: bool = True
 
     class Config:

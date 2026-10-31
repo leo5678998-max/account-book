@@ -150,6 +150,14 @@ def get_monthly_trends(
                 monthly_stats[m_str]["categories"][cat] = (
                     monthly_stats[m_str]["categories"].get(cat, 0.0) + amt
                 )
+            elif tx.tx_type == "REFUND":
+                # 退款 (負支出)：直接扣減當月總支出與該分類的支出統計
+                refund_val = -abs(amt)
+                monthly_stats[m_str]["expense"] += refund_val
+                cat = tx.category or "其他"
+                monthly_stats[m_str]["categories"][cat] = (
+                    monthly_stats[m_str]["categories"].get(cat, 0.0) + refund_val
+                )
 
     # 整合基準月薪、法定扣繳與固定常態開銷至各月份
     for m in month_keys:
