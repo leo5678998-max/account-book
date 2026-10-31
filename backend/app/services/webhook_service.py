@@ -200,14 +200,16 @@ def parse_notification_text(text: str, app: Optional[str] = None, title: Optiona
     cleaned_for_mer = re.sub(r'\d{1,4}[/\-]\d{1,2}(?:[/\-]\d{1,2})?', '', raw_text)
     cleaned_for_mer = re.sub(r'\d{1,2}:\d{2}(?::\d{2})?', '', cleaned_for_mer)
 
-    # 模式 A: 特店/店家/特店名稱/特約商店/商店: [店家]
-    m_mer = re.search(r'(?:特店|店家|特店名稱|特約商店|商店)[：:\s]+([^\r\n,，。!！]+)', raw_text)
+    # 模式 A: 商店名稱/特店/店家/特店名稱/特約商店/商店: [店家] (優先匹配完整前綴)
+    m_mer = re.search(r'(?:商店名稱|特約商店|特店名稱|店家名稱|商店|特店|店家)[：:\s]+([^\r\n,，。!！]+)', raw_text)
     if not m_mer:
-        # 模式 B: 在/於 [店家] 消費/扣款/付款
-        m_mer = re.search(r'(?:在|於)\s*([^\r\n,，。!！\s]{2,25}?)\s*(?:消費|扣款|付款|刷卡|成功)', cleaned_for_mer)
+        # 模式 B: 在/於 [店家] 消費/扣款/付款/刷卡/交易
+        m_mer = re.search(r'(?:在|於)\s*([^\r\n,，。!！\s]{2,25}?)\s*(?:消費|扣款|付款|刷卡|成功|交易)', cleaned_for_mer)
 
     if m_mer:
         merchant = m_mer.group(1).strip()
+        # 清除常見支付前綴 (例如 LINEPAY*簡單早餐 -> 簡單早餐)
+        merchant = re.sub(r'^(?:LINEPAY\*|LINEPAY_)', '', merchant)
 
     # 模式 C: 比對常見知名連鎖商家清單
     if not merchant:
@@ -371,13 +373,14 @@ def normalize_apple_pay_payload(payload: dict, db: Session, user_id: int) -> dic
     """
     cleaned = {k: v for k, v in payload.items() if v is not None}
 
-    # 1. 支援推播通知原始文字解析 (例如 iOS 通知自動化傳入的 text / body)
+    # 1. 支援推播通知原始文字解析 (例如 iOS 通知自動化傳入的 text / body / title)
     raw_text = str(cleaned.get("text") or cleaned.get("body") or cleaned.get("message") or "").strip()
-    if raw_text:
+    raw_title = str(cleaned.get("title") or "").strip()
+    if raw_text or raw_title:
         parsed = parse_notification_text(
             raw_text,
             app=cleaned.get("app"),
-            title=cleaned.get("title")
+            title=raw_title
         )
         if (cleaned.get("amount") is None or str(cleaned.get("amount")).strip() == "") and parsed.get("amount"):
             cleaned["amount"] = parsed["amount"]
