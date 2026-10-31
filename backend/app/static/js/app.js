@@ -257,6 +257,35 @@ createApp({
     const showEditBillModal = ref(false);
     const showSettingsModal = ref(false);
 
+    // 月底帳單對帳核銷狀態
+    const showReconcileModal = ref(false);
+    const reconcileLoading = ref(false);
+    const reconcileBill = ref(null);
+    const reconcileData = ref(null);
+    const reconcileAccountFilter = ref('');
+    const reconcileStartDate = ref('');
+    const reconcileEndDate = ref('');
+    const reconcileIncludeAll = ref(false);
+    const reconcileTabFilter = ref('ALL');
+    const reconcileSelectedIds = ref(new Set());
+    const isSavingReconcile = ref(false);
+    const isSettlingReconcile = ref(false);
+    const showQuickAddModal = ref(false);
+    const quickAddForm = ref({
+      date: '',
+      category: '其他',
+      description: '',
+      amount: 0,
+      tx_type: 'EXPENSE',
+      credit_account_id: null
+    });
+    const showSettleConfirm = ref(false);
+    const settleForm = ref({
+      debit_account_id: null,
+      credit_account_id: null,
+      settlement_mode: 'TRANSFER'
+    });
+
     // 股票投資組合狀態
     const stockPortfolio = ref({
       total_market_value_twd: 0,
@@ -433,6 +462,45 @@ createApp({
     const nextDueBill = computed(() => {
       const pending = bills.value.filter(b => b.status === 'PENDING');
       return pending.length > 0 ? pending[0] : null;
+    });
+
+    // 對帳篩選後候選清單
+    const filteredReconcileTxList = computed(() => {
+      if (!reconcileData.value || !reconcileData.value.transactions) return [];
+      const list = reconcileData.value.transactions;
+      if (reconcileTabFilter.value === 'CHECKED') {
+        return list.filter(t => reconcileSelectedIds.value.has(t.id));
+      } else if (reconcileTabFilter.value === 'UNCHECKED') {
+        return list.filter(t => !reconcileSelectedIds.value.has(t.id));
+      }
+      return list;
+    });
+
+    // 即時計算已勾選金額 (支出為正，退款為負)
+    const currentReconcileCheckedAmount = computed(() => {
+      if (!reconcileData.value || !reconcileData.value.transactions) return 0;
+      let sum = 0;
+      for (const t of reconcileData.value.transactions) {
+        if (reconcileSelectedIds.value.has(t.id)) {
+          if (t.tx_type === 'REFUND') {
+            sum -= Math.abs(t.amount || 0);
+          } else {
+            sum += Math.abs(t.amount || 0);
+          }
+        }
+      }
+      return Math.round(sum * 100) / 100;
+    });
+
+    // 即時對帳差額 (帳單應繳總額 - 目前已勾選金額)
+    const currentReconcileDiff = computed(() => {
+      if (!reconcileData.value) return 0;
+      const billTotal = Number(reconcileData.value.bill_total_amount || 0);
+      return Math.round((billTotal - currentReconcileCheckedAmount.value) * 100) / 100;
+    });
+
+    const isCurrentReconcileBalanced = computed(() => {
+      return Math.abs(currentReconcileDiff.value) < 0.01;
     });
 
     // 圖表顯示模式 (支出分析 vs 收入結構)
@@ -1421,6 +1489,183 @@ createApp({
       }
     };
 
+    // 月底帳單對帳核銷操作
+    const openReconcileModal = async (bill) => {
+      reconcileBill.value = bill;
+      showReconcileModal.value = true;
+      reconcileLoading.value = true;
+      showSettleConfirm.value = false;
+      showQuickAddModal.value = false;
+      reconcileTabFilter.value = 'ALL';
+      reconcileAccountFilter.value = bill.credit_account_id ? String(bill.credit_account_id) : '';
+      reconcileIncludeAll.value = false;
+
+      settleForm.value = {
+        debit_account_id: bill.debit_account_id || (accounts.value.find(a => a.account_type === 'SAVINGS')?.id) || (accounts.value[0]?.id || null),
+        credit_account_id: bill.credit_account_id || null,
+        settlement_mode: 'TRANSFER'
+      };
+
+      await reloadReconcileData();
+      refreshIcons();
+    };
+
+    const reloadReconcileData = async () => {
+      if (!reconcileBill.value) return;
+      reconcileLoading.value = true;
+      try {
+        const data = await ApiService.getBillReconciliation(reconcileBill.value.id, {
+          credit_account_id: reconcileAccountFilter.value || undefined,
+          start_date: reconcileStartDate.value || undefined,
+          end_date: reconcileEndDate.value || undefined,
+          include_all: reconcileIncludeAll.value
+        });
+        if (data) {
+          reconcileData.value = data;
+          if (data.statement_start_date) {
+            reconcileStartDate.value = String(data.statement_start_date).substring(0, 10);
+          }
+          if (data.statement_date) {
+            reconcileEndDate.value = String(data.statement_date).substring(0, 10);
+          } else if (data.due_date) {
+            reconcileEndDate.value = String(data.due_date).substring(0, 10);
+          }
+          if (!settleForm.value.credit_account_id && data.credit_account_id) {
+            settleForm.value.credit_account_id = data.credit_account_id;
+          }
+          if (!reconcileAccountFilter.value && data.credit_account_id) {
+            reconcileAccountFilter.value = String(data.credit_account_id);
+          }
+
+          const sel = new Set();
+          (data.transactions || []).forEach(t => {
+            if (t.is_reconciled || t.bill_id === reconcileBill.value.id) {
+              sel.add(t.id);
+            }
+          });
+          reconcileSelectedIds.value = sel;
+        }
+      } catch (err) {
+        console.error('載入對帳資料失敗:', err);
+      } finally {
+        reconcileLoading.value = false;
+        refreshIcons();
+      }
+    };
+
+    const toggleReconcileTx = (txId) => {
+      const sel = new Set(reconcileSelectedIds.value);
+      if (sel.has(txId)) {
+        sel.delete(txId);
+      } else {
+        sel.add(txId);
+      }
+      reconcileSelectedIds.value = sel;
+    };
+
+    const toggleReconcileSelectAll = () => {
+      if (!reconcileData.value || !reconcileData.value.transactions) return;
+      const allTxIds = reconcileData.value.transactions.map(t => t.id);
+      const isAllSelected = allTxIds.length > 0 && allTxIds.every(id => reconcileSelectedIds.value.has(id));
+      const sel = new Set(reconcileSelectedIds.value);
+      if (isAllSelected) {
+        allTxIds.forEach(id => sel.delete(id));
+      } else {
+        allTxIds.forEach(id => sel.add(id));
+      }
+      reconcileSelectedIds.value = sel;
+    };
+
+    const saveReconcileProgress = async () => {
+      if (!reconcileBill.value || !reconcileData.value) return;
+      isSavingReconcile.value = true;
+      try {
+        const checkedIds = Array.from(reconcileSelectedIds.value);
+        const allIds = (reconcileData.value.transactions || []).map(t => t.id);
+        const uncheckedIds = allIds.filter(id => !reconcileSelectedIds.value.has(id));
+
+        if (checkedIds.length > 0) {
+          await ApiService.checkBillTransactions(reconcileBill.value.id, checkedIds, true);
+        }
+        if (uncheckedIds.length > 0) {
+          await ApiService.checkBillTransactions(reconcileBill.value.id, uncheckedIds, false);
+        }
+        alert('已成功儲存對帳進度！');
+        await reloadReconcileData();
+        await fetchTransactions();
+      } catch (err) {
+        alert('儲存進度失敗: ' + err.message);
+      } finally {
+        isSavingReconcile.value = false;
+      }
+    };
+
+    const openQuickAddModal = () => {
+      const todayStr = new Date().toISOString().substring(0, 10);
+      quickAddForm.value = {
+        date: reconcileEndDate.value || todayStr,
+        category: '日常採買',
+        description: '',
+        amount: Math.max(0, currentReconcileDiff.value) || 0,
+        tx_type: 'EXPENSE',
+        credit_account_id: settleForm.value.credit_account_id || (reconcileAccountFilter.value ? Number(reconcileAccountFilter.value) : null)
+      };
+      showQuickAddModal.value = true;
+      refreshIcons();
+    };
+
+    const submitQuickAddTx = async () => {
+      if (!quickAddForm.value.amount || quickAddForm.value.amount <= 0) return alert('請填寫有效金額');
+      if (!quickAddForm.value.description) return alert('請填寫店家或消費說明');
+      try {
+        const res = await ApiService.quickAddBillTx(reconcileBill.value.id, quickAddForm.value);
+        if (res.status === 'success') {
+          showQuickAddModal.value = false;
+          await reloadReconcileData();
+          await fetchAccounts();
+          await fetchTransactions();
+        } else {
+          alert('補登失敗: ' + (res.detail || '未知錯誤'));
+        }
+      } catch (err) {
+        alert('補登失敗: ' + err.message);
+      }
+    };
+
+    const submitSettleAndPay = async () => {
+      if (!settleForm.value.debit_account_id) return alert('請選擇扣款帳戶');
+      const diff = currentReconcileDiff.value;
+      let confirmMsg = `確定立即扣款 NT$ ${formatMoney(reconcileBill.value.total_amount)} 並完成此期帳單對帳核銷？`;
+      if (Math.abs(diff) > 0.01) {
+        confirmMsg = `⚠️ 提醒：目前對帳差額尚有 NT$ ${formatMoney(diff)}，未完全吻合！\n\n您確定仍要強制核銷並扣繳此期帳單嗎？`;
+      }
+      if (!confirm(confirmMsg)) return;
+
+      isSettlingReconcile.value = true;
+      try {
+        const payload = {
+          debit_account_id: settleForm.value.debit_account_id,
+          credit_account_id: settleForm.value.credit_account_id,
+          reconciled_transaction_ids: Array.from(reconcileSelectedIds.value),
+          settlement_mode: settleForm.value.settlement_mode
+        };
+        const res = await ApiService.settleAndClearBill(reconcileBill.value.id, payload);
+        if (res.status === 'success') {
+          alert(res.message);
+          showReconcileModal.value = false;
+          await fetchBills();
+          await fetchAccounts();
+          await fetchTransactions();
+        } else {
+          alert('結算失敗: ' + (res.detail || '未知錯誤'));
+        }
+      } catch (err) {
+        alert('結算失敗: ' + err.message);
+      } finally {
+        isSettlingReconcile.value = false;
+      }
+    };
+
     // 檔案選取監聽
     const onFilesSelected = (e) => {
       const files = e?.target?.files || documentInput.value?.files;
@@ -2344,6 +2589,12 @@ createApp({
       onFilesSelected, toggleBatchSelectAll, removeBatchItem, selectedBatchCount, totalSelectedBatchAmount, confirmBatchSave,
       showEditBillModal, showSettingsModal, uploadPwd, documentInput, currentAcc, currentTx,
       currentBill, parsedData, settingsForm,
+      showReconcileModal, reconcileLoading, reconcileBill, reconcileData, reconcileAccountFilter,
+      reconcileStartDate, reconcileEndDate, reconcileIncludeAll, reconcileTabFilter, reconcileSelectedIds,
+      isSavingReconcile, isSettlingReconcile, showQuickAddModal, quickAddForm, showSettleConfirm, settleForm,
+      filteredReconcileTxList, currentReconcileCheckedAmount, currentReconcileDiff, isCurrentReconcileBalanced,
+      openReconcileModal, reloadReconcileData, toggleReconcileTx, toggleReconcileSelectAll, saveReconcileProgress,
+      openQuickAddModal, submitQuickAddTx, submitSettleAndPay,
       quickCategories, newCategoryInput, showAddCategoryInline, isManagingCategories,
       addCustomCategory, removeCustomCategory, resetCategories,
       customCategoryColors, getCategoryColorDisplay, setCategoryColor, resetCategoryColors,

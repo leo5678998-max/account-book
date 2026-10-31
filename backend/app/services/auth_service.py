@@ -163,6 +163,16 @@ def run_schema_migrations(engine) -> None:
                         conn.execute(text("ALTER TABLE transactions ADD COLUMN affects_balance BOOLEAN DEFAULT 1"))
                     if "related_transaction_id" not in col_names:
                         conn.execute(text("ALTER TABLE transactions ADD COLUMN related_transaction_id INTEGER NULL"))
+                    if "is_reconciled" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN is_reconciled BOOLEAN DEFAULT 0"))
+                    if "reconciled_at" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN reconciled_at DATETIME NULL"))
+
+                if table == "bills":
+                    if "credit_account_id" not in col_names:
+                        conn.execute(text("ALTER TABLE bills ADD COLUMN credit_account_id INTEGER NULL"))
+                    if "statement_start_date" not in col_names:
+                        conn.execute(text("ALTER TABLE bills ADD COLUMN statement_start_date DATE NULL"))
             except Exception as e:
                 print(f"[Migration] 檢查資料表 {table} 時發生警告: {e}")
 

@@ -29,7 +29,7 @@ class Account(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     transactions = relationship("Transaction", back_populates="account", foreign_keys="Transaction.account_id")
-    bills_to_debit = relationship("Bill", back_populates="debit_account")
+    bills_to_debit = relationship("Bill", back_populates="debit_account", foreign_keys="Bill.debit_account_id")
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -45,6 +45,8 @@ class Transaction(Base):
     description = Column(String(255), nullable=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), nullable=True)
     related_transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True) # 退款關聯原消費紀錄
+    is_reconciled = Column(Boolean, default=False, nullable=False) # 月底帳單是否已對帳核對
+    reconciled_at = Column(DateTime, nullable=True) # 對帳時間
     affects_balance = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -61,6 +63,7 @@ class Bill(Base):
     bank_name = Column(String(100), default="星展銀行")
     statement_month = Column(String(20), nullable=True) # e.g. "2026-10"
     statement_date = Column(Date, nullable=True) # 結帳日
+    statement_start_date = Column(Date, nullable=True) # 帳單週期起始日
     due_date = Column(Date, nullable=False) # 繳款截止日 / 自動扣款日
     total_amount = Column(Float, nullable=False) # 本期應繳總額
     minimum_amount = Column(Float, default=0.0) # 最低應繳金額
@@ -68,11 +71,13 @@ class Bill(Base):
     email_message_id = Column(String(255), unique=True, nullable=True) # Gmail/IMAP Message ID 防重複抓取
     pdf_filename = Column(String(255), nullable=True)
     debit_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    credit_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True) # 關聯信用卡帳戶
     paid_date = Column(DateTime, nullable=True)
     paid_transaction_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    debit_account = relationship("Account", back_populates="bills_to_debit")
+    debit_account = relationship("Account", foreign_keys=[debit_account_id], back_populates="bills_to_debit")
+    credit_account = relationship("Account", foreign_keys=[credit_account_id])
 
 class SystemSetting(Base):
     __tablename__ = "system_settings"

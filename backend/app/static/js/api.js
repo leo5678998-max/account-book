@@ -128,6 +128,32 @@ export const ApiService = {
   deleteBill: (billId) => authFetch(`/api/bills/${billId}`, { method: 'DELETE' }),
   payBillNow: (billId) => authFetch(`/api/bills/${billId}/pay`, { method: 'POST' }),
 
+  // 月底帳單對帳核銷 API
+  getBillReconciliation: (billId, params = {}) => {
+    const q = new URLSearchParams();
+    if (params.credit_account_id) q.set('credit_account_id', params.credit_account_id);
+    if (params.start_date) q.set('start_date', params.start_date);
+    if (params.end_date) q.set('end_date', params.end_date);
+    if (params.include_all) q.set('include_all', 'true');
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return authFetch(`/api/bills/${billId}/reconciliation${qs}`).then(r => (r.ok ? r.json() : null));
+  },
+  checkBillTransactions: (billId, transactionIds, isReconciled = true) => authFetch(`/api/bills/${billId}/reconciliation/check`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ transaction_ids: transactionIds, is_reconciled: isReconciled })
+  }).then(r => r.json()),
+  quickAddBillTx: (billId, data) => authFetch(`/api/bills/${billId}/reconciliation/quick-add`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
+  settleAndClearBill: (billId, data) => authFetch(`/api/bills/${billId}/reconciliation/settle`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
+
   // AI 單據辨識與同步 API
   parseDocument: (formData) => authFetch('/api/ai/parse-document', { method: 'POST', body: formData }),
   applySalary: (payload) => authFetch('/api/salary/apply', {

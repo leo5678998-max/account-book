@@ -1682,6 +1682,9 @@
             <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5">Gmail 同步或 AI 智慧辨識，支援編輯、刪除與自動扣款</p>
           </div>
           <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <button v-if="bills.length > 0" @click="openReconcileModal(nextDueBill || bills[0])" class="inline-flex items-center px-2.5 sm:px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-bold transition border border-violet-200">
+              <i data-lucide="clipboard-check" class="w-3.5 h-3.5 mr-1 text-violet-600"></i> 月底對帳模式
+            </button>
             <button @click="openAddBillModal" class="inline-flex items-center px-2.5 sm:px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition">
               <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> 手動補登
             </button>
@@ -1754,7 +1757,11 @@
                 {{ getAccountName(b.debit_account_id) || settings.default_debit_account_name || '預設扣款帳戶' }}
               </span>
               <div class="flex items-center space-x-1.5">
-                <button v-if="b.status === 'PENDING'" @click="payBillNow(b.id)" class="px-2.5 py-1 bg-indigo-600 text-white rounded text-xs font-bold">
+                <button @click="openReconcileModal(b)" class="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 text-white rounded text-xs font-bold inline-flex items-center space-x-1 shadow-xs">
+                  <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i>
+                  <span>{{ b.status === 'PAID' ? '核銷明細' : '對帳' }}</span>
+                </button>
+                <button v-if="b.status === 'PENDING'" @click="payBillNow(b.id)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-bold">
                   扣款
                 </button>
                 <button @click="openEditBillModal(b)" class="p-1 text-slate-400 hover:text-indigo-600 rounded">
@@ -1819,6 +1826,11 @@
                   </span>
                 </td>
                 <td class="py-4 px-6 text-right space-x-1.5 whitespace-nowrap">
+                  <!-- 對帳核銷按鈕 -->
+                  <button @click="openReconcileModal(b)" class="inline-flex items-center px-2.5 py-1 bg-violet-600 hover:bg-violet-700 text-white rounded text-xs font-semibold transition shadow-xs" :title="b.status === 'PAID' ? '檢視核銷明細' : '開啟月底對帳核銷'">
+                    <i data-lucide="clipboard-check" class="w-3.5 h-3.5 mr-1"></i>
+                    <span>{{ b.status === 'PAID' ? '核銷明細' : '對帳核銷' }}</span>
+                  </button>
                   <!-- 編輯按鈕 -->
                   <button @click="openEditBillModal(b)" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded hover:bg-slate-100 transition" title="修改金額與日期">
                     <i data-lucide="pencil" class="w-4 h-4"></i>
@@ -1828,7 +1840,7 @@
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                   </button>
                   <!-- 手動扣款 -->
-                  <button v-if="b.status === 'PENDING'" @click="payBillNow(b.id)" class="inline-flex items-center px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold transition shadow-sm">
+                  <button v-if="b.status === 'PENDING'" @click="payBillNow(b.id)" class="inline-flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold transition shadow-xs">
                     扣款
                   </button>
                 </td>
@@ -3225,6 +3237,329 @@
       </div>
     </div>
 
+    <!-- Modal 5.5: 📑 月底帳單對帳核銷 Modal (Reconciliation & Clearance) -->
+    <div v-if="showReconcileModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-4 pt-safe pb-safe overflow-y-auto">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[94vh] my-auto overflow-hidden border border-slate-200">
+        <!-- 標頭 -->
+        <div class="px-4 py-3.5 sm:px-6 sm:py-4 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">
+          <div class="flex items-center space-x-2.5">
+            <span class="w-8 h-8 rounded-lg bg-violet-600/30 text-violet-300 flex items-center justify-center border border-violet-500/40">
+              <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+            </span>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="text-sm sm:text-base font-bold text-white tracking-tight">
+                  月底帳單對帳核銷
+                </h3>
+                <span v-if="reconcileData?.bill_status === 'PAID'" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  已核銷扣款
+                </span>
+                <span v-else class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  待對帳核銷
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                {{ reconcileData?.bank_name || '信用卡' }} · {{ reconcileData?.statement_month ? reconcileData.statement_month + ' 期' : '本期帳單' }}
+                <span v-if="reconcileData?.due_date">（繳款截止：{{ reconcileData.due_date }}）</span>
+              </p>
+            </div>
+          </div>
+          <button @click="showReconcileModal = false" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- 內容滾動區 -->
+        <div class="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+          <!-- 1. 對帳儀表板 (三指標卡片) -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- 卡片 1: 帳單應繳總額 -->
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between">
+              <div class="text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+                <span>帳單應繳總額</span>
+                <i data-lucide="credit-card" class="w-3.5 h-3.5 text-slate-400"></i>
+              </div>
+              <div class="text-xl sm:text-2xl font-black font-mono text-slate-900 mt-1">
+                NT$ {{ formatMoney(reconcileData?.bill_total_amount || 0) }}
+              </div>
+              <div class="text-[10px] text-slate-400 mt-1 truncate">
+                結帳日：{{ reconcileData?.statement_date || '未標註' }}
+              </div>
+            </div>
+
+            <!-- 卡片 2: 帳本已核對金額 -->
+            <div class="bg-violet-50/70 p-3.5 rounded-xl border border-violet-200 flex flex-col justify-between">
+              <div class="text-[11px] text-violet-700 font-semibold flex items-center justify-between">
+                <span>帳本勾選總額</span>
+                <i data-lucide="check-square" class="w-3.5 h-3.5 text-violet-500"></i>
+              </div>
+              <div class="text-xl sm:text-2xl font-black font-mono text-violet-900 mt-1">
+                NT$ {{ formatMoney(currentReconcileCheckedAmount) }}
+              </div>
+              <div class="text-[10px] text-violet-600 mt-1 truncate">
+                已勾選 {{ reconcileSelectedIds.size }} / {{ reconcileData?.transactions?.length || 0 }} 筆交易
+              </div>
+            </div>
+
+            <!-- 卡片 3: 對帳差額 (即時計算) -->
+            <div class="p-3.5 rounded-xl border flex flex-col justify-between transition-all"
+              :class="isCurrentReconcileBalanced ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : (currentReconcileDiff > 0 ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-amber-50 border-amber-300 text-amber-900')">
+              <div class="text-[11px] font-semibold flex items-center justify-between">
+                <span>對帳差額判定</span>
+                <i :data-lucide="isCurrentReconcileBalanced ? 'check-circle' : 'alert-circle'" class="w-3.5 h-3.5"></i>
+              </div>
+              <div class="text-xl sm:text-2xl font-black font-mono mt-1">
+                <span v-if="isCurrentReconcileBalanced">NT$ 0</span>
+                <span v-else-if="currentReconcileDiff > 0">少計 NT$ {{ formatMoney(currentReconcileDiff) }}</span>
+                <span v-else>多計 NT$ {{ formatMoney(Math.abs(currentReconcileDiff)) }}</span>
+              </div>
+              <div class="text-[10px] font-semibold mt-1">
+                <span v-if="isCurrentReconcileBalanced" class="text-emerald-700">✨ 完全吻合！帳目與帳單一致</span>
+                <span v-else-if="currentReconcileDiff > 0" class="text-rose-700">⚠️ 帳本少計，疑似有漏記或銀行超收</span>
+                <span v-else class="text-amber-700">ℹ️ 帳本多計，可能包含下期入帳</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 週期篩選與工具列 -->
+          <div class="bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2.5 text-xs">
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- 關聯信用卡選擇 -->
+                <div class="flex items-center space-x-1">
+                  <span class="text-slate-500 font-medium">卡片：</span>
+                  <select v-model="reconcileAccountFilter" @change="reloadReconcileData" class="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold">
+                    <option value="">自動比對 ({{ reconcileData?.credit_account_name || '所有信用卡' }})</option>
+                    <option v-for="a in accounts" :key="a.id" :value="String(a.id)">{{ a.name }} ({{ a.account_type }})</option>
+                  </select>
+                </div>
+
+                <!-- 週期起訖日 -->
+                <div class="flex items-center space-x-1">
+                  <span class="text-slate-500 font-medium">週期：</span>
+                  <input type="date" v-model="reconcileStartDate" class="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-mono">
+                  <span class="text-slate-400">~</span>
+                  <input type="date" v-model="reconcileEndDate" class="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-mono">
+                  <button @click="reloadReconcileData" class="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition">
+                    重新比對
+                  </button>
+                </div>
+              </div>
+
+              <!-- 右側：快捷補登漏記 -->
+              <div class="flex items-center space-x-2">
+                <button @click="openQuickAddModal" class="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition flex items-center space-x-1">
+                  <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                  <span>補登漏記明細</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 清單篩選 Tabs 與 全選控制 -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+              <div class="flex items-center space-x-1 bg-slate-200/70 p-0.5 rounded-lg">
+                <button @click="reconcileTabFilter = 'ALL'" :class="reconcileTabFilter === 'ALL' ? 'bg-white font-bold text-slate-900 shadow-xs' : 'text-slate-600'" class="px-2.5 py-1 rounded-md text-xs transition">
+                  全部 ({{ reconcileData?.transactions?.length || 0 }})
+                </button>
+                <button @click="reconcileTabFilter = 'CHECKED'" :class="reconcileTabFilter === 'CHECKED' ? 'bg-white font-bold text-violet-700 shadow-xs' : 'text-slate-600'" class="px-2.5 py-1 rounded-md text-xs transition">
+                  已核對 ({{ reconcileSelectedIds.size }})
+                </button>
+                <button @click="reconcileTabFilter = 'UNCHECKED'" :class="reconcileTabFilter === 'UNCHECKED' ? 'bg-white font-bold text-amber-700 shadow-xs' : 'text-slate-600'" class="px-2.5 py-1 rounded-md text-xs transition">
+                  待核對 ({{ (reconcileData?.transactions?.length || 0) - reconcileSelectedIds.size }})
+                </button>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <label class="inline-flex items-center text-[11px] text-slate-500 cursor-pointer">
+                  <input type="checkbox" v-model="reconcileIncludeAll" @change="reloadReconcileData" class="rounded text-violet-600 mr-1">
+                  含其他帳戶
+                </label>
+                <button @click="toggleReconcileSelectAll" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs">
+                  {{ reconcileSelectedIds.size === (reconcileData?.transactions?.length || 0) && (reconcileData?.transactions?.length || 0) > 0 ? '全不選' : '全選' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 候選交易明細核對清單 -->
+          <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+            <div v-if="reconcileLoading" class="py-12 text-center text-slate-400 text-xs">
+              <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto text-indigo-500 mb-2"></i>
+              正在讀取週期消費明細...
+            </div>
+            <div v-else-if="filteredReconcileTxList.length === 0" class="py-10 text-center text-slate-400 text-xs space-y-2">
+              <i data-lucide="receipt" class="w-8 h-8 mx-auto text-slate-300"></i>
+              <p>此週期或篩選條件下查無消費明細</p>
+              <p class="text-[11px] text-slate-500">若有帳單上的扣款尚未入帳，請點擊上方「補登漏記明細」</p>
+            </div>
+            <div v-else class="divide-y divide-slate-100 max-h-[380px] overflow-y-auto">
+              <div v-for="t in filteredReconcileTxList" :key="t.id"
+                @click="toggleReconcileTx(t.id)"
+                class="p-3 sm:px-4 sm:py-2.5 flex items-center justify-between hover:bg-slate-50/80 cursor-pointer transition select-none"
+                :class="{'bg-violet-50/30': reconcileSelectedIds.has(t.id)}">
+                <div class="flex items-center space-x-3 min-w-0">
+                  <input type="checkbox" :checked="reconcileSelectedIds.has(t.id)" @click.stop="toggleReconcileTx(t.id)" class="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 pointer-events-none">
+                  <div class="min-w-0">
+                    <div class="flex items-center space-x-1.5 flex-wrap">
+                      <span class="text-xs font-bold text-slate-900 truncate max-w-[200px] sm:max-w-xs">{{ t.description || '未命名消費' }}</span>
+                      <span v-if="t.tx_type === 'REFUND'" class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                        ↩ 退款
+                      </span>
+                      <span class="px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-100 text-slate-600">
+                        {{ t.category || '其他' }}
+                      </span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-0.5 flex items-center space-x-2">
+                      <span class="font-mono">{{ (t.date || '').substring(0, 10) }}</span>
+                      <span>·</span>
+                      <span>{{ t.account_name }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="text-right flex-shrink-0 ml-3">
+                  <div class="font-mono font-bold text-sm sm:text-base" :class="t.tx_type === 'REFUND' ? 'text-purple-600' : 'text-slate-900'">
+                    <span v-if="t.tx_type === 'REFUND'">-NT$ {{ formatMoney(t.amount) }}</span>
+                    <span v-else>NT$ {{ formatMoney(t.amount) }}</span>
+                  </div>
+                  <span v-if="reconcileSelectedIds.has(t.id)" class="inline-flex items-center text-[10px] font-semibold text-emerald-600">
+                    <i data-lucide="check" class="w-3 h-3 mr-0.5"></i> 已核對
+                  </span>
+                  <span v-else class="text-[10px] text-slate-400">
+                    點擊核對
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 一鍵核銷扣款抽屜面板 (可展開) -->
+          <div v-if="showSettleConfirm" class="bg-indigo-50/70 p-4 rounded-xl border border-indigo-200 space-y-3 transition-all">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs sm:text-sm font-bold text-indigo-950 flex items-center">
+                <i data-lucide="shield-check" class="w-4 h-4 mr-1.5 text-indigo-600"></i>
+                帳單核銷結算與扣款設定
+              </h4>
+              <button @click="showSettleConfirm = false" class="text-slate-400 hover:text-slate-600 text-xs">收合</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-700 mb-1">扣款來源存款帳戶</label>
+                <select v-model="settleForm.debit_account_id" class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold">
+                  <option v-for="a in accounts" :key="a.id" :value="a.id">
+                    {{ a.name }} (餘額 NT$ {{ formatMoney(a.balance) }})
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-700 mb-1">對帳核銷模式</label>
+                <select v-model="settleForm.settlement_mode" class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold">
+                  <option value="TRANSFER">清償卡債轉帳（推薦：平常已記刷卡支出，不重複計算開銷）</option>
+                  <option value="EXPENSE">認列信用卡費支出（若平常沒逐筆記帳，直接認列開銷）</option>
+                </select>
+              </div>
+            </div>
+            <div class="pt-2 flex justify-end space-x-2">
+              <button @click="showSettleConfirm = false" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-600 hover:bg-white">
+                取消
+              </button>
+              <button @click="submitSettleAndPay" :disabled="isSettlingReconcile" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm flex items-center space-x-1">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>{{ isSettlingReconcile ? '扣款中...' : '確認核銷並扣款' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部功能按鈕 -->
+        <div class="px-4 py-3 sm:px-6 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2.5 flex-shrink-0">
+          <div class="flex items-center space-x-2">
+            <button @click="saveReconcileProgress" :disabled="isSavingReconcile" class="px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center space-x-1.5 shadow-2xs">
+              <i data-lucide="save" class="w-3.5 h-3.5"></i>
+              <span>{{ isSavingReconcile ? '儲存中...' : '暫存對帳進度' }}</span>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button @click="showReconcileModal = false" class="px-3.5 py-2 border border-slate-300 rounded-xl text-xs text-slate-600 hover:bg-white">
+              關閉
+            </button>
+            <div v-if="reconcileData?.bill_status === 'PAID'" class="px-3 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl flex items-center">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5 mr-1"></i> 已完成核銷扣款
+            </div>
+            <button v-else-if="!showSettleConfirm" @click="showSettleConfirm = true" class="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center space-x-1.5">
+              <i data-lucide="credit-card" class="w-3.5 h-3.5"></i>
+              <span>一鍵核銷結算</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 5.6: ⚡ 快捷補登漏記明細 Modal (Quick Add Missing Transaction) -->
+    <div v-if="showQuickAddModal" class="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-4 sm:p-5 space-y-3.5 my-auto border border-slate-200">
+        <div class="flex items-center justify-between border-b pb-2.5">
+          <h4 class="text-sm font-bold text-slate-900 flex items-center">
+            <i data-lucide="plus-circle" class="w-4 h-4 mr-1.5 text-indigo-600"></i>
+            補登漏記信用卡消費
+          </h4>
+          <button @click="showQuickAddModal = false" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="space-y-2.5 text-xs">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">金額 (NT$)</label>
+            <input type="number" v-model.number="quickAddForm.amount" placeholder="0" class="w-full px-3 py-2 border rounded-lg text-lg font-bold font-mono bg-white text-slate-900">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">店家名稱 / 說明</label>
+            <input v-model="quickAddForm.description" placeholder="例如：停車費、年費、國外交易手續費" class="w-full px-3 py-1.5 border rounded-lg text-xs bg-white">
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">分類</label>
+              <select v-model="quickAddForm.category" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white">
+                <option v-for="cat in quickCategories" :key="cat" :value="cat">{{ cat }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">類型</label>
+              <select v-model="quickAddForm.tx_type" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white font-semibold">
+                <option value="EXPENSE">一般消費支出</option>
+                <option value="REFUND">退刷 / 退款 (負支出)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">消費日期</label>
+            <input type="date" v-model="quickAddForm.date" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white font-mono">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">記入信用卡帳戶</label>
+            <select v-model="quickAddForm.credit_account_id" class="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white">
+              <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.name }} ({{ a.account_type }})</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t flex justify-end space-x-2">
+          <button @click="showQuickAddModal = false" class="px-3 py-1.5 border rounded-lg text-xs text-slate-600 hover:bg-slate-50">
+            取消
+          </button>
+          <button @click="submitQuickAddTx" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm">
+            確認補登並核對
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal 6: 系統設定 (個人帳號、自備 Gemini API Key、月薪勞健保、IMAP 應用程式密碼) -->
     <div v-if="showSettingsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-4 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto my-auto">
@@ -3935,7 +4270,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.10.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.11.0"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

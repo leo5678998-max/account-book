@@ -68,6 +68,7 @@ class TransactionCreate(BaseModel):
     date: Optional[datetime] = None
     affects_balance: bool = True
     related_transaction_id: Optional[int] = None
+    is_reconciled: Optional[bool] = False
 
 class TransactionUpdate(TransactionCreate):
     pass
@@ -84,6 +85,8 @@ class TransactionResponse(BaseModel):
     bill_id: Optional[int] = None
     related_transaction_id: Optional[int] = None
     affects_balance: bool = True
+    is_reconciled: bool = False
+    reconciled_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -92,28 +95,33 @@ class BillCreate(BaseModel):
     bank_name: str
     statement_month: Optional[str] = None
     statement_date: Optional[date] = None
+    statement_start_date: Optional[date] = None
     due_date: date
     total_amount: float
     minimum_amount: float = 0.0
     status: str = "PENDING"
     pdf_filename: Optional[str] = None
     debit_account_id: Optional[int] = None
+    credit_account_id: Optional[int] = None
 
 class BillUpdate(BaseModel):
     bank_name: Optional[str] = None
     statement_month: Optional[str] = None
     statement_date: Optional[date] = None
+    statement_start_date: Optional[date] = None
     due_date: Optional[date] = None
     total_amount: Optional[float] = None
     minimum_amount: Optional[float] = None
     status: Optional[str] = None
     debit_account_id: Optional[int] = None
+    credit_account_id: Optional[int] = None
 
 class BillResponse(BaseModel):
     id: int
     bank_name: str
     statement_month: Optional[str] = None
     statement_date: Optional[date] = None
+    statement_start_date: Optional[date] = None
     due_date: date
     total_amount: float
     minimum_amount: float
@@ -121,11 +129,66 @@ class BillResponse(BaseModel):
     email_message_id: Optional[str] = None
     pdf_filename: Optional[str] = None
     debit_account_id: Optional[int] = None
+    credit_account_id: Optional[int] = None
     paid_date: Optional[datetime] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class ReconciliationItem(BaseModel):
+    id: int
+    date: datetime
+    amount: float
+    tx_type: str
+    category: str
+    description: Optional[str] = None
+    account_id: int
+    account_name: Optional[str] = None
+    is_reconciled: bool = False
+    reconciled_at: Optional[datetime] = None
+    bill_id: Optional[int] = None
+
+class ReconciliationOverview(BaseModel):
+    bill_id: int
+    bank_name: str
+    statement_month: Optional[str] = None
+    statement_date: Optional[date] = None
+    statement_start_date: Optional[date] = None
+    due_date: date
+    bill_total_amount: float
+    bill_status: str
+    debit_account_id: Optional[int] = None
+    credit_account_id: Optional[int] = None
+    credit_account_name: Optional[str] = None
+
+    matched_count: int
+    reconciled_count: int
+    unreconciled_count: int
+    reconciled_amount: float
+    difference: float
+    is_balanced: bool
+
+    transactions: List[ReconciliationItem]
+
+class ReconciliationCheckRequest(BaseModel):
+    transaction_ids: List[int]
+    is_reconciled: bool = True
+
+class ReconciliationClearRequest(BaseModel):
+    debit_account_id: int
+    credit_account_id: Optional[int] = None
+    reconciled_transaction_ids: List[int] = []
+    settlement_mode: str = "TRANSFER" # "TRANSFER" (清償卡債) or "EXPENSE" (信用卡費支出)
+    note: Optional[str] = None
+
+class ReconciliationQuickAddRequest(BaseModel):
+    date: Optional[datetime] = None
+    amount: float
+    category: str = "其他"
+    description: str
+    tx_type: str = "EXPENSE"
+    credit_account_id: Optional[int] = None
 
 class DocumentParseResponse(BaseModel):
     success: bool

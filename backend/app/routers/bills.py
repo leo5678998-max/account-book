@@ -13,13 +13,23 @@ from ..schemas import (
     SalaryApplyRequest,
     BatchSaveRequest,
     BatchSaveResponse,
-    BatchSaveResultItem
+    BatchSaveResultItem,
+    ReconciliationOverview,
+    ReconciliationCheckRequest,
+    ReconciliationClearRequest,
+    ReconciliationQuickAddRequest,
 )
 from ..services.accounting_service import (
     get_setting,
     get_default_debit_account,
     execute_bill_payment,
     apply_salary_income
+)
+from ..services.reconciliation_service import (
+    get_bill_reconciliation_overview,
+    batch_update_reconciliation_checks,
+    quick_add_reconciliation_transaction,
+    execute_bill_reconciliation_settlement,
 )
 from ..services.auth_service import get_current_user
 from ..services.integrations.ai_parser import parse_document_with_gemini
@@ -116,6 +126,81 @@ def manual_pay_bill(
 
     acc = execute_bill_payment(db, bill, account_id=account_id, is_auto=False, user_id=current_user.id)
     return {"status": "success", "message": f"已從【{acc.name}】扣除 NT$ {bill.total_amount:,.0f}"}
+
+
+@router.get("/api/bills/{bill_id}/reconciliation", response_model=ReconciliationOverview)
+def get_bill_reconciliation(
+    bill_id: int,
+    credit_account_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    include_all: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """取得特定帳單的月底對帳總覽與候選交易清單"""
+    return get_bill_reconciliation_overview(
+        db=db,
+        bill_id=bill_id,
+        user_id=current_user.id,
+        credit_account_id=credit_account_id,
+        start_date=start_date,
+        end_date=end_date,
+        include_all_accounts=include_all
+    )
+
+
+@router.post("/api/bills/{bill_id}/reconciliation/check")
+def check_bill_transactions(
+    bill_id: int,
+    req: ReconciliationCheckRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """批次勾選或取消對帳標記"""
+    return batch_update_reconciliation_checks(
+        db=db,
+        bill_id=bill_id,
+        user_id=current_user.id,
+        transaction_ids=req.transaction_ids,
+        is_reconciled=req.is_reconciled
+    )
+
+
+@router.post("/api/bills/{bill_id}/reconciliation/quick-add")
+def quick_add_bill_tx(
+    bill_id: int,
+    req: ReconciliationQuickAddRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """在對帳畫面快捷補登漏記明細"""
+    return quick_add_reconciliation_transaction(
+        db=db,
+        bill_id=bill_id,
+        user_id=current_user.id,
+        req=req
+    )
+
+
+@router.post("/api/bills/{bill_id}/reconciliation/settle")
+def settle_and_clear_bill(
+    bill_id: int,
+    req: ReconciliationClearRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """一鍵核銷結算並扣繳帳單"""
+    return execute_bill_reconciliation_settlement(
+        db=db,
+        bill_id=bill_id,
+        user_id=current_user.id,
+        debit_account_id=req.debit_account_id,
+        credit_account_id=req.credit_account_id,
+        reconciled_transaction_ids=req.reconciled_transaction_ids,
+        settlement_mode=req.settlement_mode,
+        note=req.note
+    )
 
 
 @router.post("/api/ai/parse-document", response_model=DocumentParseResponse)
