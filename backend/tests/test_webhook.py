@@ -279,6 +279,17 @@ class TestWebhookServiceAndEndpoints(unittest.TestCase):
         self.assertEqual(ctbc_res["merchant"], "Uber Eats")
         self.assertEqual(ctbc_res["card_name"], "中國信託")
 
+        # 4. DBS Card+ notification (with Chinese date, space in merchant, amount in title)
+        dbs_res = parse_notification_text(
+            "信用卡號末四碼 2459 於 10月30日 20:12 在 BREEZE CENTER交易。",
+            app="星展 Card+",
+            title="【星展信用卡刷卡交易】約 NT$812元"
+        )
+        self.assertEqual(dbs_res["amount"], 812.0)
+        self.assertEqual(dbs_res["merchant"], "BREEZE CENTER")
+        self.assertEqual(dbs_res["card_name"], "星展 2459")
+        self.assertEqual(auto_categorize_merchant(dbs_res["merchant"]), "日常採買")
+
     def test_webhook_with_raw_notification_text(self):
         token = get_or_create_webhook_token(self.db, user_id=self.user.id)
         # Send raw notification text without amount field

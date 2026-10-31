@@ -55,7 +55,8 @@ MERCHANT_CATEGORY_RULES: List[Tuple[str, List[str]]] = [
             "屈臣氏", "康是美", "寶雅", "poya", "蝦皮", "shopee",
             "momo", "pchome", "特力屋", "ikea", "無印良品", "muji",
             "uniqlo", "net", "gu", "zara", "超市", "市集", "文具",
-            "生活百貨", "光南", "寶家", "大創", "daiso", "便利購", "松本清"
+            "生活百貨", "光南", "寶家", "大創", "daiso", "便利購", "松本清",
+            "微風", "breeze", "新光三越", "sogo", "遠百", "遠東百貨", "誠品"
         ]
     ),
     (
@@ -196,15 +197,16 @@ def parse_notification_text(text: str, app: Optional[str] = None, title: Optiona
 
     # 2. 提取商家名稱
     merchant = None
-    # 先清除日期時間 (例如 10/29 02:00, 2026/10/29) 以免誤觸「於 10/29 在 XX 消費」
-    cleaned_for_mer = re.sub(r'\d{1,4}[/\-]\d{1,2}(?:[/\-]\d{1,2})?', '', raw_text)
-    cleaned_for_mer = re.sub(r'\d{1,2}:\d{2}(?::\d{2})?', '', cleaned_for_mer)
+    # 先清除日期時間 (例如 10/29 02:00, 2026/10/29, 10月30日, 20:12) 以免誤觸「於 10/29 在 XX 消費」
+    cleaned_for_mer = re.sub(r'(?:於|在)?\s*\d{1,4}[/\-]\d{1,2}(?:[/\-]\d{1,2})?', '', raw_text)
+    cleaned_for_mer = re.sub(r'(?:於|在)?\s*\d{1,2}月\d{1,2}日?', '', cleaned_for_mer)
+    cleaned_for_mer = re.sub(r'(?:於|在)?\s*\d{1,2}:\d{2}(?::\d{2})?', '', cleaned_for_mer)
 
     # 模式 A: 商店名稱/特店/店家/特店名稱/特約商店/商店: [店家] (優先匹配完整前綴)
     m_mer = re.search(r'(?:商店名稱|特約商店|特店名稱|店家名稱|商店|特店|店家)[：:\s]+([^\r\n,，。!！]+)', raw_text)
     if not m_mer:
-        # 模式 B: 在/於 [店家] 消費/扣款/付款/刷卡/交易
-        m_mer = re.search(r'(?:在|於)\s*([^\r\n,，。!！\s]{2,25}?)\s*(?:消費|扣款|付款|刷卡|成功|交易)', cleaned_for_mer)
+        # 模式 B: 在/於 [店家] 消費/扣款/付款/刷卡/交易 (支援含空白之店家如 BREEZE CENTER, Uber Eats)
+        m_mer = re.search(r'(?:在|於)\s*([^\r\n,，。!！]{2,30}?)\s*(?:消費|扣款|付款|刷卡|成功|交易)', cleaned_for_mer)
 
     if m_mer:
         merchant = m_mer.group(1).strip()
