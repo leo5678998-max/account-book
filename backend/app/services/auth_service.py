@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..core.database import get_db, SessionLocal
+from ..core.database import get_db, SessionLocal, Base
 from ..models import User, SystemSetting
 
 
@@ -135,8 +135,12 @@ def run_schema_migrations(engine) -> None:
         "bills",
         "system_settings",
         "stock_holdings",
-        "recurring_expenses"
+        "recurring_expenses",
+        "installment_plans"
     ]
+
+    # 確保新資料表如 installment_plans 存在
+    Base.metadata.create_all(bind=engine)
 
     with engine.begin() as conn:
         for table in tables_need_user_id:
@@ -167,6 +171,10 @@ def run_schema_migrations(engine) -> None:
                         conn.execute(text("ALTER TABLE transactions ADD COLUMN is_reconciled BOOLEAN DEFAULT 0"))
                     if "reconciled_at" not in col_names:
                         conn.execute(text("ALTER TABLE transactions ADD COLUMN reconciled_at DATETIME NULL"))
+                    if "installment_plan_id" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN installment_plan_id INTEGER NULL"))
+                    if "installment_period" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN installment_period INTEGER NULL"))
 
                 if table == "bills":
                     if "credit_account_id" not in col_names:

@@ -128,6 +128,34 @@ export const ApiService = {
   deleteBill: (billId) => authFetch(`/api/bills/${billId}`, { method: 'DELETE' }),
   payBillNow: (billId) => authFetch(`/api/bills/${billId}/pay`, { method: 'POST' }),
 
+  // 信用卡分期付款 API
+  getInstallments: (status = '') => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return authFetch(`/api/installments${qs}`).then(r => (r.ok ? r.json() : []));
+  },
+  getInstallmentSummary: (forecastMonths = 12) =>
+    authFetch(`/api/installments/summary?forecast_months=${encodeURIComponent(forecastMonths)}`).then(r => (r.ok ? r.json() : null)),
+  getInstallmentDetail: (planId) =>
+    authFetch(`/api/installments/${planId}`).then(r => (r.ok ? r.json() : null)),
+  saveInstallment: (plan) => {
+    const isEdit = !!plan.id;
+    const url = isEdit ? `/api/installments/${plan.id}` : '/api/installments';
+    const method = isEdit ? 'PUT' : 'POST';
+    return authFetch(url, { method, headers: jsonHeaders, body: JSON.stringify(plan) }).then(r => r.json());
+  },
+  deleteInstallment: (planId, deleteTransactions = false) => {
+    const qs = deleteTransactions ? '?delete_transactions=true' : '';
+    return authFetch(`/api/installments/${planId}${qs}`, { method: 'DELETE' }).then(r => r.json());
+  },
+  chargeNextInstallmentPeriod: (planId, period = null) => {
+    const qs = period ? `?period=${encodeURIComponent(period)}` : '';
+    return authFetch(`/api/installments/${planId}/charge-next${qs}`, { method: 'POST' }).then(r => r.json());
+  },
+  settleInstallmentInFull: (planId, accountId = null) => {
+    const qs = accountId ? `?account_id=${encodeURIComponent(accountId)}` : '';
+    return authFetch(`/api/installments/${planId}/settle-in-full${qs}`, { method: 'POST' }).then(r => r.json());
+  },
+
   // 月底帳單對帳核銷 API
   getBillReconciliation: (billId, params = {}) => {
     const q = new URLSearchParams();

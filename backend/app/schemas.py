@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from datetime import datetime, date
 
 
@@ -69,6 +69,8 @@ class TransactionCreate(BaseModel):
     affects_balance: bool = True
     related_transaction_id: Optional[int] = None
     is_reconciled: Optional[bool] = False
+    installment_plan_id: Optional[int] = None
+    installment_period: Optional[int] = None
 
 class TransactionUpdate(TransactionCreate):
     pass
@@ -87,6 +89,8 @@ class TransactionResponse(BaseModel):
     affects_balance: bool = True
     is_reconciled: bool = False
     reconciled_at: Optional[datetime] = None
+    installment_plan_id: Optional[int] = None
+    installment_period: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -420,5 +424,96 @@ class ApplePayWebhookResponse(BaseModel):
 class WebhookTokenResponse(BaseModel):
     webhook_token: str
     webhook_url: str
+
+# ================= 信用卡分期付款管理 (Installment Plan) Schema =================
+class InstallmentPeriodItem(BaseModel):
+    period: int
+    due_date: date
+    amount: float
+    interest: float = 0.0
+    total_due: float
+    status: str = "PENDING" # "PAID" or "PENDING"
+    transaction_id: Optional[int] = None
+
+class InstallmentPlanBase(BaseModel):
+    name: str
+    total_amount: float
+    total_periods: int
+    category: str = "其他"
+    account_id: Optional[int] = None
+    start_date: date
+    billing_day: Optional[int] = 1
+    interest_rate: float = 0.0
+    monthly_fee: float = 0.0
+    notes: Optional[str] = None
+    auto_record: bool = True
+
+class InstallmentPlanCreate(InstallmentPlanBase):
+    record_first_period: bool = False # 建立時是否直接將第 1 期記為已扣款支出
+
+class InstallmentPlanUpdate(BaseModel):
+    name: Optional[str] = None
+    total_amount: Optional[float] = None
+    total_periods: Optional[int] = None
+    current_period: Optional[int] = None
+    category: Optional[str] = None
+    account_id: Optional[int] = None
+    start_date: Optional[date] = None
+    billing_day: Optional[int] = None
+    interest_rate: Optional[float] = None
+    monthly_fee: Optional[float] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    auto_record: Optional[bool] = None
+
+class InstallmentPlanResponse(BaseModel):
+    id: int
+    name: str
+    total_amount: float
+    total_periods: int
+    current_period: int
+    monthly_amount: float
+    first_amount: Optional[float] = None
+    interest_rate: float
+    monthly_fee: float
+    category: str
+    account_id: Optional[int] = None
+    account_name: Optional[str] = None
+    start_date: date
+    billing_day: int
+    status: str
+    notes: Optional[str] = None
+    auto_record: bool
+    paid_amount: float
+    remaining_amount: float
+    progress_percent: float
+    progress_percentage: Optional[float] = None
+    next_due_date: Optional[date] = None
+    next_amount: Optional[float] = None
+    created_at: datetime
+    updated_at: datetime
+    schedule: Optional[List[InstallmentPeriodItem]] = None
+    periods: Optional[List[InstallmentPeriodItem]] = None
+
+    class Config:
+        from_attributes = True
+
+class InstallmentMonthlyForecastItem(BaseModel):
+    month: str # e.g. "2026-11"
+    year_month: Optional[str] = None
+    total_amount: float
+    total_due: Optional[float] = None
+    plans_count: int
+    plan_count: Optional[int] = None
+    details: List[Dict[str, Any]] = []
+
+class InstallmentSummaryResponse(BaseModel):
+    total_plans_count: int
+    active_plans_count: int
+    total_debt_remaining: float
+    total_remaining_balance: Optional[float] = None
+    current_month_due: float
+    forecast: List[InstallmentMonthlyForecastItem] = []
+    monthly_forecast: Optional[List[InstallmentMonthlyForecastItem]] = None
 
 

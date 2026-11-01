@@ -48,12 +48,15 @@ class Transaction(Base):
     is_reconciled = Column(Boolean, default=False, nullable=False) # 月底帳單是否已對帳核對
     reconciled_at = Column(DateTime, nullable=True) # 對帳時間
     affects_balance = Column(Boolean, default=True, nullable=False)
+    installment_plan_id = Column(Integer, ForeignKey("installment_plans.id"), nullable=True) # 分期付款計畫 ID
+    installment_period = Column(Integer, nullable=True) # 當前為第幾期 (例如 3)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     account = relationship("Account", foreign_keys=[account_id], back_populates="transactions")
     target_account = relationship("Account", foreign_keys=[target_account_id])
     bill = relationship("Bill", foreign_keys=[bill_id])
     related_transaction = relationship("Transaction", remote_side=[id], foreign_keys=[related_transaction_id])
+    installment_plan = relationship("InstallmentPlan", foreign_keys=[installment_plan_id], back_populates="transactions")
 
 class Bill(Base):
     __tablename__ = "bills"
@@ -127,3 +130,30 @@ class RecurringExpense(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     account = relationship("Account", foreign_keys=[account_id])
+
+
+class InstallmentPlan(Base):
+    __tablename__ = "installment_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), default=1, index=True, nullable=True)
+    name = Column(String(100), nullable=False) # 例如：iPhone 16 Pro Max、長榮日本機票
+    total_amount = Column(Float, nullable=False) # 總金額 (例如 36,000)
+    total_periods = Column(Integer, nullable=False) # 總期數 (例如 12)
+    current_period = Column(Integer, default=0, nullable=False) # 目前已繳/已扣期數 (例如 3)
+    monthly_amount = Column(Float, nullable=False) # 每期本金 (通常為 total_amount / total_periods)
+    first_amount = Column(Float, nullable=True) # 首期金額 (若除不盡由首期吸收差額)
+    interest_rate = Column(Float, default=0.0) # 年利率 % (零利率則為 0.0)
+    monthly_fee = Column(Float, default=0.0) # 每期手續費或利息
+    category = Column(String(50), default="其他") # 分類 (例如 購物, 數位3C)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True) # 關聯扣款信用卡或銀行帳戶
+    start_date = Column(Date, nullable=False) # 首期入帳/起算日
+    billing_day = Column(Integer, default=1) # 每月入帳日 (1-31)
+    status = Column(String(20), default="ACTIVE") # ACTIVE (進行中), COMPLETED (已結清), CANCELLED (終止)
+    notes = Column(String(255), nullable=True) # 備註
+    auto_record = Column(Boolean, default=True) # 是否到期自動記帳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    account = relationship("Account", foreign_keys=[account_id])
+    transactions = relationship("Transaction", back_populates="installment_plan")

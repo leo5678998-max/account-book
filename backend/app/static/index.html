@@ -1636,25 +1636,34 @@
         <div v-show="currentTab === 'assets'" class="space-y-5">
           <!-- 子分頁切換選單與隱私開關 -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div class="flex items-center space-x-1.5 bg-slate-200/60 dark:bg-slate-800 p-1 rounded-xl w-full sm:max-w-sm">
+            <div class="flex items-center space-x-1.5 bg-slate-200/60 dark:bg-slate-800 p-1 rounded-xl w-full sm:max-w-xl overflow-x-auto">
               <button @click="switchTab('assets', 'accounts')"
                 :class="assetSubTab === 'accounts' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
-                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
                 <i data-lucide="landmark" class="w-3.5 h-3.5"></i>
                 <span>存款帳戶</span>
               </button>
               <button @click="switchTab('assets', 'bills')"
                 :class="assetSubTab === 'bills' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
-                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
                 <i data-lucide="credit-card" class="w-3.5 h-3.5"></i>
                 <span>信用卡帳單</span>
                 <span v-if="pendingBillAmount > 0" class="text-[10px] font-mono bg-rose-50 text-rose-600 px-1 rounded font-bold">
                   待扣
                 </span>
               </button>
+              <button @click="switchTab('assets', 'installments')"
+                :class="assetSubTab === 'installments' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
+                <i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
+                <span>分期付款</span>
+                <span v-if="installmentSummary && installmentSummary.active_plans_count > 0" class="text-[10px] font-mono bg-indigo-50 text-indigo-600 px-1 rounded font-bold">
+                  {{ installmentSummary.active_plans_count }}
+                </span>
+              </button>
               <button @click="switchTab('assets', 'stocks')"
                 :class="assetSubTab === 'stocks' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
-                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
                 <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
                 <span>美股投資</span>
               </button>
@@ -1850,6 +1859,244 @@
         </div>
       </section>
         </div>
+
+          <!-- 子頁 D: 信用卡分期付款 -->
+          <div v-show="assetSubTab === 'installments'" class="space-y-6">
+            <!-- 區塊：信用卡分期付款總覽 -->
+            <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div class="px-4 py-4 sm:px-6 sm:py-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 class="text-sm sm:text-base font-bold text-slate-900 flex items-center">
+                    <i data-lucide="calendar-clock" class="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 text-indigo-600"></i>
+                    信用卡分期付款管理
+                  </h2>
+                  <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5">掌握各期攤提本金、各期入帳狀態與未來現金流還款壓力</p>
+                </div>
+                <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                  <div class="inline-flex bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                    <button type="button" @click="filterInstallments('ACTIVE')"
+                      :class="installmentFilterStatus === 'ACTIVE' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                      class="px-2.5 py-1 rounded-md transition cursor-pointer">進行中</button>
+                    <button type="button" @click="filterInstallments('ALL')"
+                      :class="installmentFilterStatus === 'ALL' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                      class="px-2.5 py-1 rounded-md transition cursor-pointer">全部</button>
+                    <button type="button" @click="filterInstallments('COMPLETED')"
+                      :class="installmentFilterStatus === 'COMPLETED' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                      class="px-2.5 py-1 rounded-md transition cursor-pointer">已結清</button>
+                  </div>
+                  <button @click="openAddInstallmentModal" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer">
+                    <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> 新增分期
+                  </button>
+                </div>
+              </div>
+
+              <!-- 分期負擔 KPI 概況卡片 -->
+              <div class="p-4 sm:p-5 bg-slate-50/70 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <!-- KPI 1: 總剩餘未結清分期款 -->
+                <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center space-x-3">
+                  <span class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="coins" class="w-5 h-5"></i>
+                  </span>
+                  <div>
+                    <div class="text-[11px] text-slate-500 font-medium">總剩餘待還款</div>
+                    <div class="text-lg sm:text-xl font-extrabold text-slate-900 font-mono tracking-tight">
+                      <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider text-base">NT$ ••••••</span>
+                      <span v-else>NT$ {{ formatMoney(installmentSummary ? installmentSummary.total_remaining_balance : 0) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KPI 2: 本月分期應繳負擔 -->
+                <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center space-x-3">
+                  <span class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                  </span>
+                  <div>
+                    <div class="text-[11px] text-slate-500 font-medium">本月應繳分期</div>
+                    <div class="text-lg sm:text-xl font-extrabold text-slate-900 font-mono tracking-tight">
+                      <span v-if="hideAssets" class="text-slate-400 font-sans tracking-wider text-base">NT$ ••••••</span>
+                      <span v-else>NT$ {{ formatMoney(installmentSummary ? installmentSummary.current_month_due : 0) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KPI 3: 進行中計畫筆數 -->
+                <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center space-x-3">
+                  <span class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                  </span>
+                  <div>
+                    <div class="text-[11px] text-slate-500 font-medium">進行中分期筆數</div>
+                    <div class="text-lg sm:text-xl font-extrabold text-slate-900 font-mono tracking-tight">
+                      {{ installmentSummary ? installmentSummary.active_plans_count : 0 }} <span class="text-xs font-normal text-slate-500">筆</span>
+                      <span class="text-xs font-normal text-slate-400 ml-1">/ 共 {{ installmentSummary ? installmentSummary.total_plans_count : 0 }} 筆</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 未來 6~12 個月分期還款現金流預測水平滑動軌 -->
+              <div v-if="installmentSummary && installmentSummary.monthly_forecast && installmentSummary.monthly_forecast.length > 0" class="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/40">
+                <div class="flex items-center justify-between mb-2.5">
+                  <span class="text-xs font-bold text-slate-700 flex items-center">
+                    <i data-lucide="line-chart" class="w-3.5 h-3.5 mr-1 text-indigo-600"></i> 未來各月分期應繳現金流預測
+                  </span>
+                  <span class="text-[10px] text-slate-400">掌握固定扣繳壓力</span>
+                </div>
+                <div class="flex items-center space-x-2.5 overflow-x-auto pb-1 pt-1">
+                  <div v-for="fc in installmentSummary.monthly_forecast" :key="fc.year_month"
+                    :class="fc.year_month === currentMonth ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-white border-slate-200'"
+                    class="min-w-[105px] flex-shrink-0 p-2.5 rounded-xl border text-center transition hover:shadow-xs">
+                    <div class="text-[11px] font-bold" :class="fc.year_month === currentMonth ? 'text-indigo-700' : 'text-slate-600'">
+                      {{ fc.year_month }}
+                      <span v-if="fc.year_month === currentMonth" class="text-[9px] bg-indigo-600 text-white px-1 py-0.2 rounded ml-0.5">本月</span>
+                    </div>
+                    <div class="text-xs sm:text-sm font-extrabold font-mono mt-1" :class="fc.total_due > 0 ? (fc.year_month === currentMonth ? 'text-indigo-800' : 'text-slate-800') : 'text-slate-400'">
+                      <span v-if="hideAssets">••••</span>
+                      <span v-else>NT${{ formatMoney(fc.total_due) }}</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">
+                      {{ fc.plan_count > 0 ? `${fc.plan_count} 筆分期` : '無分期' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 分期計畫清單 -->
+              <div v-if="installments.length === 0" class="text-center py-12 px-4 space-y-3">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
+                  <i data-lucide="credit-card" class="w-6 h-6"></i>
+                </div>
+                <div class="text-sm font-bold text-slate-700">目前尚無{{ installmentFilterStatus === 'ACTIVE' ? '進行中的' : '' }}分期付款計畫</div>
+                <p class="text-xs text-slate-400 max-w-sm mx-auto">點擊上方「新增分期」登記你的大額刷卡分期（如手機、家電、保費分期），清晰掌握每期攤提進度與每月末扣款！</p>
+                <button @click="openAddInstallmentModal" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer">
+                  <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i> 新增第一筆分期計畫
+                </button>
+              </div>
+
+              <!-- 分期計畫卡片列表 -->
+              <div v-else class="p-3.5 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div v-for="plan in installments" :key="plan.id"
+                  class="bg-white rounded-xl border border-slate-200/90 hover:border-indigo-300 transition-all shadow-xs hover:shadow-md p-4 sm:p-5 flex flex-col justify-between space-y-3.5">
+                  <!-- 卡片頂部：計畫名稱、狀態徽章與操作按鈕 -->
+                  <div>
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="plan.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : (plan.status === 'CANCELLED' ? 'bg-slate-100 text-slate-600' : 'bg-indigo-100 text-indigo-800')">
+                            {{ plan.status === 'COMPLETED' ? '已全額結清' : (plan.status === 'CANCELLED' ? '已終止' : '進行中') }}
+                          </span>
+                          <span class="text-xs font-semibold text-slate-500 px-1.5 py-0.5 rounded bg-slate-100">
+                            {{ plan.category || '購物' }}
+                          </span>
+                          <span v-if="plan.account_id" class="text-xs text-slate-500 flex items-center">
+                            <i data-lucide="credit-card" class="w-3 h-3 mr-1 text-slate-400"></i>
+                            {{ getAccountName(plan.account_id) }}
+                          </span>
+                        </div>
+                        <h3 class="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+                          {{ plan.name }}
+                        </h3>
+                      </div>
+                      <!-- 右上快捷選單 -->
+                      <div class="flex items-center space-x-1 flex-shrink-0">
+                        <button @click="openEditInstallmentModal(plan)" title="編輯分期計畫" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                          <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button @click="deleteInstallmentPlan(plan)" title="刪除分期計畫" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer">
+                          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- 進度條與期數概況 -->
+                    <div class="mt-3.5 space-y-1.5">
+                      <div class="flex items-center justify-between text-xs font-medium text-slate-600">
+                        <span class="flex items-center">
+                          <i data-lucide="clock" class="w-3.5 h-3.5 mr-1 text-indigo-500"></i>
+                          已還 {{ plan.current_period }} / {{ plan.total_periods }} 期
+                        </span>
+                        <span class="font-bold text-indigo-600 font-mono">{{ plan.progress_percentage }}%</span>
+                      </div>
+                      <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div class="h-2 rounded-full transition-all duration-500"
+                          :class="plan.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-gradient-to-r from-indigo-500 to-violet-600'"
+                          :style="{ width: Math.min(plan.progress_percentage, 100) + '%' }"></div>
+                      </div>
+                    </div>
+
+                    <!-- 金額數據網格 -->
+                    <div class="mt-3.5 grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl text-center">
+                      <div>
+                        <div class="text-[10px] text-slate-400">總分期金額</div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-800 font-mono mt-0.5">
+                          <span v-if="hideAssets">••••</span>
+                          <span v-else>NT$ {{ formatMoney(plan.total_amount) }}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] text-slate-400">已還金額</div>
+                        <div class="text-xs sm:text-sm font-bold text-emerald-700 font-mono mt-0.5">
+                          <span v-if="hideAssets">••••</span>
+                          <span v-else>NT$ {{ formatMoney(plan.paid_amount) }}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] text-slate-400">剩餘待繳</div>
+                        <div class="text-xs sm:text-sm font-bold text-rose-600 font-mono mt-0.5">
+                          <span v-if="hideAssets">••••</span>
+                          <span v-else>NT$ {{ formatMoney(plan.remaining_amount) }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 每期攤提金額與扣繳日提示 -->
+                    <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-500 px-0.5">
+                      <span>
+                        每期約 NT$ {{ formatMoney(plan.monthly_amount) }}
+                        <span v-if="plan.first_amount !== plan.monthly_amount" class="text-slate-400 text-[10px]"> (首期 NT$ {{ formatMoney(plan.first_amount) }})</span>
+                      </span>
+                      <span v-if="plan.billing_day">每月 {{ plan.billing_day }} 日扣繳</span>
+                    </div>
+
+                    <div v-if="plan.notes" class="mt-1.5 text-[11px] text-slate-400 truncate px-0.5">
+                      <i data-lucide="file-text" class="w-3 h-3 inline mr-0.5"></i> {{ plan.notes }}
+                    </div>
+                  </div>
+
+                  <!-- 卡片底部動作按鈕列 -->
+                  <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button @click="openInstallmentDetailModal(plan)"
+                      class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 transition cursor-pointer">
+                      <i data-lucide="list-ordered" class="w-3.5 h-3.5 mr-1 text-slate-400"></i>
+                      攤提日程明細
+                    </button>
+
+                    <div class="flex items-center space-x-1.5">
+                      <button v-if="plan.status === 'ACTIVE' && plan.current_period < plan.total_periods"
+                        @click="settleInstallmentInFull(plan)"
+                        :disabled="chargingInstallment"
+                        title="提前全額結清剩餘款項"
+                        class="inline-flex items-center px-2 py-1.5 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition cursor-pointer disabled:opacity-50">
+                        提前結清
+                      </button>
+                      <button v-if="plan.status === 'ACTIVE' && plan.current_period < plan.total_periods"
+                        @click="chargeNextInstallmentPeriod(plan)"
+                        :disabled="chargingInstallment"
+                        class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-xs cursor-pointer disabled:opacity-50">
+                        <i data-lucide="check" class="w-3.5 h-3.5 mr-1"></i>
+                        扣繳第 {{ plan.current_period + 1 }} 期
+                      </button>
+                      <span v-else-if="plan.status === 'COMPLETED'" class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50">
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 mr-1"></i> 已結清
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
 
           <!-- 子頁 C: 股票證券投資 -->
           <div v-show="assetSubTab === 'stocks'" class="space-y-6">
@@ -4286,9 +4533,276 @@
       </div>
     </div>
 
+    <!-- Modal 9: 💳 信用卡分期付款新增 / 編輯 Modal -->
+    <div v-if="showInstallmentModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
+            <i data-lucide="calendar-clock" class="w-5 h-5 mr-1.5 text-indigo-600"></i>
+            {{ currentInstallment.id ? '編輯信用卡分期計畫' : '新增信用卡分期計畫' }}
+          </h3>
+          <button @click="showInstallmentModal = false" class="text-slate-400 hover:text-slate-600 p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3.5 text-xs sm:text-sm">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">分期計畫名稱 *</label>
+            <input v-model="currentInstallment.name" placeholder="例如：iPhone 16 Pro 24期、Dyson 吸塵器、汽車保費"
+              class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-900">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">總分期金額 (NT$) *</label>
+              <input type="number" min="1" v-model.number="currentInstallment.total_amount" placeholder="例如：36000"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-900">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">總分期期數 (月) *</label>
+              <input type="number" min="1" max="120" v-model.number="currentInstallment.total_periods" placeholder="例如：3, 6, 12, 24"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-900">
+            </div>
+          </div>
+
+          <!-- 常見期數快捷按鈕 -->
+          <div class="flex items-center space-x-1.5 pt-0.5">
+            <span class="text-[11px] text-slate-400 font-medium">常見期數：</span>
+            <button type="button" v-for="p in [3, 6, 12, 24, 30]" :key="p"
+              @click="currentInstallment.total_periods = p"
+              :class="currentInstallment.total_periods === p ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium'"
+              class="px-2 py-0.5 text-xs rounded-md transition cursor-pointer">
+              {{ p }} 期
+            </button>
+          </div>
+
+          <!-- 即時攤提試算提示框 -->
+          <div v-if="currentInstallment.total_amount > 0 && currentInstallment.total_periods > 0"
+            class="p-3 bg-indigo-50/70 rounded-xl border border-indigo-100 space-y-1">
+            <div class="text-[11px] font-bold text-indigo-900 flex items-center">
+              <i data-lucide="calculator" class="w-3.5 h-3.5 mr-1 text-indigo-600"></i>
+              每期分攤本金試算
+            </div>
+            <div class="text-xs text-slate-700 font-medium leading-relaxed">
+              <span>首期應繳：<strong class="text-indigo-700 font-mono">NT$ {{ formatMoney(computedInstallmentPreview.first) }}</strong></span>
+              <span v-if="currentInstallment.total_periods > 1" class="ml-2">
+                之後 {{ currentInstallment.total_periods - 1 }} 期：每期 <strong class="text-slate-800 font-mono">NT$ {{ formatMoney(computedInstallmentPreview.monthly) }}</strong>
+              </span>
+            </div>
+            <div v-if="computedInstallmentPreview.first !== computedInstallmentPreview.monthly" class="text-[10px] text-slate-500">
+              💡 台灣銀行分期慣例：除不盡零頭差額已由首期自動吸收。
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">起始 / 首期扣款日 *</label>
+              <input type="date" v-model="currentInstallment.start_date"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 font-medium">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">每月帳單扣款日 (1~31) *</label>
+              <input type="number" min="1" max="31" v-model.number="currentInstallment.billing_day" placeholder="例如：5 或 15"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono text-slate-900 font-medium">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">扣款信用卡 / 帳戶</label>
+              <select v-model="currentInstallment.account_id" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 font-medium">
+                <option :value="null">-- 未指定帳戶 --</option>
+                <option v-for="acc in accounts" :key="acc.id" :value="acc.id">
+                  {{ acc.name }}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">支出分類</label>
+              <select v-model="currentInstallment.category" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 font-medium">
+                <option value="購物">購物</option>
+                <option value="3C家電">3C家電</option>
+                <option value="保險">保險保費</option>
+                <option value="交通">交通 / 汽機車</option>
+                <option value="生活居家">生活居家</option>
+                <option value="醫療">醫療保健</option>
+                <option value="娛樂">休閒娛樂</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 若為編輯模式，允許微調目前已還期數與狀態 -->
+          <div v-if="currentInstallment.id" class="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">目前已還期數</label>
+              <input type="number" min="0" :max="currentInstallment.total_periods" v-model.number="currentInstallment.current_period"
+                class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-mono text-slate-900 font-bold">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">計畫狀態</label>
+              <select v-model="currentInstallment.status" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-900 font-medium">
+                <option value="ACTIVE">進行中 (ACTIVE)</option>
+                <option value="COMPLETED">已結清 (COMPLETED)</option>
+                <option value="CANCELLED">已終止 (CANCELLED)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 新增時：是否立即扣繳首期 -->
+          <div v-if="!currentInstallment.id" class="p-3 bg-indigo-50/70 rounded-xl border border-indigo-100 flex items-start space-x-2.5">
+            <input type="checkbox" id="instRecordFirst" v-model="currentInstallment.record_first_period" class="mt-0.5 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+            <label for="instRecordFirst" class="text-xs text-slate-700 cursor-pointer select-none">
+              <span class="font-bold text-indigo-900">立即將首期入帳（自動建立一筆支出並扣抵帳戶餘額）</span>
+              <span class="text-slate-500 text-[11px] block mt-0.5">
+                若本筆刷卡消費今日已入帳，勾選後系統會自動為第 1 期產生支出流水帳，並將進度更新為 1/{{ currentInstallment.total_periods || 3 }} 期。
+              </span>
+            </label>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">備註說明 (選填)</label>
+            <input v-model="currentInstallment.notes" placeholder="例如：PChome 刷卡零利率、第 1 期附贈刷卡金"
+              class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900">
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-2 border-t">
+          <button @click="showInstallmentModal = false" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-lg transition font-semibold cursor-pointer">取消</button>
+          <button @click="saveInstallmentPlan" :disabled="savingInstallment" class="px-4 py-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition font-bold disabled:opacity-50 cursor-pointer">
+            {{ savingInstallment ? '儲存中...' : '確認儲存' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 10: 📅 分期付款攤提日程與明細 Modal -->
+    <div v-if="showInstallmentDetailModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-4 pt-safe pb-safe overflow-y-auto">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[92vh] my-auto overflow-hidden border border-slate-200">
+        <!-- 頂部標題與摘要 -->
+        <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/80 flex items-start justify-between">
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+                <i data-lucide="list-ordered" class="w-4 h-4"></i>
+              </span>
+              <h3 class="text-base sm:text-lg font-extrabold text-slate-900">
+                {{ selectedPlanDetail ? selectedPlanDetail.name : '分期攤提日程表' }}
+              </h3>
+              <span v-if="selectedPlanDetail" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
+                :class="selectedPlanDetail.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'">
+                {{ selectedPlanDetail.status === 'COMPLETED' ? '已全額結清' : '進行中' }}
+              </span>
+            </div>
+            <p v-if="selectedPlanDetail" class="text-xs text-slate-500">
+              總金額 NT$ {{ formatMoney(selectedPlanDetail.total_amount) }} · 共 {{ selectedPlanDetail.total_periods }} 期 · 
+              已繳 {{ selectedPlanDetail.current_period }} 期 · 剩餘 NT$ {{ formatMoney(selectedPlanDetail.remaining_amount) }}
+            </p>
+          </div>
+          <button @click="showInstallmentDetailModal = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition cursor-pointer">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- 攤提日程清單內容 -->
+        <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+          <div v-if="loadingPlanDetail" class="py-12 text-center text-slate-400 text-xs">
+            <i data-lucide="loader-2" class="w-6 h-6 mx-auto mb-2 animate-spin text-indigo-600"></i>
+            載入攤提明細中...
+          </div>
+
+          <div v-else-if="selectedPlanDetail && selectedPlanDetail.periods && selectedPlanDetail.periods.length > 0">
+            <!-- 進度概覽條 -->
+            <div class="mb-4 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-1.5">
+              <div class="flex justify-between text-xs font-semibold text-slate-700">
+                <span>還款進度</span>
+                <span class="text-indigo-600 font-mono">{{ selectedPlanDetail.progress_percentage }}% ({{ selectedPlanDetail.current_period }}/{{ selectedPlanDetail.total_periods }} 期)</span>
+              </div>
+              <div class="w-full bg-slate-200 rounded-full h-2">
+                <div class="bg-indigo-600 h-2 rounded-full transition-all" :style="{ width: Math.min(selectedPlanDetail.progress_percentage, 100) + '%' }"></div>
+              </div>
+            </div>
+
+            <!-- 期數明細表格 -->
+            <div class="border border-slate-200 rounded-xl overflow-hidden">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase font-semibold">
+                  <tr>
+                    <th class="py-2.5 px-3">期數</th>
+                    <th class="py-2.5 px-3">預計扣款日</th>
+                    <th class="py-2.5 px-3">應繳金額</th>
+                    <th class="py-2.5 px-3">狀態</th>
+                    <th class="py-2.5 px-3 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="p in selectedPlanDetail.periods" :key="p.period_number"
+                    :class="p.is_paid ? 'bg-slate-50/50 text-slate-500' : (p.period_number === selectedPlanDetail.current_period + 1 ? 'bg-amber-50/40 text-slate-800 font-medium' : 'text-slate-700')">
+                    <td class="py-2.5 px-3 font-mono font-bold">
+                      第 {{ p.period_number }} 期
+                      <span v-if="p.period_number === 1 && selectedPlanDetail.first_amount !== selectedPlanDetail.monthly_amount" class="text-[10px] text-indigo-500 font-normal block">
+                        含吸收零頭
+                      </span>
+                    </td>
+                    <td class="py-2.5 px-3 font-mono">
+                      {{ p.due_date }}
+                    </td>
+                    <td class="py-2.5 px-3 font-mono font-bold text-slate-900">
+                      NT$ {{ formatMoney(p.amount) }}
+                    </td>
+                    <td class="py-2.5 px-3">
+                      <span v-if="p.is_paid" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        <i data-lucide="check" class="w-3 h-3 mr-0.5"></i> 已入帳
+                      </span>
+                      <span v-else-if="p.period_number === selectedPlanDetail.current_period + 1" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                        <i data-lucide="clock" class="w-3 h-3 mr-0.5"></i> 下一期應繳
+                      </span>
+                      <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                        待繳
+                      </span>
+                    </td>
+                    <td class="py-2.5 px-3 text-right">
+                      <button v-if="!p.is_paid && p.period_number === selectedPlanDetail.current_period + 1 && selectedPlanDetail.status === 'ACTIVE'"
+                        @click="chargeNextInstallmentPeriod(selectedPlanDetail, p.period_number)"
+                        :disabled="chargingInstallment"
+                        class="inline-flex items-center px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold transition shadow-xs cursor-pointer disabled:opacity-50">
+                        <i data-lucide="check" class="w-3 h-3 mr-0.5"></i> 立即扣繳
+                      </button>
+                      <span v-else-if="p.is_paid && p.transaction_date" class="text-[10px] text-slate-400 font-mono">
+                        {{ p.transaction_date }} 已扣
+                      </span>
+                      <span v-else class="text-[10px] text-slate-300">-</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部結清與關閉按鈕 -->
+        <div class="p-3 sm:p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div>
+            <button v-if="selectedPlanDetail && selectedPlanDetail.status === 'ACTIVE' && selectedPlanDetail.remaining_amount > 0"
+              @click="settleInstallmentInFull(selectedPlanDetail)"
+              :disabled="chargingInstallment"
+              class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition cursor-pointer disabled:opacity-50">
+              <i data-lucide="zap" class="w-3.5 h-3.5 mr-1 text-amber-600"></i>
+              提前全額結清 (剩餘 NT$ {{ formatMoney(selectedPlanDetail.remaining_amount) }})
+            </button>
+          </div>
+          <button @click="showInstallmentDetailModal = false"
+            class="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-lg transition cursor-pointer">
+            關閉
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.11.1"></script>
+  <script type="module" src="/static/js/app.js?v=2.12.0"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

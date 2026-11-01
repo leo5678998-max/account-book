@@ -159,6 +159,7 @@ createApp({
         case 'assets':
           if (assetSubTab.value === 'bills') return '信用卡帳單總覽';
           if (assetSubTab.value === 'stocks') return '美股證券投資';
+          if (assetSubTab.value === 'installments') return '信用卡分期付款管理';
           return '各帳戶存款資產';
         case 'trends': return '收支與存款趨勢報表';
         default: return '總覽儀表板';
@@ -329,6 +330,36 @@ createApp({
       is_active: true,
       notes: ''
     });
+
+    // 信用卡分期付款狀態
+    const installments = ref([]);
+    const installmentSummary = ref(null);
+    const installmentFilterStatus = ref('ACTIVE'); // 'ACTIVE' | 'ALL' | 'COMPLETED'
+    const showInstallmentModal = ref(false);
+    const showInstallmentDetailModal = ref(false);
+    const savingInstallment = ref(false);
+    const chargingInstallment = ref(false);
+    const currentInstallment = ref({
+      id: null,
+      name: '',
+      total_amount: null,
+      total_periods: 3,
+      current_period: 0,
+      monthly_amount: null,
+      first_amount: null,
+      interest_rate: 0,
+      monthly_fee: 0,
+      category: '購物',
+      account_id: null,
+      start_date: todayStr,
+      billing_day: new Date().getDate(),
+      status: 'ACTIVE',
+      notes: '',
+      auto_record: false,
+      record_first_period: false
+    });
+    const selectedPlanDetail = ref(null);
+    const loadingPlanDetail = ref(false);
 
     const uploadPwd = ref('');
     const documentInput = ref(null);
@@ -931,7 +962,7 @@ createApp({
         currentTab.value = 'transactions';
         txSubTab.value = subTab || (tab === 'recurring' ? 'recurring' : 'list');
         window.location.hash = txSubTab.value === 'recurring' ? 'recurring' : 'transactions';
-      } else if (tab === 'assets' || tab === 'accounts' || tab === 'bills' || tab === 'stocks') {
+      } else if (tab === 'assets' || tab === 'accounts' || tab === 'bills' || tab === 'stocks' || tab === 'installments') {
         currentTab.value = 'assets';
         assetSubTab.value = subTab || (tab === 'assets' ? assetSubTab.value : tab);
         window.location.hash = assetSubTab.value;
@@ -2242,6 +2273,259 @@ createApp({
       }
     };
 
+    // 信用卡分期付款管理
+    const computedInstallmentPreview = computed(() => {
+      const total = Number(currentInstallment.value.total_amount) || 0;
+      const periods = Number(currentInstallment.value.total_periods) || 1;
+      if (total <= 0 || periods <= 0) return { monthly: 0, first: 0 };
+      const monthly = Math.floor(total / periods);
+      const remainder = total % periods;
+      const first = monthly + remainder;
+      return { monthly, first };
+    });
+
+    const fetchInstallments = async (status = installmentFilterStatus.value) => {
+      try {
+        const queryStatus = status === 'ALL' ? '' : status;
+        const data = await ApiService.getInstallments(queryStatus);
+        installments.value = Array.isArray(data) ? data : [];
+      } catch (err) {
+        console.error('載入分期付款清單失敗:', err);
+      } finally {
+        refreshIcons();
+      }
+    };
+
+    const fetchInstallmentSummary = async () => {
+      try {
+        const data = await ApiService.getInstallmentSummary(12);
+        installmentSummary.value = data;
+      } catch (err) {
+        console.error('載入分期彙總資訊失敗:', err);
+      }
+    };
+
+    const filterInstallments = async (status) => {
+      installmentFilterStatus.value = status;
+      await fetchInstallments(status);
+    };
+
+    const openAddInstallmentModal = () => {
+      currentInstallment.value = {
+        id: null,
+        name: '',
+        total_amount: null,
+        total_periods: 3,
+        current_period: 0,
+        monthly_amount: null,
+        first_amount: null,
+        interest_rate: 0,
+        monthly_fee: 0,
+        category: '購物',
+        account_id: accounts.value.length > 0 ? accounts.value[0].id : null,
+        start_date: todayStr,
+        billing_day: new Date().getDate(),
+        status: 'ACTIVE',
+        notes: '',
+        auto_record: false,
+        record_first_period: false
+      };
+      showInstallmentModal.value = true;
+      refreshIcons();
+    };
+
+    const openEditInstallmentModal = (plan) => {
+      currentInstallment.value = {
+        id: plan.id,
+        name: plan.name,
+        total_amount: plan.total_amount,
+        total_periods: plan.total_periods,
+        current_period: plan.current_period,
+        monthly_amount: plan.monthly_amount,
+        first_amount: plan.first_amount,
+        interest_rate: plan.interest_rate || 0,
+        monthly_fee: plan.monthly_fee || 0,
+        category: plan.category || '購物',
+        account_id: plan.account_id,
+        start_date: plan.start_date || todayStr,
+        billing_day: plan.billing_day || 1,
+        status: plan.status || 'ACTIVE',
+        notes: plan.notes || '',
+        auto_record: !!plan.auto_record,
+        record_first_period: false
+      };
+      showInstallmentModal.value = true;
+      refreshIcons();
+    };
+
+    const saveInstallmentPlan = async () => {
+      if (!currentInstallment.value.name || !currentInstallment.value.name.trim()) {
+        alert('請填寫分期計畫名稱');
+        return;
+      }
+      const totalAmt = Number(currentInstallment.value.total_amount);
+      if (isNaN(totalAmt) || totalAmt <= 0) {
+        alert('請填寫正確的總分期金額（需大於 0）');
+        return;
+      }
+      const periods = Number(currentInstallment.value.total_periods);
+      if (isNaN(periods) || periods < 1) {
+        alert('總分期期數至少須為 1 期');
+        return;
+      }
+
+      savingInstallment.value = true;
+      try {
+        const payload = {
+          name: currentInstallment.value.name.trim(),
+          total_amount: totalAmt,
+          total_periods: periods,
+          current_period: Number(currentInstallment.value.current_period) || 0,
+          interest_rate: Number(currentInstallment.value.interest_rate) || 0,
+          monthly_fee: Number(currentInstallment.value.monthly_fee) || 0,
+          category: currentInstallment.value.category || '購物',
+          account_id: currentInstallment.value.account_id ? Number(currentInstallment.value.account_id) : null,
+          start_date: currentInstallment.value.start_date || todayStr,
+          billing_day: Number(currentInstallment.value.billing_day) || 1,
+          status: currentInstallment.value.status || 'ACTIVE',
+          notes: currentInstallment.value.notes || '',
+          auto_record: !!currentInstallment.value.auto_record
+        };
+
+        if (!currentInstallment.value.id) {
+          payload.record_first_period = !!currentInstallment.value.record_first_period;
+        }
+
+        const res = await ApiService.saveInstallment({
+          id: currentInstallment.value.id,
+          ...payload
+        });
+
+        if (res && res.id) {
+          showInstallmentModal.value = false;
+          await Promise.all([
+            fetchInstallments(),
+            fetchInstallmentSummary(),
+            fetchTransactions(),
+            fetchAccounts(),
+            fetchAnalytics()
+          ]);
+        } else {
+          alert((res && (res.detail || res.message)) || '儲存失敗');
+        }
+      } catch (err) {
+        alert('儲存分期計畫出錯: ' + err.message);
+      } finally {
+        savingInstallment.value = false;
+        refreshIcons();
+      }
+    };
+
+    const deleteInstallmentPlan = async (plan) => {
+      const confirmMsg = `確定刪除分期計畫【${plan.name}】嗎？\n\n點擊「確定」僅刪除分期計畫（保留已產生的流水帳紀錄）。`;
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        const res = await ApiService.deleteInstallment(plan.id, false);
+        if (res && res.status === 'success') {
+          if (showInstallmentDetailModal.value && selectedPlanDetail.value?.id === plan.id) {
+            showInstallmentDetailModal.value = false;
+          }
+          await Promise.all([
+            fetchInstallments(),
+            fetchInstallmentSummary(),
+            fetchTransactions(),
+            fetchAccounts()
+          ]);
+        } else {
+          alert((res && res.detail) || '刪除失敗');
+        }
+      } catch (err) {
+        alert('刪除分期計畫出錯: ' + err.message);
+      } finally {
+        refreshIcons();
+      }
+    };
+
+    const openInstallmentDetailModal = async (plan) => {
+      showInstallmentDetailModal.value = true;
+      loadingPlanDetail.value = true;
+      selectedPlanDetail.value = null;
+      try {
+        const detail = await ApiService.getInstallmentDetail(plan.id);
+        selectedPlanDetail.value = detail;
+      } catch (err) {
+        alert('載入分期攤提日程失敗: ' + err.message);
+      } finally {
+        loadingPlanDetail.value = false;
+        refreshIcons();
+      }
+    };
+
+    const chargeNextInstallmentPeriod = async (plan, period = null) => {
+      const targetP = period || (plan.current_period + 1);
+      const isFirst = targetP === 1;
+      const amt = isFirst ? plan.first_amount : plan.monthly_amount;
+      const confirmMsg = `確定要為【${plan.name}】扣繳第 ${targetP} 期款項 (NT$ ${formatMoney(amt)}) 嗎？\n\n系統將自動建立一筆支出交易並扣減對應帳戶餘額。`;
+      if (!confirm(confirmMsg)) return;
+
+      chargingInstallment.value = true;
+      try {
+        const res = await ApiService.chargeNextInstallmentPeriod(plan.id, period);
+        if (res && res.status === 'success') {
+          alert(res.message);
+          await Promise.all([
+            fetchInstallments(),
+            fetchInstallmentSummary(),
+            fetchTransactions(),
+            fetchAccounts(),
+            fetchAnalytics()
+          ]);
+          if (showInstallmentDetailModal.value && selectedPlanDetail.value?.id === plan.id) {
+            await openInstallmentDetailModal(plan);
+          }
+        } else {
+          alert((res && (res.detail || res.message)) || '扣繳失敗');
+        }
+      } catch (err) {
+        alert('扣繳出錯: ' + err.message);
+      } finally {
+        chargingInstallment.value = false;
+        refreshIcons();
+      }
+    };
+
+    const settleInstallmentInFull = async (plan) => {
+      const remainingAmt = plan.remaining_amount || 0;
+      const confirmMsg = `確定要為【${plan.name}】提前全額結清剩餘分期嗎？\n\n剩餘待結清金額：NT$ ${formatMoney(remainingAmt)}\n系統將產生一筆全額結清支出交易，並將本分期計畫標記為已結清。`;
+      if (!confirm(confirmMsg)) return;
+
+      chargingInstallment.value = true;
+      try {
+        const res = await ApiService.settleInstallmentInFull(plan.id);
+        if (res && res.status === 'success') {
+          alert(res.message);
+          await Promise.all([
+            fetchInstallments(),
+            fetchInstallmentSummary(),
+            fetchTransactions(),
+            fetchAccounts(),
+            fetchAnalytics()
+          ]);
+          if (showInstallmentDetailModal.value && selectedPlanDetail.value?.id === plan.id) {
+            await openInstallmentDetailModal(plan);
+          }
+        } else {
+          alert((res && (res.detail || res.message)) || '結清失敗');
+        }
+      } catch (err) {
+        alert('提前結清出錯: ' + err.message);
+      } finally {
+        chargingInstallment.value = false;
+        refreshIcons();
+      }
+    };
+
     // 系統設定
     const openSettingsModal = () => {
       imapTestResult.value = null;
@@ -2449,6 +2733,8 @@ createApp({
         fetchTransactions(),
         fetchStocks(),
         fetchRecurringExpenses(),
+        fetchInstallments(),
+        fetchInstallmentSummary(),
         fetchSettings(),
         fetchCategories(),
         fetchCategoryColors(),
@@ -2525,7 +2811,7 @@ createApp({
     onMounted(async () => {
       loadDashboardLayout();
       const hash = window.location.hash.replace('#', '');
-      const validTabs = ['dashboard', 'transactions', 'recurring', 'bills', 'stocks', 'accounts', 'assets', 'trends'];
+      const validTabs = ['dashboard', 'transactions', 'recurring', 'bills', 'stocks', 'accounts', 'assets', 'installments', 'trends'];
       if (validTabs.includes(hash)) {
         switchTab(hash);
       }
@@ -2624,6 +2910,11 @@ createApp({
       customCategoryColors, getCategoryColorDisplay, setCategoryColor, resetCategoryColors,
       stockPortfolio, showStockModal, refreshingStocks, savingStock, currentStock,
       recurringExpenses, showRecurringModal, savingRecurring, currentRecurring,
+      installments, installmentSummary, installmentFilterStatus, showInstallmentModal, showInstallmentDetailModal,
+      savingInstallment, chargingInstallment, currentInstallment, selectedPlanDetail, loadingPlanDetail,
+      computedInstallmentPreview, fetchInstallments, fetchInstallmentSummary, filterInstallments,
+      openAddInstallmentModal, openEditInstallmentModal, saveInstallmentPlan, deleteInstallmentPlan,
+      openInstallmentDetailModal, chargeNextInstallmentPeriod, settleInstallmentInFull,
       canInstallPwa, isPwaInstalled, installPwa,
       webhookToken, webhookUrl, webhookCopySuccess, webhookTutorialOpen, testingWebhook, webhookTestResult,
       fetchWebhookToken, regenerateWebhook, copyWebhookUrl, runWebhookTest,
