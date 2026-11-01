@@ -135,6 +135,77 @@ def handle_apple_pay_webhook(
     )
 
 
+@router.get("/apple-pay", response_model=ApplePayWebhookResponse)
+def handle_apple_pay_webhook_get(
+    request: Request,
+    token: Optional[str] = Query(None, description="使用者專屬 Webhook 安全金鑰"),
+    text: Optional[str] = Query(None, description="推播通知內容"),
+    title: Optional[str] = Query(None, description="推播通知標題"),
+    app: Optional[str] = Query(None, description="推播來源 App"),
+    amount: Optional[float] = Query(None, description="直接指定金額"),
+    merchant: Optional[str] = Query(None, description="直接指定店家"),
+    card_name: Optional[str] = Query(None, description="指定卡片或帳戶"),
+    db: Session = Depends(get_db)
+):
+    """
+    支援 GET 模式 Webhook（避免 iOS 捷徑預設未切換 POST 時出現 405 Method Not Allowed）
+    """
+    resolved_token = _extract_webhook_token(request=request, query_token=token)
+    if not resolved_token:
+        webhook_logger.warning("[認證失敗] GET 請求未提供 Webhook 金鑰")
+        raise HTTPException(status_code=401, detail="未提供 Webhook 金鑰")
+
+    user = find_user_by_webhook_token(db, resolved_token)
+    if not user:
+        webhook_logger.warning(f"[認證失敗] GET Webhook 金鑰無效: {resolved_token[:6]}***")
+        raise HTTPException(status_code=401, detail="Webhook 金鑰無效")
+
+    payload_dict = {
+        "text": text,
+        "title": title,
+        "app": app,
+        "amount": amount,
+        "merchant": merchant,
+        "card_name": card_name
+    }
+
+    if not text and not title and not amount and not merchant:
+        webhook_logger.warning(
+            f"[記帳提醒] 收到來自 {app or 'iOS捷徑'} 的 GET 請求，但缺少通知內文或交易資料。請在捷徑中將「取得 URL 內容」設為 POST 並透過 JSON 傳送 title 與 text。"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="已成功連線至伺服器，但缺少通知內容或金額。請將捷徑動作「取得 URL 內容」展開設為 POST 並傳入 JSON 欄位（app, title, text）。"
+        )
+
+    try:
+        tx = process_apple_pay_transaction(db, user_id=user.id, payload=payload_dict)
+    except HTTPException as he:
+        webhook_logger.warning(
+            f"[記帳失敗] 原因: {he.detail} | App: {app} | 標題: {title} | 內文: {text}"
+        )
+        raise he
+    except Exception as e:
+        webhook_logger.error(f"[系統異常] 錯誤: {e} | Payload: {payload_dict}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"記帳處理失敗: {str(e)}")
+
+    account = db.query(Account).filter(Account.id == tx.account_id).first()
+    acc_name = account.name if account else "未知帳戶"
+    webhook_logger.info(
+        f"[記帳成功] NT$ {tx.amount} ({tx.category}) | 商家: {tx.description} | 帳戶: {acc_name} | App: {app} (via GET)"
+    )
+
+    return ApplePayWebhookResponse(
+        status="success",
+        message="交易已成功自動記帳",
+        transaction_id=tx.id,
+        amount=tx.amount,
+        category=tx.category,
+        account_name=account.name if account else "未知帳戶",
+        account_balance=account.balance if account else 0.0
+    )
+
+
 @router.post("/apple-pay/test", response_model=ApplePayWebhookResponse)
 def test_apple_pay_webhook(
     payload: ApplePayWebhookPayload,

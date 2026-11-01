@@ -34,6 +34,7 @@ MERCHANT_CATEGORY_RULES: List[Tuple[str, List[str]]] = [
             "餐廳", "食堂", "咖啡", "茶", "麵", "飯", "便當", "飲料",
             "手搖", "點心", "壽司", "火鍋", "牛排", "早午餐", "早餐", "宵夜",
             "清心", "麻古", "迷客夏", "五十嵐", "50嵐", "可不可", "得正",
+            "dejeng", "oolong", "tea", "coffee", "cafe",
             "爭鮮", "藏壽司", "壽司郎", "瓦城", "王品", "石二鍋", "陶板屋",
             "subway", "漢堡王", "burger king", "麵包", "烘焙", "拉麵", "烘培",
             "甜點", "蛋糕", "披薩", "pizza", "炸雞", "定食", "居酒屋", "小吃"
@@ -505,12 +506,17 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
         .first()
     )
     if recent_duplicate:
-        # 若新通知帶有更具體的商家名稱 (非 LINE Pay / 非預設)，補強原紀錄描述
-        if merchant and merchant != "LINE Pay" and recent_duplicate.description == "LINE Pay":
-            recent_duplicate.description = merchant
-            recent_duplicate.category = category
-            db.commit()
-            db.refresh(recent_duplicate)
+        # 若新通知帶有更具體的商家名稱（非 LINE Pay 且比舊名稱更清楚，例如中文「得正#土城裕民計劃」優於銀行英文「DEJENGOOLONGTE」），更新原紀錄描述與分類
+        if merchant and merchant != "LINE Pay":
+            is_better_description = (
+                recent_duplicate.description == "LINE Pay"
+                or (not re.search(r'[\u4e00-\u9fff]', recent_duplicate.description) and re.search(r'[\u4e00-\u9fff]', merchant))
+            )
+            if is_better_description:
+                recent_duplicate.description = merchant
+                recent_duplicate.category = category
+                db.commit()
+                db.refresh(recent_duplicate)
         return recent_duplicate
 
     # 6. 寫入交易紀錄
