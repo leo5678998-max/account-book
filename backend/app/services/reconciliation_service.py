@@ -32,21 +32,38 @@ def find_matching_credit_account(db: Session, bill: Bill, user_id: int) -> Optio
             return acc
 
     user_accounts = db.query(Account).filter(Account.user_id == user_id).all()
-    credit_accounts = [a for a in user_accounts if (a.account_type or "").upper() == "CREDIT"]
+    if not user_accounts:
+        return None
 
-    # 1. 名稱精確或模糊比對 (例如 "星展", "國泰", "玉山", "台新", "中信", "富邦")
-    bank_name = bill.bank_name or ""
+    credit_accounts = [a for a in user_accounts if (a.account_type or "").upper() == "CREDIT"]
+    bank_name = (bill.bank_name or "").lower()
+    common_keywords = ["星展", "國泰", "cube", "玉山", "台新", "richart", "富邦", "聯邦", "永豐", "中信", "中國信託", "匯豐", "花旗"]
+
+    # 1. 優先在 CREDIT 類型帳戶中比對關鍵字或名稱
     for ca in credit_accounts:
-        c_name = ca.name or ""
-        # 關鍵字配對：星展, 國泰, CUBE, 玉山, 台新, Richart, 聯邦, 永豐 等
-        common_keywords = ["星展", "國泰", "cube", "玉山", "台新", "richart", "富邦", "聯邦", "永豐", "中信", "中國信託", "匯豐", "花旗"]
+        c_name = (ca.name or "").lower()
         for kw in common_keywords:
-            if kw in bank_name.lower() and kw in c_name.lower():
+            if kw in bank_name and kw in c_name:
                 return ca
         if bank_name in c_name or c_name in bank_name:
             return ca
 
-    # 2. 若只有一個信用卡帳戶，預設自動採用
+    # 2. 若 CREDIT 帳戶中找不到，比對所有帳戶 (因為使用者常將常用銀行設為一般活儲/日常帳戶，如「星展」)
+    for a in user_accounts:
+        a_name = (a.name or "").lower()
+        for kw in common_keywords:
+            if kw in bank_name and kw in a_name:
+                return a
+        if (bank_name and bank_name in a_name) or (a_name and a_name in bank_name):
+            return a
+
+    # 3. 若帳單有綁定 debit_account_id
+    if bill.debit_account_id:
+        acc = db.query(Account).filter(Account.id == bill.debit_account_id, Account.user_id == user_id).first()
+        if acc:
+            return acc
+
+    # 4. 若只有一個信用卡帳戶，預設自動採用
     if len(credit_accounts) == 1:
         return credit_accounts[0]
 
@@ -54,23 +71,47 @@ def find_matching_credit_account(db: Session, bill: Bill, user_id: int) -> Optio
 
 
 def calculate_default_cycle_range(bill: Bill) -> tuple[date, date]:
-    """計算帳單預設之對帳週期起訖日"""
-    if bill.statement_start_date and bill.statement_date:
-        return bill.statement_start_date, bill.statement_date
-
+    """計算帳單預設之對帳週期起訖日，確保涵蓋帳單週期、月份與繳款截止日"""
+    candidates_end = []
     if bill.statement_date:
-        end_d = bill.statement_date
-        start_d = end_d - timedelta(days=30)
-        return start_d, end_d
-
-    # 若未提供結帳日，根據 due_date 往前推算約 15~20 天為結帳日
+        candidates_end.append(bill.statement_date)
     if bill.due_date:
-        end_d = bill.due_date - timedelta(days=16)
-        start_d = end_d - timedelta(days=30)
-        return start_d, end_d
+        candidates_end.append(bill.due_date)
 
-    today = date.today()
-    return today - timedelta(days=30), today
+    month_start = None
+    if bill.statement_month and len(bill.statement_month) >= 7:
+        try:
+            parts = bill.statement_month.split("-")
+            y, m = int(parts[0]), int(parts[1])
+            month_start = date(y, m, 1)
+            if m == 12:
+                candidates_end.append(date(y + 1, 1, 1) - timedelta(days=1))
+            else:
+                candidates_end.append(date(y, m + 1, 1) - timedelta(days=1))
+        except Exception:
+            pass
+
+    if candidates_end:
+        end_d = max(candidates_end)
+    else:
+        end_d = date.today()
+
+    if bill.statement_start_date:
+        start_d = bill.statement_start_date
+    elif bill.statement_date:
+        start_d = bill.statement_date - timedelta(days=30)
+    elif month_start:
+        start_d = month_start
+    elif bill.due_date:
+        start_d = bill.due_date - timedelta(days=45)
+    else:
+        start_d = end_d - timedelta(days=30)
+
+    # 確保月份起始日也能涵蓋進來
+    if month_start and month_start < start_d:
+        start_d = month_start
+
+    return start_d, end_d
 
 
 def get_bill_reconciliation_overview(
@@ -119,15 +160,15 @@ def get_bill_reconciliation_overview(
     account_filter = None
     if target_credit_acc and not include_all_accounts:
         account_filter = (Transaction.account_id == target_credit_acc.id)
-    else:
-        # 若無特定帳戶或選擇全部，抓取所有 CREDIT 類型帳戶或全部
+    elif not include_all_accounts:
+        # 若無特定帳戶，抓取所有 CREDIT 類型帳戶
         credit_acc_ids = [
             a.id for a in db.query(Account).filter(
                 Account.user_id == user_id,
                 Account.account_type == "CREDIT"
             ).all()
         ]
-        if credit_acc_ids and not include_all_accounts:
+        if credit_acc_ids:
             account_filter = Transaction.account_id.in_(credit_acc_ids)
 
     date_filter = and_(Transaction.date >= start_dt, Transaction.date <= end_dt)
@@ -137,6 +178,17 @@ def get_bill_reconciliation_overview(
         filters.append(date_filter)
 
     txs = query.filter(or_(*filters)).order_by(Transaction.date.desc(), Transaction.id.desc()).all()
+
+    # 自動寬容容錯：若依特定卡片過濾查無明細，但同週期內其他帳戶有支出明細，自動擴大納入候選
+    if len(txs) == 0 and not include_all_accounts:
+        fallback_txs = query.filter(
+            or_(
+                Transaction.bill_id == bill.id,
+                and_(Transaction.date >= start_dt, Transaction.date <= end_dt)
+            )
+        ).order_by(Transaction.date.desc(), Transaction.id.desc()).all()
+        if fallback_txs:
+            txs = fallback_txs
 
     # 建立帳戶名稱快取
     acc_map = {a.id: a.name for a in db.query(Account).filter(Account.user_id == user_id).all()}
@@ -186,6 +238,7 @@ def get_bill_reconciliation_overview(
         "statement_month": bill.statement_month,
         "statement_date": bill.statement_date,
         "statement_start_date": cycle_start,
+        "statement_end_date": cycle_end,
         "due_date": bill.due_date,
         "bill_total_amount": float(bill.total_amount or 0.0),
         "bill_status": bill.status,

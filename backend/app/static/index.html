@@ -3387,10 +3387,28 @@
               <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto text-indigo-500 mb-2"></i>
               正在讀取週期消費明細...
             </div>
-            <div v-else-if="filteredReconcileTxList.length === 0" class="py-10 text-center text-slate-400 text-xs space-y-2">
-              <i data-lucide="receipt" class="w-8 h-8 mx-auto text-slate-300"></i>
-              <p>此週期或篩選條件下查無消費明細</p>
-              <p class="text-[11px] text-slate-500">若有帳單上的扣款尚未入帳，請點擊上方「補登漏記明細」</p>
+            <div v-else-if="filteredReconcileTxList.length === 0" class="py-10 text-center text-slate-500 text-xs space-y-3 px-4">
+              <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <i data-lucide="receipt" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <p class="font-bold text-slate-700 text-sm">目前所選週期或帳戶下尚無明細</p>
+                <p class="text-xs text-slate-400 mt-1">可能原因：帳單結帳日過早切斷了後半月的消費，或消費記錄於其他帳戶</p>
+              </div>
+              <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
+                <button @click="expandReconcileToDueDate" class="px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-lg text-xs font-bold transition flex items-center space-x-1">
+                  <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                  <span>擴大週期至繳款截止日 (含所有帳戶)</span>
+                </button>
+                <button @click="expandReconcileRange(60)" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center space-x-1">
+                  <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                  <span>搜尋近 60 天全部消費</span>
+                </button>
+                <button @click="openQuickAddModal" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1 shadow-xs">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  <span>補登漏記明細</span>
+                </button>
+              </div>
             </div>
             <div v-else class="divide-y divide-slate-100 max-h-[380px] overflow-y-auto">
               <div v-for="t in filteredReconcileTxList" :key="t.id"
@@ -4270,7 +4288,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.11.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.11.1"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

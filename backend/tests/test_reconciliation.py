@@ -105,7 +105,7 @@ class TestReconciliationService(unittest.TestCase):
             tx_type=TX_TYPE_EXPENSE,
             category="娛樂",
             description="下期消費",
-            date=datetime(2026, 11, 1, 10, 0),
+            date=datetime(2026, 11, 20, 10, 0),
             is_reconciled=False
         )
         self.db.add_all([t1, t2, t_outside])

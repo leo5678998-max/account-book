@@ -1499,6 +1499,8 @@ createApp({
       reconcileTabFilter.value = 'ALL';
       reconcileAccountFilter.value = bill.credit_account_id ? String(bill.credit_account_id) : '';
       reconcileIncludeAll.value = false;
+      reconcileStartDate.value = '';
+      reconcileEndDate.value = '';
 
       settleForm.value = {
         debit_account_id: bill.debit_account_id || (accounts.value.find(a => a.account_type === 'SAVINGS')?.id) || (accounts.value[0]?.id || null),
@@ -1525,7 +1527,9 @@ createApp({
           if (data.statement_start_date) {
             reconcileStartDate.value = String(data.statement_start_date).substring(0, 10);
           }
-          if (data.statement_date) {
+          if (data.statement_end_date) {
+            reconcileEndDate.value = String(data.statement_end_date).substring(0, 10);
+          } else if (data.statement_date) {
             reconcileEndDate.value = String(data.statement_date).substring(0, 10);
           } else if (data.due_date) {
             reconcileEndDate.value = String(data.due_date).substring(0, 10);
@@ -1551,6 +1555,26 @@ createApp({
         reconcileLoading.value = false;
         refreshIcons();
       }
+    };
+
+    const expandReconcileRange = (days = 60) => {
+      const today = new Date();
+      const past = new Date(today);
+      past.setDate(today.getDate() - days);
+      reconcileStartDate.value = past.toISOString().substring(0, 10);
+      reconcileEndDate.value = today.toISOString().substring(0, 10);
+      reconcileIncludeAll.value = true;
+      reconcileAccountFilter.value = '';
+      reloadReconcileData();
+    };
+
+    const expandReconcileToDueDate = () => {
+      if (!reconcileData.value) return;
+      if (reconcileData.value.due_date) {
+        reconcileEndDate.value = String(reconcileData.value.due_date).substring(0, 10);
+      }
+      reconcileIncludeAll.value = true;
+      reloadReconcileData();
     };
 
     const toggleReconcileTx = (txId) => {
@@ -2594,7 +2618,7 @@ createApp({
       isSavingReconcile, isSettlingReconcile, showQuickAddModal, quickAddForm, showSettleConfirm, settleForm,
       filteredReconcileTxList, currentReconcileCheckedAmount, currentReconcileDiff, isCurrentReconcileBalanced,
       openReconcileModal, reloadReconcileData, toggleReconcileTx, toggleReconcileSelectAll, saveReconcileProgress,
-      openQuickAddModal, submitQuickAddTx, submitSettleAndPay,
+      openQuickAddModal, submitQuickAddTx, submitSettleAndPay, expandReconcileRange, expandReconcileToDueDate,
       quickCategories, newCategoryInput, showAddCategoryInline, isManagingCategories,
       addCustomCategory, removeCustomCategory, resetCategories,
       customCategoryColors, getCategoryColorDisplay, setCategoryColor, resetCategoryColors,

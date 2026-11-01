@@ -155,6 +155,7 @@ class ReconciliationOverview(BaseModel):
     statement_month: Optional[str] = None
     statement_date: Optional[date] = None
     statement_start_date: Optional[date] = None
+    statement_end_date: Optional[date] = None
     due_date: date
     bill_total_amount: float
     bill_status: str
