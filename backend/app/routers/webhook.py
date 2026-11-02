@@ -37,6 +37,16 @@ if not webhook_logger.handlers:
 router = APIRouter(prefix="/api/webhook", tags=["Webhook Automation"])
 
 
+def _sanitize_log_text(val: Optional[str]) -> str:
+    """隱私保護：非交易訊息或失敗日誌中，遮罩私人訊息內文"""
+    if not val:
+        return ""
+    val_str = str(val).strip()
+    if len(val_str) <= 4:
+        return "***"
+    return val_str[:2] + "***"
+
+
 def _extract_webhook_token(
     request: Request,
     query_token: Optional[str] = None,
@@ -109,8 +119,11 @@ def handle_apple_pay_webhook(
     try:
         tx = process_apple_pay_transaction(db, user_id=user.id, payload=payload_dict)
     except HTTPException as he:
+        # 隱私保護：非交易或金額為空等失敗時，遮罩私人對話內文
+        safe_title = _sanitize_log_text(payload_dict.get('title'))
+        safe_text = _sanitize_log_text(payload_dict.get('text'))
         webhook_logger.warning(
-            f"[記帳失敗] 原因: {he.detail} | App: {payload_dict.get('app')} | 標題: {payload_dict.get('title')} | 內文: {payload_dict.get('text')}"
+            f"[記帳失敗] 原因: {he.detail} | App: {payload_dict.get('app')} | 標題: {safe_title} | 內文: {safe_text}"
         )
         raise he
     except Exception as e:
@@ -181,8 +194,10 @@ def handle_apple_pay_webhook_get(
     try:
         tx = process_apple_pay_transaction(db, user_id=user.id, payload=payload_dict)
     except HTTPException as he:
+        safe_title = _sanitize_log_text(title)
+        safe_text = _sanitize_log_text(text)
         webhook_logger.warning(
-            f"[記帳失敗] 原因: {he.detail} | App: {app} | 標題: {title} | 內文: {text}"
+            f"[記帳失敗] 原因: {he.detail} | App: {app} | 標題: {safe_title} | 內文: {safe_text}"
         )
         raise he
     except Exception as e:
