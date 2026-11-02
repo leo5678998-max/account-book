@@ -1286,6 +1286,7 @@ createApp({
 
     // 記帳管理 (方案 C: 極簡記帳體驗 + 簡易算式計算機)
     const showTxAdvanced = ref(false);
+    const showTxCalcKeyboard = ref(false);
     const editingTxId = ref(null);
     const txAmountFormula = ref('');
 
@@ -1339,6 +1340,7 @@ createApp({
         affects_balance: false
       };
       showTxAdvanced.value = false;
+      showTxCalcKeyboard.value = false;
       showAddCategoryInline.value = false;
       isManagingCategories.value = false;
       showTxModal.value = true;
@@ -1359,8 +1361,9 @@ createApp({
         affects_balance: tx.affects_balance !== false,
         related_transaction_id: tx.related_transaction_id || null
       };
-      // 若有填寫備註、自訂日期或轉帳，自動展開進階選單以方便瀏覽修改
-      showTxAdvanced.value = Boolean(tx.description || (tx.date && tx.date.substring(0, 10) !== todayStr) || tx.tx_type === 'TRANSFER' || tx.tx_type === 'REFUND');
+      // 若有自訂日期或轉帳，自動展開進階選單以方便瀏覽修改
+      showTxAdvanced.value = Boolean((tx.date && tx.date.substring(0, 10) !== todayStr) || tx.tx_type === 'TRANSFER' || tx.tx_type === 'REFUND');
+      showTxCalcKeyboard.value = Boolean(txHasFormula.value);
       showAddCategoryInline.value = false;
       isManagingCategories.value = false;
       showTxModal.value = true;
@@ -2932,7 +2935,7 @@ createApp({
       syncGmail, triggerDebitCheck, payBillNow,
       openSettingsModal, saveSettings, connectGoogle, updateSalary, renderChart,
       chartViewMode, setChartViewMode, monthlyRecordedIncome, monthlyIncomesList,
-      currentTab, mobileMenuOpen, currentTabTitle, switchTab, txSubTab, assetSubTab, showTxAdvanced,
+      currentTab, mobileMenuOpen, currentTabTitle, switchTab, txSubTab, assetSubTab, showTxAdvanced, showTxCalcKeyboard,
       txSearch, txTypeFilter, txMonthFilter, filteredTransactions, txStats, recentTransactions,
       hideAssets, toggleHideAssets,
       isDarkMode, toggleDarkMode,

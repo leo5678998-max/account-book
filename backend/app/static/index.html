@@ -2851,82 +2851,88 @@
       </div>
     </div>
 
-    <!-- Modal 2: 快速記帳 (方案 C: 極簡極速記帳) -->
+    <!-- Modal 2: 快速記帳 (方案 A: 極速極簡記帳體驗，一屏全覽免滾動) -->
     <div v-if="showTxModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
-      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 my-auto border border-slate-100 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
+      <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-5 space-y-3 sm:space-y-3.5 my-auto border border-slate-100 dark:border-slate-800 max-h-[92vh] overflow-y-auto">
         <!-- 彈窗頂部：標題與關閉按鈕 -->
-        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
           <div class="flex items-center space-x-2">
-            <span class="w-8 h-8 rounded-xl flex items-center justify-center font-bold"
+            <span class="w-7 h-7 rounded-lg flex items-center justify-center font-bold"
               :class="currentTx.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' : (currentTx.tx_type === 'REFUND' ? 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400' : (currentTx.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'))">
               <i :data-lucide="currentTx.tx_type === 'EXPENSE' ? 'arrow-up-right' : (currentTx.tx_type === 'REFUND' ? 'rotate-ccw' : (currentTx.tx_type === 'INCOME' ? 'arrow-down-left' : 'arrow-left-right'))" class="w-4 h-4"></i>
             </span>
-            <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
-              <span v-if="editingTxId">編輯{{ currentTx.tx_type === 'EXPENSE' ? '支出明細' : (currentTx.tx_type === 'REFUND' ? '退款明細 (負支出)' : (currentTx.tx_type === 'INCOME' ? '收入明細' : '轉帳/提款明細')) }}</span>
-              <span v-else>{{ currentTx.tx_type === 'EXPENSE' ? '記錄一筆支出' : (currentTx.tx_type === 'REFUND' ? '記錄一筆消費退款 (負支出)' : (currentTx.tx_type === 'INCOME' ? '記錄一筆收入' : '記錄帳戶轉帳 / ATM提款')) }}</span>
+            <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
+              <span v-if="editingTxId">編輯{{ currentTx.tx_type === 'EXPENSE' ? '支出明細' : (currentTx.tx_type === 'REFUND' ? '退款明細' : (currentTx.tx_type === 'INCOME' ? '收入明細' : '轉帳/提款')) }}</span>
+              <span v-else>{{ currentTx.tx_type === 'EXPENSE' ? '記一筆支出' : (currentTx.tx_type === 'REFUND' ? '記錄消費退款' : (currentTx.tx_type === 'INCOME' ? '記錄收入' : '帳戶轉帳 / ATM提款')) }}</span>
             </h3>
           </div>
           <button @click="showTxModal = false; editingTxId = null" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg">
-            <i data-lucide="x" class="w-5 h-5"></i>
+            <i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i>
           </button>
         </div>
 
-        <form @submit.prevent="saveTx" class="space-y-4">
+        <form @submit.prevent="saveTx" class="space-y-3 sm:space-y-3.5">
           <!-- 1. 收支/退款/轉帳類型 Segmented Switch -->
-          <div class="grid grid-cols-4 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold gap-1">
+          <div class="grid grid-cols-4 bg-slate-100 dark:bg-slate-800 p-0.5 sm:p-1 rounded-xl text-xs font-bold gap-1">
             <button type="button" @click="currentTx.tx_type = 'EXPENSE'"
               :class="currentTx.tx_type === 'EXPENSE' ? 'bg-rose-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'"
-              class="py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer">
-              <span>開銷支出</span>
+              class="py-1.5 sm:py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer">
+              <span>支出</span>
             </button>
             <button type="button" @click="currentTx.tx_type = 'REFUND'"
               :class="currentTx.tx_type === 'REFUND' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'"
-              class="py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer"
+              class="py-1.5 sm:py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer"
               title="退貨刷退：記為負支出扣減當月消費統計">
-              <span>消費退款</span>
+              <span>退款</span>
             </button>
             <button type="button" @click="currentTx.tx_type = 'INCOME'"
               :class="currentTx.tx_type === 'INCOME' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'"
-              class="py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer">
-              <span>收入進帳</span>
+              class="py-1.5 sm:py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer">
+              <span>收入</span>
             </button>
             <button type="button" @click="currentTx.tx_type = 'TRANSFER'"
               :class="currentTx.tx_type === 'TRANSFER' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'"
-              class="py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer"
+              class="py-1.5 sm:py-2 rounded-lg transition flex items-center justify-center space-x-1 cursor-pointer"
               title="ATM提款、帳戶互轉、存入現金">
-              <span>轉帳/提款</span>
+              <span>轉帳</span>
             </button>
           </div>
 
           <!-- 2. 大金額輸入框 (Hero Amount Input with Formula Calculator) -->
           <div>
             <div class="flex items-center justify-between mb-1">
-              <label class="block text-xs font-semibold text-slate-500">{{ currentTx.tx_type === 'TRANSFER' ? '轉帳 / 提款金額 (TWD)' : (currentTx.tx_type === 'REFUND' ? '退款金額 (TWD)' : '金額 (TWD)') }}</label>
-              <!-- 即時算式預覽徽章 -->
-              <span v-if="txHasFormula && txEvaluatedAmount !== null"
-                class="text-[11px] font-bold font-mono text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 animate-in fade-in flex items-center space-x-1">
-                <span>= NT$ {{ formatMoney(txEvaluatedAmount) }}</span>
-              </span>
-              <span v-else-if="currentTx.tx_type === 'REFUND'" class="text-[10px] text-purple-600 dark:text-purple-400 font-semibold select-none">
-                ↩ 自動扣減當月【{{ currentTx.category || '該類別' }}】支出，不計入收入
-              </span>
-              <span v-else class="text-[10px] text-slate-400 select-none">
-                💡 支援簡易算式 (如：50+35*2)
-              </span>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400">{{ currentTx.tx_type === 'TRANSFER' ? '轉帳金額 (TWD)' : (currentTx.tx_type === 'REFUND' ? '退款金額 (TWD)' : '金額 (TWD)') }}</label>
+              <div class="flex items-center space-x-1.5">
+                <!-- 算式計算機切換開關 -->
+                <button type="button" @click="showTxCalcKeyboard = !showTxCalcKeyboard"
+                  :class="showTxCalcKeyboard || txHasFormula ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800' : 'text-slate-400 hover:text-slate-600 bg-slate-100 dark:bg-slate-800 border border-transparent'"
+                  class="px-2 py-0.5 rounded-lg text-[11px] flex items-center space-x-1 transition select-none"
+                  title="切換算式計算符號鍵盤">
+                  <span>🧮 算式</span>
+                </button>
+                <!-- 即時算式預覽徽章 -->
+                <span v-if="txHasFormula && txEvaluatedAmount !== null"
+                  class="text-[11px] font-bold font-mono text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 animate-in fade-in flex items-center space-x-1">
+                  <span>= NT$ {{ formatMoney(txEvaluatedAmount) }}</span>
+                </span>
+                <span v-else-if="currentTx.tx_type === 'REFUND'" class="text-[10px] text-purple-600 dark:text-purple-400 font-semibold select-none">
+                  ↩ 扣減消費
+                </span>
+              </div>
             </div>
             <div class="hero-amount-box flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 transition focus-within:ring-2"
               :class="currentTx.tx_type === 'EXPENSE' ? 'focus-within:ring-rose-500/20 focus-within:border-rose-500' : (currentTx.tx_type === 'REFUND' ? 'focus-within:ring-purple-500/20 focus-within:border-purple-500' : (currentTx.tx_type === 'INCOME' ? 'focus-within:ring-emerald-500/20 focus-within:border-emerald-500' : 'focus-within:ring-blue-500/20 focus-within:border-blue-500'))">
-              <span class="pl-4 pr-1 text-xl sm:text-2xl font-extrabold font-mono text-slate-400 select-none">NT$</span>
+              <span class="pl-3.5 pr-1 text-xl sm:text-2xl font-extrabold font-mono text-slate-400 select-none">NT$</span>
               <input type="text" inputmode="text" v-model="txAmountFormula" @blur="applyTxFormula" @keydown.enter.prevent="applyTxFormula" autofocus placeholder="0"
-                class="w-full pr-3 py-3 bg-transparent text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 font-mono outline-none border-0 shadow-none focus:ring-0">
+                class="w-full pr-3 py-2 sm:py-2.5 bg-transparent text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 font-mono outline-none border-0 shadow-none focus:ring-0">
               <button v-if="txHasFormula && txEvaluatedAmount !== null" type="button" @click="applyTxFormula"
-                class="mr-3 px-2.5 py-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xs transition flex items-center flex-shrink-0 select-none"
+                class="mr-2.5 px-2 py-1 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xs transition flex items-center flex-shrink-0 select-none"
                 title="計算並帶入結果">
                 = 計算
               </button>
             </div>
-            <!-- 快速計算機符號小鍵盤 (優化手機操作，不需反覆切換注音/英文/符號鍵盤) -->
-            <div class="flex items-center space-x-1 mt-1.5 overflow-x-auto py-0.5 scrollbar-none">
+            <!-- 快速計算機符號小鍵盤 (預設隱藏，點擊 🧮 算式 或含有算式時展開) -->
+            <div v-show="showTxCalcKeyboard || txHasFormula" class="flex items-center space-x-1 mt-1.5 overflow-x-auto py-0.5 scrollbar-none animate-in fade-in duration-150">
               <span class="text-[10px] text-slate-400 font-medium flex-shrink-0 select-none mr-0.5">算式:</span>
               <button type="button" v-for="op in ['+', '-', '×', '÷', '%', '(', ')', '=']" :key="op"
                 @click="appendTxFormulaOp(op)"
@@ -2943,76 +2949,73 @@
           </div>
 
           <!-- 轉帳/提款專屬設定：轉出與轉入帳戶選擇卡片 -->
-          <div v-if="currentTx.tx_type === 'TRANSFER'" class="p-3.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-100 dark:border-blue-900 space-y-3 animate-in fade-in duration-150">
-            <div class="grid grid-cols-2 gap-2.5">
+          <div v-if="currentTx.tx_type === 'TRANSFER'" class="p-3 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-100 dark:border-blue-900 space-y-2.5 animate-in fade-in duration-150">
+            <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
-                  轉出帳戶 (扣款來源) *
+                  轉出帳戶 *
                 </label>
-                <select v-model="currentTx.account_id" required class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold outline-none focus:border-blue-500">
+                <select v-model="currentTx.account_id" required class="w-full h-[36px] px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold outline-none focus:border-blue-500">
                   <option v-for="a in accounts" :key="a.id" :value="a.id">
-                    {{ a.name }} (餘額 NT$ {{ formatMoney(a.balance) }})
+                    {{ a.name }} (NT$ {{ formatMoney(a.balance) }})
                   </option>
                 </select>
               </div>
               <div>
                 <label class="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
-                  轉入帳戶 (接收目標) *
+                  轉入帳戶 *
                 </label>
-                <select v-model="currentTx.target_account_id" required class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold outline-none focus:border-blue-500">
-                  <option :value="null" disabled>請選擇轉入帳戶...</option>
+                <select v-model="currentTx.target_account_id" required class="w-full h-[36px] px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold outline-none focus:border-blue-500">
+                  <option :value="null" disabled>選擇轉入帳戶...</option>
                   <option v-for="a in accounts.filter(x => x.id !== currentTx.account_id)" :key="a.id" :value="a.id">
-                    {{ a.name }} (餘額 NT$ {{ formatMoney(a.balance) }})
+                    {{ a.name }} (NT$ {{ formatMoney(a.balance) }})
                   </option>
                 </select>
               </div>
             </div>
             <div class="flex items-center justify-between text-[11px] text-blue-700 dark:text-blue-300">
-              <span>💡 ATM 提款：來源選銀行，轉入選現金錢包；<strong>不列入當月支出排行與消費圓餅圖</strong>。</span>
+              <span>💡 ATM 提款：來源選銀行，轉入選現金錢包</span>
               <button type="button" @click="showAccountModal = true" class="underline hover:text-blue-900 dark:hover:text-blue-200 font-bold flex-shrink-0 ml-1">
                 + 新增帳戶
               </button>
             </div>
           </div>
 
-          <!-- 3. 分類快速點選與自訂管理 (Quick Category Chips & Customization) -->
+          <!-- 3. 分類快速點選與自訂管理 (Quick Category Chips) -->
           <div v-if="currentTx.tx_type !== 'TRANSFER'">
-            <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center justify-between mb-1">
               <div class="flex items-center space-x-2">
-                <label class="text-xs font-semibold text-slate-500">分類項目</label>
+                <label class="text-xs font-semibold text-slate-500 dark:text-slate-400">分類項目</label>
                 <button type="button" @click="isManagingCategories = !isManagingCategories"
                   class="text-[11px] font-medium transition flex items-center space-x-1"
                   :class="isManagingCategories ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                  <span>{{ isManagingCategories ? '完成管理' : '管理分類' }}</span>
+                  <i data-lucide="settings" class="w-3 h-3"></i>
+                  <span>{{ isManagingCategories ? '完成管理' : '管理' }}</span>
                 </button>
               </div>
               <span class="text-[11px] text-slate-400">目前選擇：<strong class="text-slate-700 dark:text-slate-200">{{ currentTx.category || '未選' }}</strong></span>
             </div>
 
             <!-- 管理模式提示列 -->
-            <div v-if="isManagingCategories" class="mb-2 p-2 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-lg flex items-center justify-between text-[11px] text-indigo-700 dark:text-indigo-300 animate-in fade-in duration-150">
-              <span>💡 點擊「×」刪除分類；點擊圓點可自訂色彩</span>
+            <div v-if="isManagingCategories" class="mb-1.5 p-2 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-lg flex items-center justify-between text-[11px] text-indigo-700 dark:text-indigo-300 animate-in fade-in duration-150">
+              <span>💡 點擊「×」刪除；點擊圓點換色</span>
               <div class="space-x-2">
                 <button type="button" @click="resetCategoryColors" class="underline hover:text-indigo-900 dark:hover:text-indigo-200 font-semibold">
-                  重設配色
+                  重設顏色
                 </button>
                 <button type="button" @click="resetCategories" class="underline hover:text-indigo-900 dark:hover:text-indigo-200 font-semibold">
-                  恢復預設分類
+                  恢復預設
                 </button>
               </div>
             </div>
 
             <!-- 快速分類膠囊清單 -->
-            <div class="flex flex-wrap gap-1.5 mb-2">
+            <div class="flex flex-wrap gap-1.5">
               <div v-for="cat in quickCategories" :key="cat" class="relative">
                 <button type="button"
                   @click="currentTx.category = cat"
                   :class="currentTx.category === cat ? 'bg-indigo-600 text-white font-bold shadow-xs dark:bg-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'"
-                  class="px-2.5 py-1 rounded-lg text-xs transition flex items-center select-none">
+                  class="px-2.5 py-1 rounded-lg text-xs transition flex items-center select-none active:scale-95">
                   <!-- 色彩小圓點（管理模式下可點選更改顏色） -->
                   <label v-if="isManagingCategories" @click.stop class="relative inline-flex items-center justify-center cursor-pointer mr-1.5 flex-shrink-0 group/color" :title="'更換「' + cat + '」顏色'">
                     <span class="w-2.5 h-2.5 rounded-full ring-1 ring-black/20 dark:ring-white/30 shadow-2xs group-hover/color:scale-125 transition-transform" :style="{ backgroundColor: getCategoryColorDisplay(cat) }"></span>
@@ -3030,18 +3033,27 @@
                 </button>
               </div>
 
+              <!-- 若目前所選的分類不在常用清單中（自訂或舊紀錄），直接呈現為選中膠囊 -->
+              <div v-if="currentTx.category && !quickCategories.includes(currentTx.category.trim())" class="relative">
+                <button type="button"
+                  class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-xs flex items-center select-none">
+                  <span class="w-2 h-2 rounded-full mr-1.5 bg-amber-400"></span>
+                  <span>{{ currentTx.category.trim() }}</span>
+                </button>
+              </div>
+
               <!-- + 自訂分類按鈕 -->
               <button type="button" v-if="!showAddCategoryInline"
                 @click="showAddCategoryInline = true"
                 class="px-2.5 py-1 rounded-lg text-xs font-semibold text-indigo-600 dark:text-indigo-400 border border-dashed border-indigo-300 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition flex items-center space-x-1 select-none">
-                <span>+ 自訂分類</span>
+                <span>+ 自訂</span>
               </button>
             </div>
 
             <!-- 展開的快速新增自訂分類輸入行 -->
-            <div v-if="showAddCategoryInline" class="flex items-center space-x-1.5 mb-2 p-1.5 bg-indigo-50/60 dark:bg-slate-800/80 rounded-xl border border-indigo-200/80 dark:border-slate-700 animate-in fade-in duration-150">
+            <div v-if="showAddCategoryInline" class="flex items-center space-x-1.5 mt-1.5 p-1.5 bg-indigo-50/60 dark:bg-slate-800/80 rounded-xl border border-indigo-200/80 dark:border-slate-700 animate-in fade-in duration-150">
               <input v-model="newCategoryInput" @keydown.enter.prevent="addCustomCategory()"
-                placeholder="輸入新分類名稱 (例：健身、寵物、學習)..."
+                placeholder="輸入新分類名稱 (例：健身、寵物)..."
                 maxlength="20"
                 class="flex-1 px-2.5 py-1 text-xs border border-indigo-200 dark:border-slate-600 rounded-lg outline-none bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-indigo-500">
               <button type="button" @click="addCustomCategory()"
@@ -3053,21 +3065,6 @@
                 取消
               </button>
             </div>
-
-            <!-- 自訂分類手動輸入 -->
-            <div class="relative">
-              <input v-model="currentTx.category" placeholder="手動輸入或微調分類名稱..."
-                class="w-full px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-900/60 focus:bg-white dark:focus:bg-slate-900 transition">
-              <!-- 當手動輸入了不存在清單的分類時，提示可一鍵加為常用膠囊 -->
-              <div v-if="currentTx.category && !quickCategories.includes(currentTx.category.trim())"
-                class="mt-1 flex items-center justify-between text-[11px] text-indigo-600 dark:text-indigo-400">
-                <span>💡 偵測到新分類「{{ currentTx.category.trim() }}」</span>
-                <button type="button" @click="addCustomCategory(currentTx.category.trim())"
-                  class="font-bold underline hover:text-indigo-800 dark:hover:text-indigo-300">
-                  + 加為常用分類膠囊
-                </button>
-              </div>
-            </div>
           </div>
 
           <!-- 3.5. 說明備註 (選填，已移至最外層) -->
@@ -3076,67 +3073,60 @@
               說明備註 (選填)
             </label>
             <input v-model="currentTx.description"
-              :placeholder="currentTx.tx_type === 'TRANSFER' ? '例如：ATM 提款、存入生活費...' : '選填，例如：得正烏龍茶、星巴克拿鐵 (留空預設同分類)...'"
+              :placeholder="currentTx.tx_type === 'TRANSFER' ? '例如：ATM 提款、生活費...' : '選填，例如：得正烏龍茶、星巴克 (留空同分類)...'"
               class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 transition">
           </div>
 
-          <!-- 4. 不扣帳戶存款選項（預設啟用） -->
-          <div v-if="currentTx.tx_type !== 'TRANSFER'" class="p-3 bg-slate-50 hover:bg-slate-100/70 rounded-xl border border-slate-200/80 flex items-center justify-between transition cursor-pointer select-none"
-            @click="toggleAffectsBalance">
-            <div class="flex items-center space-x-2.5 pointer-events-none">
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center transition"
-                :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'">
-                <!-- 原生內嵌 SVG 圖示，100% 即時響應切換 -->
-                <svg v-if="!currentTx.affects_balance" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-amber-600 dark:text-amber-400">
+          <!-- 4. 不扣帳戶存款選項 (極簡緊湊橫列) -->
+          <div v-if="currentTx.tx_type !== 'TRANSFER'"
+            @click="toggleAffectsBalance"
+            class="flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-800/50 dark:hover:bg-slate-800 rounded-xl border border-slate-200/70 dark:border-slate-700/60 cursor-pointer select-none transition">
+            <div class="flex items-center space-x-2">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center transition"
+                :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-400' : 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'">
+                <!-- 原生內嵌盾牌 / 錢包圖示 -->
+                <svg v-if="!currentTx.affects_balance" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400">
                   <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
                   <path d="m9 12 2 2 4-4"/>
                 </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-slate-500 dark:text-slate-400">
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400">
                   <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
                   <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>
                 </svg>
               </div>
-              <div>
-                <div class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-                  <span>不扣帳戶存款</span>
-                  <span class="text-[10px] px-1.5 py-0.5 rounded font-medium transition"
-                    :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'">
-                    {{ !currentTx.affects_balance ? '純記帳（預設）' : '扣款模式' }}
-                  </span>
-                </div>
-                <p class="text-[11px] text-slate-500 mt-0.5">
-                  {{ !currentTx.affects_balance ? '僅列入收支統計，不更動帳戶存款餘額' : '將會同步更動帳戶的存款餘額' }}
-                </p>
-              </div>
+              <span class="text-xs font-bold text-slate-700 dark:text-slate-200">不扣帳戶存款</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold transition"
+                :class="!currentTx.affects_balance ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'">
+                {{ !currentTx.affects_balance ? '純記帳（預設）' : '扣款模式' }}
+              </span>
             </div>
-            
-            <!-- 切換滑動開關 -->
+            <!-- 緊湊滑動開關 -->
             <button type="button" @click.stop="toggleAffectsBalance"
-              class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
               :class="!currentTx.affects_balance ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'">
-              <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out"
-                :class="!currentTx.affects_balance ? 'translate-x-5' : 'translate-x-0'"></span>
+              <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+                :class="!currentTx.affects_balance ? 'translate-x-4' : 'translate-x-0'"></span>
             </button>
           </div>
 
           <!-- 5. 進階設定折疊區 (可折疊收合：帳戶、日期) -->
-          <div class="pt-1">
+          <div>
             <button type="button" @click="showTxAdvanced = !showTxAdvanced"
-              class="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 transition border border-slate-100 dark:border-slate-800">
+              class="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 transition border border-slate-200/70 dark:border-slate-700/60">
               <span class="flex items-center space-x-1.5 truncate">
                 <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0"></i>
-                <span class="truncate">
-                  進階選項 ({{ currentTx.date || '今天' }} · {{ currentTx.tx_type === 'TRANSFER' ? '轉帳模式' : (getAccountName(currentTx.account_id) || '預設帳戶') }})
+                <span class="font-medium truncate">
+                  進階 ({{ currentTx.date || '今天' }} · {{ currentTx.tx_type === 'TRANSFER' ? '轉帳模式' : (getAccountName(currentTx.account_id) || '預設帳戶') }})
                 </span>
               </span>
               <span class="flex items-center text-slate-400 text-[11px] flex-shrink-0 ml-1">
-                <span>{{ showTxAdvanced ? '收合' : '展開' }}</span>
+                <span>{{ showTxAdvanced ? '收合' : '展開設定' }}</span>
                 <i :data-lucide="showTxAdvanced ? 'chevron-up' : 'chevron-down'" class="w-3.5 h-3.5 ml-0.5"></i>
               </span>
             </button>
 
             <!-- 展開內容 -->
-            <div v-show="showTxAdvanced" class="mt-2.5 space-y-3 p-3 bg-slate-50/60 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 animate-in fade-in duration-150">
+            <div v-show="showTxAdvanced" class="mt-2 space-y-2.5 p-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 animate-in fade-in duration-150">
               <div v-if="currentTx.tx_type !== 'TRANSFER'">
                 <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
                   {{ currentTx.affects_balance ? '扣款/入帳帳戶 (同步扣款)' : '關聯帳戶 (純記帳，不扣存款)' }}
@@ -3157,17 +3147,17 @@
             </div>
           </div>
 
-          <!-- 5. 底部按鈕 -->
-          <div class="pt-2 flex items-center space-x-2">
+          <!-- 6. 底部按鈕 (大拇指友好、極速確認) -->
+          <div class="pt-1 flex items-center space-x-2">
             <button v-if="editingTxId" type="button" @click="showTxModal = false; editingTxId = null"
-              class="w-1/3 py-3 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition">
+              class="w-1/4 py-2.5 sm:py-3 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition">
               取消
             </button>
             <button type="submit"
-              class="flex-1 py-3 rounded-xl text-sm font-bold text-white shadow-md transition flex items-center justify-center space-x-1.5"
+              class="flex-1 py-2.5 sm:py-3 rounded-xl text-sm font-bold text-white shadow-md transition flex items-center justify-center space-x-1.5 active:scale-[0.98]"
               :class="currentTx.tx_type === 'EXPENSE' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 dark:shadow-none' : (currentTx.tx_type === 'REFUND' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-100 dark:shadow-none' : (currentTx.tx_type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100 dark:shadow-none'))">
               <i data-lucide="check" class="w-4 h-4"></i>
-              <span>{{ editingTxId ? '儲存變更' : (currentTx.tx_type === 'EXPENSE' ? '確認記下這筆支出' : (currentTx.tx_type === 'REFUND' ? '確認記錄此筆退款 (負支出)' : (currentTx.tx_type === 'INCOME' ? '確認記下這筆收入' : '確認執行轉帳 / ATM提款'))) }}</span>
+              <span>{{ editingTxId ? '儲存變更' : (currentTx.tx_type === 'EXPENSE' ? '確認記下這筆支出' : (currentTx.tx_type === 'REFUND' ? '確認記錄此筆退款' : (currentTx.tx_type === 'INCOME' ? '確認記下這筆收入' : '確認執行轉帳 / ATM提款'))) }}</span>
             </button>
           </div>
         </form>
@@ -4862,7 +4852,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.12.2"></script>
+  <script type="module" src="/static/js/app.js?v=2.12.3"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {
