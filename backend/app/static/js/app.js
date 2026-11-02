@@ -820,14 +820,14 @@ createApp({
     ];
 
     const dashboardBlockOrder = ref(defaultDashboardBlocks.map(b => b.id));
-    const kpiCardsOrder = ref(['networth', 'expense', 'bills']);
+    const kpiCardsOrder = ref(['networth', 'expense', 'income', 'bills']);
 
     const draggedBlockIndex = ref(null);
     const dragOverBlockIndex = ref(null);
 
     const getBlockTitle = (id) => {
       const map = {
-        'kpi': '三大核心財務指標卡片',
+        'kpi': '四項核心財務指標卡片',
         'chart': '收支結構與支出分析圓餅圖',
         'transactions': '近期收支流水速覽',
         'recurring': '每月固定開銷規劃速覽'
@@ -848,8 +848,11 @@ createApp({
         const savedKpis = localStorage.getItem('account_book_kpi_order');
         if (savedKpis) {
           const parsedKpi = JSON.parse(savedKpis);
-          const kpiIds = ['networth', 'expense', 'bills'];
-          if (Array.isArray(parsedKpi) && parsedKpi.length === 3 && kpiIds.every(id => parsedKpi.includes(id))) {
+          const validKpiIds = ['networth', 'expense', 'income', 'bills'];
+          if (Array.isArray(parsedKpi) && parsedKpi.length >= 3 && parsedKpi.every(id => validKpiIds.includes(id))) {
+            if (!parsedKpi.includes('income')) {
+              parsedKpi.splice(2, 0, 'income');
+            }
             kpiCardsOrder.value = parsedKpi;
           }
         }
@@ -869,7 +872,7 @@ createApp({
 
     const resetDashboardLayout = () => {
       dashboardBlockOrder.value = defaultDashboardBlocks.map(b => b.id);
-      kpiCardsOrder.value = ['networth', 'expense', 'bills'];
+      kpiCardsOrder.value = ['networth', 'expense', 'income', 'bills'];
       try {
         localStorage.removeItem('account_book_dashboard_layout');
         localStorage.removeItem('account_book_kpi_order');
