@@ -61,7 +61,7 @@ const safeCategoryColor = (cat, idx = 0, customColors = {}) => {
   return '#8B5CF6';
 };
 
-const { createApp, ref, computed, onMounted, nextTick } = window.Vue;
+const { createApp, ref, computed, onMounted, nextTick, watch } = window.Vue;
 
 createApp({
   setup() {
@@ -198,6 +198,83 @@ createApp({
         }
         return true;
       });
+    });
+
+    const triggerHaptic = (type = 'light') => {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          if (type === 'light') navigator.vibrate(10);
+          else if (type === 'medium') navigator.vibrate(25);
+          else if (type === 'success') navigator.vibrate([15, 40, 20]);
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+
+    const formatGroupDate = (dateStr) => {
+      if (!dateStr) return '未指定日期';
+      try {
+        const rawDate = dateStr.substring(0, 10);
+        const parts = rawDate.split('-');
+        if (parts.length !== 3) return rawDate;
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const day = parseInt(parts[2], 10);
+        const d = new Date(year, month - 1, day);
+        if (isNaN(d.getTime())) return rawDate;
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const target = new Date(year, month - 1, day);
+        const diffDays = Math.round((today - target) / (1000 * 60 * 60 * 24));
+
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        const dayName = '週' + weekdays[d.getDay()];
+
+        if (diffDays === 0) return `今天 · ${month}月${day}日 ${dayName}`;
+        if (diffDays === 1) return `昨天 · ${month}月${day}日 ${dayName}`;
+        if (diffDays === 2) return `前天 · ${month}月${day}日 ${dayName}`;
+        if (year === today.getFullYear()) {
+          return `${month}月${day}日 ${dayName}`;
+        }
+        return `${year}年${month}月${day}日 ${dayName}`;
+      } catch (e) {
+        return dateStr.substring(0, 10);
+      }
+    };
+
+    const groupedTransactionsByDate = computed(() => {
+      const list = filteredTransactions.value || [];
+      const groupsMap = new Map();
+
+      list.forEach(tx => {
+        const dateKey = tx.date ? tx.date.substring(0, 10) : '未指定日期';
+        if (!groupsMap.has(dateKey)) {
+          groupsMap.set(dateKey, {
+            dateStr: dateKey,
+            dateDisplay: formatGroupDate(dateKey),
+            dayExpenseTotal: 0,
+            dayIncomeTotal: 0,
+            transactions: []
+          });
+        }
+        const group = groupsMap.get(dateKey);
+        group.transactions.push(tx);
+        if (tx.tx_type === 'EXPENSE') {
+          group.dayExpenseTotal += (tx.amount || 0);
+        } else if (tx.tx_type === 'REFUND') {
+          group.dayExpenseTotal -= Math.abs(tx.amount || 0);
+        } else if (tx.tx_type === 'INCOME') {
+          group.dayIncomeTotal += (tx.amount || 0);
+        }
+      });
+
+      return Array.from(groupsMap.values());
+    });
+
+    watch(groupedTransactionsByDate, () => {
+      nextTick(() => refreshIcons());
     });
 
     const txStats = computed(() => {
@@ -958,6 +1035,7 @@ createApp({
     };
 
     const switchTab = (tab, subTab = null) => {
+      triggerHaptic('light');
       if (tab === 'transactions' || tab === 'recurring') {
         currentTab.value = 'transactions';
         txSubTab.value = subTab || (tab === 'recurring' ? 'recurring' : 'list');
@@ -1325,6 +1403,7 @@ createApp({
     };
 
     const openTxModal = () => {
+      triggerHaptic('light');
       editingTxId.value = null;
       txAmountFormula.value = '';
       const defaultAcc = accounts.value.find(a => a.is_dbs_default_debit) || accounts.value[0];
@@ -1393,6 +1472,7 @@ createApp({
     };
 
     const toggleAffectsBalance = () => {
+      triggerHaptic('medium');
       currentTx.value.affects_balance = !currentTx.value.affects_balance;
       refreshIcons();
     };
@@ -1439,6 +1519,7 @@ createApp({
       }
 
       if (res && res.ok) {
+        triggerHaptic('success');
         showTxModal.value = false;
         editingTxId.value = null;
         await fetchAccounts();
@@ -2936,7 +3017,8 @@ createApp({
       openSettingsModal, saveSettings, connectGoogle, updateSalary, renderChart,
       chartViewMode, setChartViewMode, monthlyRecordedIncome, monthlyIncomesList,
       currentTab, mobileMenuOpen, currentTabTitle, switchTab, txSubTab, assetSubTab, showTxAdvanced, showTxCalcKeyboard,
-      txSearch, txTypeFilter, txMonthFilter, filteredTransactions, txStats, recentTransactions,
+      txSearch, txTypeFilter, txMonthFilter, filteredTransactions, groupedTransactionsByDate, txStats, recentTransactions,
+      triggerHaptic,
       hideAssets, toggleHideAssets,
       isDarkMode, toggleDarkMode,
       analyticsRange, analyticsChartMode, analyticsData, loadingAnalytics,

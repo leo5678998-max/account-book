@@ -802,10 +802,10 @@
               <span>記一筆</span>
             </button>
 
-            <!-- 單據辨識 (電腦/平板保留文字，手機版由常駐 FAB 提供) -->
-            <button @click="showUploadModal = true" class="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition touch-manipulation cursor-pointer" title="AI 單據與薪資單辨識">
+            <!-- 單據辨識 (手機版圖示按鈕，電腦/平板保留文字) -->
+            <button @click="triggerHaptic('light'); showUploadModal = true" class="inline-flex items-center px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition touch-manipulation cursor-pointer" title="AI 單據與薪資單辨識">
               <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:mr-1 text-purple-600"></i>
-              <span>單據辨識</span>
+              <span class="hidden sm:inline">單據辨識</span>
             </button>
 
             <!-- 設定 -->
@@ -823,25 +823,26 @@
         <div v-show="currentTab === 'dashboard'" class="space-y-4 sm:space-y-6">
 
           <!-- 頂部標題列與自訂版面排版按鈕 -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div class="flex items-center justify-between gap-2">
             <div>
               <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
                 <span>財務總覽儀表板</span>
               </h3>
-              <p class="text-xs text-slate-500 mt-0.5">即時資產淨值、當月收支預算與固定常態開銷</p>
+              <p class="text-xs text-slate-500 mt-0.5 hidden sm:block">即時資產淨值、當月收支預算與固定常態開銷</p>
             </div>
 
             <!-- 自訂版面開關與重設按鈕 -->
-            <div class="flex items-center space-x-2">
-              <button type="button" @click="toggleEditLayout"
-                class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none"
+            <div class="flex items-center space-x-1.5 sm:space-x-2">
+              <button type="button" @click="triggerHaptic('light'); toggleEditLayout()"
+                class="inline-flex items-center px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none"
                 :class="isEditingLayout ? 'bg-indigo-600 text-white hover:bg-indigo-700 ring-2 ring-indigo-300' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'">
-                <i :data-lucide="isEditingLayout ? 'check' : 'layout-grid'" class="w-3.5 h-3.5 mr-1.5" :class="isEditingLayout ? 'text-white' : 'text-indigo-600'"></i>
-                <span>{{ isEditingLayout ? '完成自訂版面' : '自訂版面位置' }}</span>
+                <i :data-lucide="isEditingLayout ? 'check' : 'layout-grid'" class="w-3.5 h-3.5 sm:mr-1.5" :class="isEditingLayout ? 'text-white' : 'text-indigo-600'"></i>
+                <span class="hidden sm:inline">{{ isEditingLayout ? '完成自訂版面' : '自訂版面位置' }}</span>
+                <span class="sm:hidden">{{ isEditingLayout ? '完成' : '排版' }}</span>
               </button>
-              <button v-if="isEditingLayout" type="button" @click="resetDashboardLayout"
-                class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer">
-                重設預設
+              <button v-if="isEditingLayout" type="button" @click="triggerHaptic('light'); resetDashboardLayout()"
+                class="px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer">
+                重設
               </button>
             </div>
           </div>
@@ -1322,30 +1323,30 @@
             <div class="sm:col-span-5 relative">
               <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
               <input v-model="txSearch" type="text" placeholder="搜尋說明、分類、帳戶..."
-                class="w-full pl-9 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 bg-slate-50 focus:bg-white">
+                class="w-full pl-9 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 bg-slate-50 focus:bg-white transition">
             </div>
 
             <!-- 類型快速切換 -->
             <div class="sm:col-span-4 flex items-center space-x-1 bg-slate-100 p-1 rounded-lg text-xs">
-              <button @click="txTypeFilter = 'ALL'"
+              <button @click="triggerHaptic('light'); txTypeFilter = 'ALL'"
                 :class="txTypeFilter === 'ALL' ? 'bg-white font-bold text-slate-900 shadow-xs' : 'text-slate-500'"
                 class="flex-1 py-1 rounded-md text-center transition cursor-pointer">全部</button>
-              <button @click="txTypeFilter = 'EXPENSE'"
+              <button @click="triggerHaptic('light'); txTypeFilter = 'EXPENSE'"
                 :class="txTypeFilter === 'EXPENSE' ? 'bg-rose-50 text-rose-700 font-bold shadow-xs' : 'text-slate-500'"
                 class="flex-1 py-1 rounded-md text-center transition cursor-pointer">支出</button>
-              <button @click="txTypeFilter = 'REFUND'"
+              <button @click="triggerHaptic('light'); txTypeFilter = 'REFUND'"
                 :class="txTypeFilter === 'REFUND' ? 'bg-purple-50 text-purple-700 font-bold shadow-xs' : 'text-slate-500'"
                 class="flex-1 py-1 rounded-md text-center transition cursor-pointer">退款</button>
-              <button @click="txTypeFilter = 'INCOME'"
+              <button @click="triggerHaptic('light'); txTypeFilter = 'INCOME'"
                 :class="txTypeFilter === 'INCOME' ? 'bg-emerald-50 text-emerald-700 font-bold shadow-xs' : 'text-slate-500'"
                 class="flex-1 py-1 rounded-md text-center transition cursor-pointer">收入</button>
             </div>
 
             <!-- 月份篩選 -->
             <div class="sm:col-span-3 flex items-center space-x-1.5">
-              <input type="month" v-model="txMonthFilter"
+              <input type="month" v-model="txMonthFilter" @change="triggerHaptic('light')"
                 class="w-full border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 bg-slate-50 outline-none">
-              <button v-if="txMonthFilter" @click="txMonthFilter = ''" class="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-700 whitespace-nowrap" title="清除月份篩選">
+              <button v-if="txMonthFilter" @click="triggerHaptic('light'); txMonthFilter = ''" class="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-700 whitespace-nowrap cursor-pointer" title="清除月份篩選">
                 全部
               </button>
             </div>
@@ -1390,41 +1391,63 @@
           </button>
         </div>
 
-        <!-- 手機版流水帳列表 (md:hidden) -->
-        <div class="block md:hidden divide-y divide-slate-100">
-          <div v-if="filteredTransactions.length === 0" class="text-center py-8 text-slate-400 text-xs">
+        <!-- 手機版流水帳列表 (按日期分組 + 每日小計) (md:hidden) -->
+        <div class="block md:hidden">
+          <div v-if="groupedTransactionsByDate.length === 0" class="text-center py-12 text-slate-400 text-xs">
             目前尚無任何記帳明細
           </div>
-          <div v-for="t in filteredTransactions" :key="t.id" class="p-3.5 flex items-center justify-between hover:bg-slate-50 transition">
-            <div class="min-w-0 pr-2">
-              <div class="flex items-center space-x-1.5">
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold"
-                  :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'REFUND' ? 'bg-purple-50 text-purple-700 border border-purple-200' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'))">
-                  {{ t.tx_type === 'REFUND' ? '↩ ' + (t.category || '退款') : (t.category || t.tx_type) }}
+          <div v-for="group in groupedTransactionsByDate" :key="group.dateStr" class="border-b border-slate-100 last:border-b-0">
+            <!-- 日期分組標題列 (黏性/醒目、顯示每日支出與收入小計) -->
+            <div class="sticky top-0 z-10 px-3.5 py-1.5 bg-slate-50/95 backdrop-blur-xs border-y border-slate-100 flex items-center justify-between text-xs select-none">
+              <span class="font-bold text-slate-700 flex items-center space-x-1.5">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-400"></i>
+                <span>{{ group.dateDisplay }}</span>
+              </span>
+              <div class="text-[11px] font-mono space-x-2">
+                <span v-if="group.dayExpenseTotal > 0" class="text-rose-600 font-semibold">
+                  支 NT$ {{ formatMoney(group.dayExpenseTotal) }}
                 </span>
-                <span class="text-xs font-semibold text-slate-800 truncate">{{ t.description || '-' }}</span>
-              </div>
-              <div class="text-[11px] text-slate-400 font-mono mt-1">
-                {{ t.date ? t.date.substring(0, 10) : '' }} ·
-                <span v-if="t.tx_type === 'TRANSFER'">{{ getAccountName(t.account_id) }} ➔ {{ getAccountName(t.target_account_id) }}</span>
-                <span v-else>{{ getAccountName(t.account_id) }}</span>
-                <span v-if="t.affects_balance === false" class="ml-1 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded font-sans">不扣存款</span>
+                <span v-if="group.dayIncomeTotal > 0" class="text-emerald-600 font-semibold">
+                  收 NT$ {{ formatMoney(group.dayIncomeTotal) }}
+                </span>
               </div>
             </div>
-            <div class="flex items-center space-x-1.5 flex-shrink-0">
-              <span class="font-extrabold font-mono text-sm"
-                :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'REFUND' ? 'text-purple-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600'))">
-                {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'REFUND' ? '↩ +' : (t.tx_type === 'INCOME' ? '+' : '⇄ ')) }}NT$ {{ formatMoney(t.amount) }}
-              </span>
-              <button v-if="t.tx_type === 'EXPENSE'" @click="openRefundModal(t)" class="p-1.5 text-slate-400 hover:text-purple-600 rounded transition cursor-pointer" title="以此筆支出建立退款 (負支出)">
-                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-              </button>
-              <button @click="openEditTxModal(t)" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer" title="編輯此筆記帳">
-                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-              </button>
-              <button @click="deleteTx(t.id)" class="p-1.5 text-slate-300 hover:text-rose-600 rounded transition cursor-pointer" title="刪除此筆記帳">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-              </button>
+
+            <!-- 當日交易列表 -->
+            <div class="divide-y divide-slate-100/70">
+              <div v-for="t in group.transactions" :key="t.id"
+                @click="openEditTxModal(t)"
+                class="p-3.5 flex items-center justify-between hover:bg-slate-50/80 active:bg-slate-100/80 transition cursor-pointer select-none">
+                <div class="min-w-0 pr-2">
+                  <div class="flex items-center space-x-1.5">
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      :class="t.tx_type === 'EXPENSE' ? 'bg-rose-50 text-rose-700' : (t.tx_type === 'REFUND' ? 'bg-purple-50 text-purple-700 border border-purple-200' : (t.tx_type === 'INCOME' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'))">
+                      {{ t.tx_type === 'REFUND' ? '↩ ' + (t.category || '退款') : (t.category || t.tx_type) }}
+                    </span>
+                    <span class="text-xs font-semibold text-slate-800 truncate">{{ t.description || '-' }}</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 font-mono mt-1">
+                    <span v-if="t.tx_type === 'TRANSFER'">{{ getAccountName(t.account_id) }} ➔ {{ getAccountName(t.target_account_id) }}</span>
+                    <span v-else>{{ getAccountName(t.account_id) }}</span>
+                    <span v-if="t.affects_balance === false" class="ml-1 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded font-sans">不扣存款</span>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-1 flex-shrink-0">
+                  <span class="font-extrabold font-mono text-sm mr-1"
+                    :class="t.tx_type === 'EXPENSE' ? 'text-rose-600' : (t.tx_type === 'REFUND' ? 'text-purple-600' : (t.tx_type === 'INCOME' ? 'text-emerald-600' : 'text-blue-600'))">
+                    {{ t.tx_type === 'EXPENSE' ? '-' : (t.tx_type === 'REFUND' ? '↩ +' : (t.tx_type === 'INCOME' ? '+' : '⇄ ')) }}NT$ {{ formatMoney(t.amount) }}
+                  </span>
+                  <button v-if="t.tx_type === 'EXPENSE'" @click.stop="openRefundModal(t)" class="p-1.5 text-slate-400 hover:text-purple-600 rounded transition cursor-pointer" title="以此筆支出建立退款 (負支出)">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button @click.stop="openEditTxModal(t)" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer" title="編輯此筆記帳">
+                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button @click.stop="deleteTx(t.id)" class="p-1.5 text-slate-300 hover:text-rose-600 rounded transition cursor-pointer" title="刪除此筆記帳">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2770,46 +2793,46 @@
 
       </main>
 
-      <!-- 手機專屬懸浮快捷記帳按鈕 (Mobile FAB, lg:hidden) -->
-      <div class="lg:hidden fixed bottom-fab-safe right-4 z-40 flex flex-col items-end space-y-2.5 select-none">
-        <!-- AI 辨識快捷按鈕 -->
-        <button @click="showUploadModal = true"
-          class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 shadow-md flex items-center justify-center hover:bg-purple-50 dark:hover:bg-slate-700 active:scale-95 transition"
-          title="AI 單據辨識">
-          <i data-lucide="sparkles" class="w-4 h-4 text-purple-600 dark:text-purple-400"></i>
-        </button>
-        <!-- 快速手動記帳主要 FAB -->
-        <button @click="openTxModal()"
-          class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-300 dark:shadow-indigo-950 flex items-center justify-center active:scale-95 transition"
-          title="快速手動記帳">
-          <i data-lucide="plus" class="w-6 h-6"></i>
-        </button>
-      </div>
-
-      <!-- 手機專屬底部快速切換導覽列 (4 大核心分頁，lg:hidden) -->
+      <!-- 手機專屬底部快速切換導覽列 (5 大核心佈局，整合中央立體 ➕ 記帳鍵，lg:hidden) -->
       <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-40 px-2 py-1 shadow-lg flex items-center justify-around select-none pb-safe">
+        <!-- 1. 總覽 -->
         <button @click="switchTab('dashboard')"
           :class="currentTab === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
-          class="flex flex-col items-center justify-center py-1 px-3 transition">
+          class="flex-1 flex flex-col items-center justify-center py-1 transition touch-manipulation cursor-pointer">
           <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
           <span class="text-[10px] mt-0.5">總覽</span>
         </button>
+
+        <!-- 2. 明細流水帳 -->
         <button @click="switchTab('transactions')"
           :class="currentTab === 'transactions' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
-          class="flex flex-col items-center justify-center py-1 px-3 transition">
+          class="flex-1 flex flex-col items-center justify-center py-1 transition touch-manipulation cursor-pointer">
           <i data-lucide="receipt-text" class="w-5 h-5"></i>
-          <span class="text-[10px] mt-0.5">記帳</span>
+          <span class="text-[10px] mt-0.5">明細</span>
         </button>
+
+        <!-- 3. 中央立體 ➕ 記帳按鈕 (Dock Primary Button) -->
+        <div class="flex-1 flex justify-center -mt-5">
+          <button @click="openTxModal()"
+            class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white shadow-lg shadow-indigo-400/50 dark:shadow-indigo-950 flex items-center justify-center transition border-3 border-white dark:border-slate-900 touch-manipulation cursor-pointer"
+            title="快速手動記帳">
+            <i data-lucide="plus" class="w-6 h-6 stroke-[2.5]"></i>
+          </button>
+        </div>
+
+        <!-- 4. 資產與帳單 -->
         <button @click="switchTab('assets')"
           :class="currentTab === 'assets' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
-          class="flex flex-col items-center justify-center py-1 px-3 transition relative">
+          class="flex-1 flex flex-col items-center justify-center py-1 transition touch-manipulation cursor-pointer relative">
           <i data-lucide="wallet" class="w-5 h-5"></i>
-          <span class="text-[10px] mt-0.5">資產帳單</span>
-          <span v-if="pendingBillAmount > 0" class="w-2 h-2 rounded-full bg-rose-500 absolute top-1 right-3"></span>
+          <span class="text-[10px] mt-0.5">資產</span>
+          <span v-if="pendingBillAmount > 0" class="w-2 h-2 rounded-full bg-rose-500 absolute top-1 right-[22%]"></span>
         </button>
+
+        <!-- 5. 趨勢報表 -->
         <button @click="switchTab('trends')"
           :class="currentTab === 'trends' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
-          class="flex flex-col items-center justify-center py-1 px-3 transition">
+          class="flex-1 flex flex-col items-center justify-center py-1 transition touch-manipulation cursor-pointer">
           <i data-lucide="line-chart" class="w-5 h-5"></i>
           <span class="text-[10px] mt-0.5">趨勢</span>
         </button>
@@ -4852,7 +4875,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.12.3"></script>
+  <script type="module" src="/static/js/app.js?v=2.12.4"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {
