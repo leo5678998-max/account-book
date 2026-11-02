@@ -47,6 +47,59 @@
     input[type=number] {
       -moz-appearance: textfield;
     }
+
+    /* ================= iOS SAFARI & 行動端原生日期元件對齊修復 ================= */
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"] {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      min-height: 38px;
+      line-height: normal;
+      box-sizing: border-box;
+      text-align: left;
+    }
+    input[type="date"]::-webkit-date-and-time-value,
+    input[type="datetime-local"]::-webkit-date-and-time-value,
+    input[type="time"]::-webkit-date-and-time-value {
+      text-align: left !important;
+      display: flex !important;
+      align-items: center !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 1.25rem !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    input[type="date"]::-webkit-datetime-edit,
+    input[type="datetime-local"]::-webkit-datetime-edit,
+    input[type="time"]::-webkit-datetime-edit {
+      text-align: left !important;
+      padding: 0 !important;
+    }
+    input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+    input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+    input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+      padding: 0 !important;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+    input[type="time"]::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
+    }
+    html.dark input[type="date"]::-webkit-calendar-picker-indicator,
+    html.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+    html.dark input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+    }
     .hero-amount-box input {
       background-color: transparent !important;
       border: none !important;
@@ -3066,10 +3119,10 @@
             </button>
           </div>
 
-          <!-- 5. 進階設定折疊區 (可折疊收合：帳戶、日期、備註) -->
+          <!-- 5. 進階設定折疊區 (可折疊收合：帳戶、日期) -->
           <div class="pt-1">
             <button type="button" @click="showTxAdvanced = !showTxAdvanced"
-              class="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs text-slate-600 transition border border-slate-100">
+              class="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 transition border border-slate-100 dark:border-slate-800">
               <span class="flex items-center space-x-1.5 truncate">
                 <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0"></i>
                 <span class="truncate">
@@ -3083,12 +3136,13 @@
             </button>
 
             <!-- 展開內容 -->
-            <div v-show="showTxAdvanced" class="mt-2.5 space-y-3 p-3 bg-slate-50/60 rounded-xl border border-slate-100 animate-in fade-in duration-150">
+            <div v-show="showTxAdvanced" class="mt-2.5 space-y-3 p-3 bg-slate-50/60 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 animate-in fade-in duration-150">
               <div v-if="currentTx.tx_type !== 'TRANSFER'">
-                <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
                   {{ currentTx.affects_balance ? '扣款/入帳帳戶 (同步扣款)' : '關聯帳戶 (純記帳，不扣存款)' }}
                 </label>
-                <select v-model="currentTx.account_id" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:border-indigo-500">
+                <select v-model="currentTx.account_id" required
+                  class="w-full h-[38px] px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 transition">
                   <option v-for="a in accounts" :key="a.id" :value="a.id">
                     {{ a.name }} (餘額 NT$ {{ formatMoney(a.balance) }}) {{ a.is_dbs_default_debit ? '★ 預設' : '' }}
                   </option>
@@ -3096,8 +3150,9 @@
               </div>
 
               <div>
-                <label class="block text-[11px] font-semibold text-slate-600 mb-1">記帳日期</label>
-                <input type="date" v-model="currentTx.date" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:border-indigo-500 font-mono">
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">記帳日期</label>
+                <input type="date" v-model="currentTx.date"
+                  class="w-full h-[38px] px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 text-left font-mono transition">
               </div>
             </div>
           </div>
@@ -4807,7 +4862,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.12.1"></script>
+  <script type="module" src="/static/js/app.js?v=2.12.2"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {
