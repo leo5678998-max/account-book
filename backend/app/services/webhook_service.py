@@ -1,5 +1,6 @@
 import re
 import secrets
+import threading
 from datetime import datetime, timedelta
 from typing import Optional, Any, Tuple, List
 from fastapi import HTTPException
@@ -21,6 +22,7 @@ from .accounting_service import (
 # 領域常數定義 (Domain Constants)
 # ==============================================================================
 WEBHOOK_TOKEN_SETTING_KEY = "WEBHOOK_TOKEN"
+_webhook_process_lock = threading.RLock()
 
 # 智能自動分類關鍵字規則表 (依先後優先順序比對)
 MERCHANT_CATEGORY_RULES: List[Tuple[str, List[str]]] = [
@@ -443,91 +445,95 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
     """
     核心記帳流程：
     解析 Webhook Payload、驗證數值、智能匹配帳戶與分類，呼叫 record_transaction 建立交易並更新餘額。
+    使用 _webhook_process_lock 確保執行緒安全，防止雙重推播 (如 LINE Pay + 信用卡) 併發寫入造成重複記帳。
     """
-    # 0. 容錯正規化 (支援推播文字解析與 iOS 捷徑鍵值倒置自動校正)
-    payload = normalize_apple_pay_payload(payload, db, user_id)
+    with _webhook_process_lock:
+        db.expire_all()
 
-    # 1. 金額解析
-    raw_amount = payload.get("amount")
-    try:
-        amount = parse_webhook_amount(raw_amount)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # 0. 容錯正規化 (支援推播文字解析與 iOS 捷徑鍵值倒置自動校正)
+        payload = normalize_apple_pay_payload(payload, db, user_id)
 
-    # 2. 帳戶匹配
-    card_name = payload.get("card_name") or payload.get("card") or payload.get("account_name")
-    target_acc = resolve_target_account(db, user_id=user_id, card_name=card_name)
+        # 1. 金額解析
+        raw_amount = payload.get("amount")
+        try:
+            amount = parse_webhook_amount(raw_amount)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-    # 3. 商家與備註處理
-    merchant = str(payload.get("merchant") or payload.get("title") or "").strip()
-    note = str(payload.get("note") or payload.get("notes") or "").strip()
+        # 2. 帳戶匹配
+        card_name = payload.get("card_name") or payload.get("card") or payload.get("account_name")
+        target_acc = resolve_target_account(db, user_id=user_id, card_name=card_name)
 
-    if merchant and note:
-        description = f"{merchant} - {note}"
-    elif merchant:
-        description = merchant
-    elif note:
-        description = note
-    else:
-        description = "Apple Pay 快速交易"
+        # 3. 商家與備註處理
+        merchant = str(payload.get("merchant") or payload.get("title") or "").strip()
+        note = str(payload.get("note") or payload.get("notes") or "").strip()
 
-    # 4. 分類智能推導
-    provided_category = str(payload.get("category") or "").strip()
-    if provided_category and provided_category != CATEGORY_DEFAULT:
-        category = provided_category
-    else:
-        category = auto_categorize_merchant(merchant or description)
+        if merchant and note:
+            description = f"{merchant} - {note}"
+        elif merchant:
+            description = merchant
+        elif note:
+            description = note
+        else:
+            description = "Apple Pay 快速交易"
 
-    # 4.5. 判斷是否為退款/退刷交易 (Refund)
-    is_refund = (
-        payload.get("tx_type") == "REFUND"
-        or payload.get("is_refund") is True
-    )
-    final_tx_type = TX_TYPE_REFUND if is_refund else TX_TYPE_EXPENSE
-    if is_refund and not description.startswith("[退款]"):
-        description = f"[退款] {description}"
+        # 4. 分類智能推導
+        provided_category = str(payload.get("category") or "").strip()
+        if provided_category and provided_category != CATEGORY_DEFAULT:
+            category = provided_category
+        else:
+            category = auto_categorize_merchant(merchant or description)
 
-    # 5. 時間處理
-    tx_date = parse_webhook_datetime(payload.get("date"))
-
-    # 5.5. 雙重通知智慧去重/合併 (Twin Notifications Auto-Merge within 90s)
-    # 例如：同一筆消費同時觸發 LINE Pay 付款通知 與 銀行信用卡刷卡通知
-    time_window = timedelta(seconds=90)
-    recent_duplicate = (
-        db.query(Transaction)
-        .filter(
-            Transaction.user_id == user_id,
-            Transaction.amount == amount,
-            Transaction.tx_type == final_tx_type,
-            Transaction.date >= tx_date - time_window,
-            Transaction.date <= tx_date + time_window,
+        # 4.5. 判斷是否為退款/退刷交易 (Refund)
+        is_refund = (
+            payload.get("tx_type") == "REFUND"
+            or payload.get("is_refund") is True
         )
-        .order_by(Transaction.id.desc())
-        .first()
-    )
-    if recent_duplicate:
-        # 若新通知帶有更具體的商家名稱（非 LINE Pay 且比舊名稱更清楚，例如中文「得正#土城裕民計劃」優於銀行英文「DEJENGOOLONGTE」），更新原紀錄描述與分類
-        if merchant and merchant != "LINE Pay":
-            is_better_description = (
-                recent_duplicate.description == "LINE Pay"
-                or (not re.search(r'[\u4e00-\u9fff]', recent_duplicate.description) and re.search(r'[\u4e00-\u9fff]', merchant))
+        final_tx_type = TX_TYPE_REFUND if is_refund else TX_TYPE_EXPENSE
+        if is_refund and not description.startswith("[退款]"):
+            description = f"[退款] {description}"
+
+        # 5. 時間處理
+        tx_date = parse_webhook_datetime(payload.get("date"))
+
+        # 5.5. 雙重通知智慧去重/合併 (Twin Notifications Auto-Merge within 120s)
+        # 例如：同一筆消費同時觸發 LINE Pay 付款通知 與 銀行信用卡刷卡通知 (如 LINE Pay 艇長有限公司 vs 星展 Card+ CaptainLimited)
+        time_window = timedelta(seconds=120)
+        recent_duplicate = (
+            db.query(Transaction)
+            .filter(
+                Transaction.user_id == user_id,
+                Transaction.amount == amount,
+                Transaction.tx_type == final_tx_type,
+                Transaction.date >= tx_date - time_window,
+                Transaction.date <= tx_date + time_window,
             )
-            if is_better_description:
-                recent_duplicate.description = merchant
-                recent_duplicate.category = category
-                db.commit()
-                db.refresh(recent_duplicate)
-        return recent_duplicate
+            .order_by(Transaction.id.desc())
+            .first()
+        )
+        if recent_duplicate:
+            # 若新通知帶有更具體的商家名稱（非 LINE Pay 且比舊名稱更清楚，例如中文「艇長有限公司」優於銀行英文「CaptainLimited」），更新原紀錄描述與分類
+            if merchant and merchant != "LINE Pay":
+                is_better_description = (
+                    recent_duplicate.description == "LINE Pay"
+                    or (not re.search(r'[\u4e00-\u9fff]', recent_duplicate.description) and re.search(r'[\u4e00-\u9fff]', merchant))
+                )
+                if is_better_description:
+                    recent_duplicate.description = merchant
+                    recent_duplicate.category = category
+                    db.commit()
+                    db.refresh(recent_duplicate)
+            return recent_duplicate
 
-    # 6. 寫入交易紀錄
-    tx_in = TransactionCreate(
-        account_id=target_acc.id,
-        amount=amount,
-        tx_type=final_tx_type,
-        category=category,
-        description=description,
-        date=tx_date,
-        affects_balance=True
-    )
+        # 6. 寫入交易紀錄
+        tx_in = TransactionCreate(
+            account_id=target_acc.id,
+            amount=amount,
+            tx_type=final_tx_type,
+            category=category,
+            description=description,
+            date=tx_date,
+            affects_balance=True
+        )
 
-    return record_transaction(db, tx_in, user_id=user_id)
+        return record_transaction(db, tx_in, user_id=user_id)

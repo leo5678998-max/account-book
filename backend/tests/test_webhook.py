@@ -331,6 +331,40 @@ class TestWebhookServiceAndEndpoints(unittest.TestCase):
         self.assertEqual(merged_tx.description, "路易莎咖啡")
         self.assertEqual(merged_tx.category, "飲食")
 
+    def test_concurrent_twin_notification_auto_merge(self):
+        import concurrent.futures
+        token = get_or_create_webhook_token(self.db, user_id=self.user.id)
+
+        # 模擬兩筆推播同時發送到伺服器 (如 星展 Card+ CaptainLimited 與 LINE 艇長有限公司)
+        def send_req1():
+            return self.client.post(
+                f"/api/webhook/apple-pay?token={token}",
+                json={"amount": 70.0, "merchant": "CaptainLimited", "app": "星展 Card+"}
+            )
+
+        def send_req2():
+            return self.client.post(
+                f"/api/webhook/apple-pay?token={token}",
+                json={"amount": 70.0, "merchant": "艇長有限公司前港營業所", "app": "LINE"}
+            )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            f1 = executor.submit(send_req1)
+            f2 = executor.submit(send_req2)
+            r1 = f1.result()
+            r2 = f2.result()
+
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r2.status_code, 200)
+        id1 = r1.json()["transaction_id"]
+        id2 = r2.json()["transaction_id"]
+
+        # 必須去重合併為同一個交易 ID
+        self.assertEqual(id1, id2)
+        # 中文詳細店名應覆蓋英文銀行商家名
+        merged_tx = self.db.query(Transaction).filter(Transaction.id == id1).first()
+        self.assertIn("艇長有限公司", merged_tx.description)
+
     def test_webhook_refund_auto_detection(self):
         token = get_or_create_webhook_token(self.db, user_id=self.user.id)
         # Send a refund notification
