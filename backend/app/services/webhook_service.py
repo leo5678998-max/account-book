@@ -464,9 +464,9 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
         card_name = payload.get("card_name") or payload.get("card") or payload.get("account_name")
         target_acc = resolve_target_account(db, user_id=user_id, card_name=card_name)
 
-        # 3. 商家與備註處理
-        merchant = str(payload.get("merchant") or payload.get("title") or "").strip()
-        note = str(payload.get("note") or payload.get("notes") or "").strip()
+        # 3. 商家與備註處理 (過濾 iOS 隱形字元如 \u2069 Directional Isolate)
+        merchant = re.sub(r'[\u200e\u200f\u202a-\u202e\u2066-\u2069]', '', str(payload.get("merchant") or payload.get("title") or "")).strip()
+        note = re.sub(r'[\u200e\u200f\u202a-\u202e\u2066-\u2069]', '', str(payload.get("note") or payload.get("notes") or "")).strip()
 
         if merchant and note:
             description = f"{merchant} - {note}"

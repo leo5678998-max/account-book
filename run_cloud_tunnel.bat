@@ -7,7 +7,7 @@ echo   理財記帳系統 + Cloudflare Tunnel 免費雲端外網通道啟動中
 echo =====================================================================
 echo.
 echo [1/2] 啟動後端伺服器 (http://127.0.0.1:8000)...
-start "Account Book Backend Service" /min cmd /c "backend\venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000"
+start "Account Book Backend Service" /min cmd /c "backend\venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload"
 
 echo [2/2] 正在向 Cloudflare 申請安全加密隧道...
 echo.
