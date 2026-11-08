@@ -14,7 +14,7 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') 
 timeout /t 1 >nul
 
 echo [1/3] 啟動後端伺服器 (http://localhost:8000)...
-start "Account Book Backend Service" /min cmd /c "cd /d "%~dp0backend" && .\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+start "Account Book Backend Service" /min cmd /c "cd /d "%~dp0backend" && .\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
 timeout /t 3 >nul
 
