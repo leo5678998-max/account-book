@@ -1,9 +1,9 @@
 /**
  * 智慧記帳本 Service Worker (PWA 支援與離線快取管理)
- * Version: 2.16.0
+ * Version: 2.16.1
  */
 
-const CACHE_NAME = 'account-book-v2.16.0';
+const CACHE_NAME = 'account-book-v2.16.1';
 
 const PRECACHE_ASSETS = [
   '/',
