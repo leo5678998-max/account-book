@@ -2256,8 +2256,34 @@ createApp({
     // AI 智慧財務顧問 (CFP 買房/購車/支出分析)
     // ==========================================
 
+    const cleanAdvisorLatex = (raw) => {
+      if (!raw) return '';
+      let text = raw.replace(/\$\$/g, '');
+      text = text.replace(/\\\$/g, '$').replace(/\\%/g, '%');
+      for (let i = 0; i < 3; i++) {
+        text = text.replace(/\\text\{([^{}]+)\}/g, '$1');
+        text = text.replace(/\\mathbf\{([^{}]+)\}/g, '**$1**');
+        text = text.replace(/\\mathit\{([^{}]+)\}/g, '*$1*');
+      }
+      text = text.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1 ÷ $2)');
+      text = text.replace(/\\times/g, '×')
+                 .replace(/\\approx/g, '≈')
+                 .replace(/\\leq?/g, '≤')
+                 .replace(/\\geq?/g, '≥')
+                 .replace(/\\cdot/g, '·')
+                 .replace(/\\div/g, '÷')
+                 .replace(/\\pm/g, '±')
+                 .replace(/\\sim/g, '約')
+                 .replace(/\\infty/g, '無限');
+      text = text.replace(/\\([a-zA-Z]+)/g, '');
+      return text;
+    };
+
     const formatAdvisorMarkdown = (md) => {
       if (!md) return '';
+      // 先行清理可能殘留的 LaTeX 符號
+      md = cleanAdvisorLatex(md);
+
       // HTML 跳脫防 XSS
       let html = md
         .replace(/&/g, '&amp;')

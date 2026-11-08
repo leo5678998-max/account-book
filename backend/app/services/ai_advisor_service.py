@@ -14,6 +14,45 @@ from ..services.installment_service import get_installment_summary
 from ..services.insurance_service import calculate_insurance_summary
 
 
+def clean_latex_syntax(text: str) -> str:
+    """
+    清理 AI 模型可能輸出的 LaTeX 語法標記（如 $$, \\text, \\frac, \\mathbf 等），
+    轉換為一般使用者易於閱讀的純文字與易懂數學運算符號。
+    """
+    if not text:
+        return ""
+    # 1. 移除雙錢號區塊標記 $$
+    cleaned = re.sub(r'\$\$', '', text)
+    # 2. 轉義常見符號 \$ -> $, \% -> %
+    cleaned = cleaned.replace(r'\$', '$').replace(r'\%', '%')
+    # 3. 遞迴去除 \text{...}, \mathbf{...}, \mathit{...}（最多 3 層）
+    for _ in range(3):
+        cleaned = re.sub(r'\\text\{([^{}]+)\}', r'\1', cleaned)
+        cleaned = re.sub(r'\\mathbf\{([^{}]+)\}', r'**\1**', cleaned)
+        cleaned = re.sub(r'\\mathit\{([^{}]+)\}', r'*\1*', cleaned)
+    # 4. 處理分數 \frac{a}{b} -> (a ÷ b)
+    cleaned = re.sub(r'\\frac\{([^{}]+)\}\{([^{}]+)\}', r'(\1 ÷ \2)', cleaned)
+    # 5. 常見數學運算符號轉為易懂符號
+    replacements = {
+        r'\times': '×',
+        r'\approx': '≈',
+        r'\le': '≤',
+        r'\leq': '≤',
+        r'\ge': '≥',
+        r'\geq': '≥',
+        r'\cdot': '·',
+        r'\div': '÷',
+        r'\pm': '±',
+        r'\sim': '約',
+        r'\infty': '無限'
+    }
+    for k, v in replacements.items():
+        cleaned = cleaned.replace(k, v)
+    # 6. 清理殘留反斜線英文標記如 \rm, \bf
+    cleaned = re.sub(r'\\[a-zA-Z]+', '', cleaned)
+    return cleaned.strip()
+
+
 def build_financial_snapshot(db: Session, user: User) -> Dict[str, Any]:
     """
     彙整使用者的全方位財務快照（Financial Snapshot），
@@ -252,6 +291,10 @@ def generate_financial_advice(
 【回覆輸出風格與架構規範】
 - 語氣：親切、專業、客觀且具建設性，使用繁體中文 (Traditional Chinese)。
 - 結構分明：請善用 Markdown 標題、條列式重點、粗體標記關鍵金額與比率。
+- 【重要排版與公式規範（嚴格禁止 LaTeX）】：
+  * 嚴格禁止使用 LaTeX 語法或任何數學公式標記（如 $$...$$、$...$、\\text{...}、\\frac{...}、\\mathbf{...}、\\approx、\\times、\\le、\\ge 等）！
+  * 所有試算、比例、計算過程與總價算式，必須使用日常平易近人的純文字與基本符號表達（例如：使用「總價 × (20% 頭期款 + 8% 相關規費裝潢) <= 3,219,923 元」、「總價上限約為 3,219,923 ÷ 0.28 ≈ 約 NT$ 1,150 萬元」）。
+  * 保持版面在手機螢幕上清晰好讀、易懂，絕不可出現任何反斜線或 LaTeX 程式碼字元。
 - 必須包含：
   1. 📌 **財務現狀總評**：快速診斷諮詢者目前的財務體質優勢與潛在弱點。
   2. 🧮 **量化試算與分析**：根據提問進行具體數字試算（如：建議總價區間、頭期款需求、每月還款試算、安全結餘變更）。
@@ -263,7 +306,7 @@ def generate_financial_advice(
 使用者提問：
 {clean_question}
 
-請根據上述【個人即時財務快照】與專業理財規劃原則，提供詳盡、務實且具備數字佐證的專業財務分析與建議。
+請根據上述【個人即時財務快照】與專業理財規劃原則，提供詳盡、務實且具備數字佐證的專業財務分析與建議。請記住切勿使用任何 LaTeX 數學標記符號。
 """
 
     # 調用 Gemini 官方最新 SDK
@@ -293,7 +336,7 @@ def generate_financial_advice(
 
             if response and response.text:
                 return {
-                    "advice": response.text.strip(),
+                    "advice": clean_latex_syntax(response.text),
                     "snapshot": {
                         "total_savings_twd": snapshot["total_savings_twd"],
                         "effective_monthly_salary_twd": snapshot["effective_monthly_salary_twd"],

@@ -17,7 +17,11 @@ from backend.app.main import app
 from backend.app.models import User, Account, Transaction, RecurringExpense
 from backend.app.services.auth_service import hash_password, create_access_token
 from backend.app.services.accounting_service import save_setting
-from backend.app.services.ai_advisor_service import build_financial_snapshot, generate_financial_advice
+from backend.app.services.ai_advisor_service import (
+    build_financial_snapshot,
+    generate_financial_advice,
+    clean_latex_syntax
+)
 
 
 class TestAIAdvisorServiceAndEndpoints(unittest.TestCase):
@@ -152,6 +156,17 @@ class TestAIAdvisorServiceAndEndpoints(unittest.TestCase):
         self.assertIn("專業買房建議", data["advice"])
         self.assertIn("snapshot", data)
         self.assertEqual(data["snapshot"]["total_savings_twd"], 200000.0)
+
+    def test_clean_latex_syntax(self):
+        """測試自動清理 AI 回應中的 LaTeX 語法與數學符號標記"""
+        sample = r"$$\text{總價} \times (20\% \text{ 頭期款} + 8\% \text{ 相關規費裝潢}) \le 3,219,923$$" + "\n\n" + r"$$\text{總價上限} \approx \frac{3,219,923}{0.28} \approx \mathbf{NT\$ 1,150 \text{ 萬}}$$"
+        cleaned = clean_latex_syntax(sample)
+        self.assertNotIn("$$", cleaned)
+        self.assertNotIn(r"\text", cleaned)
+        self.assertNotIn(r"\frac", cleaned)
+        self.assertNotIn(r"\mathbf", cleaned)
+        self.assertIn("NT$ 1,150", cleaned)
+        self.assertIn("3,219,923", cleaned)
 
     def test_get_financial_snapshot_endpoint(self):
         """測試取得即時個人財務快照 API"""
