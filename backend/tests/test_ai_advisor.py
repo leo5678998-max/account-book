@@ -147,7 +147,8 @@ class TestAIAdvisorServiceAndEndpoints(unittest.TestCase):
             headers=self.auth_headers,
             json={
                 "question": "我想買 1200 萬的房子，請給我頭期款與每月還款建議",
-                "history": []
+                "history": [],
+                "courage_mode": True
             }
         )
         self.assertEqual(res.status_code, 200, res.text)

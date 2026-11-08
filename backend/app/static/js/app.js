@@ -17,7 +17,7 @@ import {
   isDueSoon,
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
-import { ApiService, AuthStorage } from './api.js?v=2.14.0';
+import { ApiService, AuthStorage } from './api.js?v=2.15.0';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
@@ -150,6 +150,36 @@ createApp({
       if (typeof renderTrendChart === 'function') {
         renderTrendChart();
       }
+    };
+
+    // 視覺風格主題 (Theme: 'default' | 'courage')
+    const currentTheme = ref(localStorage.getItem('app_theme') || 'default');
+
+    const applyThemeToDOM = (themeName) => {
+      if (themeName === 'courage') {
+        document.documentElement.classList.add('theme-courage');
+      } else {
+        document.documentElement.classList.remove('theme-courage');
+      }
+    };
+
+    // 初始化載入主題
+    applyThemeToDOM(currentTheme.value);
+
+    const setTheme = (themeName) => {
+      currentTheme.value = themeName;
+      localStorage.setItem('app_theme', themeName);
+      applyThemeToDOM(themeName);
+      triggerHaptic('light');
+      refreshIcons();
+      renderChart();
+      if (typeof renderTrendChart === 'function') {
+        renderTrendChart();
+      }
+    };
+
+    const toggleTheme = () => {
+      setTheme(currentTheme.value === 'courage' ? 'default' : 'courage');
     };
 
     const currentTabTitle = computed(() => {
@@ -2369,11 +2399,15 @@ createApp({
       loadAdvisorSnapshot();
 
       if (advisorChat.value.length === 0) {
+        const welcomeText = currentTheme.value === 'courage'
+          ? '🖥️ **[閣樓老電腦 The Attic Computer v1.0.4]**\n\n「嗶嗶... 愚蠢的狗！你又帶著財務難題跑上無名小鎮閣樓啦？\n\n別慌！本電腦已即時連線你的**真實帳戶存款、實領收入、股票投資與信用卡分期**，為你進行專業精準的買房、買車與財務防護試算！\n\n點選下方快捷情境，或直接輸入你的疑問，本電腦馬上為你解答！」'
+          : '👋 您好！我是您的 **AI 智慧理財顧問**。\n\n我會依據您在記帳系統中的**真實收支、各帳戶存款餘額、股票投資、固定常態扣款與分期明細**進行全方位量化試算，為您量身打造貼近真實財務狀況的買房、買車、收支診斷與預備金建議。\n\n您可以直接點選下方的常見問題情境範例，或在下方輸入框輸入您的財務問題！';
+
         advisorChat.value.push({
           id: 'welcome',
           role: 'assistant',
-          content: '👋 您好！我是您的 **AI 智慧理財顧問**。\n\n我會依據您在記帳系統中的**真實收支、各帳戶存款餘額、股票投資、固定常態扣款與分期明細**進行全方位量化試算，為您量身打造貼近真實財務狀況的買房、買車、收支診斷與預備金建議。\n\n您可以直接點選下方的常見問題情境範例，或在下方輸入框輸入您的財務問題！',
-          formattedHtml: formatAdvisorMarkdown('👋 您好！我是您的 **AI 智慧理財顧問**。\n\n我會依據您在記帳系統中的**真實收支、各帳戶存款餘額、股票投資、固定常態扣款與分期明細**進行全方位量化試算，為您量身打造貼近真實財務狀況的買房、買車、收支診斷與預備金建議。\n\n您可以直接點選下方的常見問題情境範例，或在下方輸入框輸入您的財務問題！'),
+          content: welcomeText,
+          formattedHtml: formatAdvisorMarkdown(welcomeText),
           timestamp: new Date()
         });
       }
@@ -2422,8 +2456,10 @@ createApp({
         .slice(-6)
         .map(m => ({ role: m.role, content: m.content }));
 
+      const isCourage = currentTheme.value === 'courage';
+
       try {
-        const res = await ApiService.askAdvisor(q, history);
+        const res = await ApiService.askAdvisor(q, history, isCourage);
         if (res && res.snapshot) {
           advisorSnapshot.value = res.snapshot;
         }
@@ -2464,11 +2500,14 @@ createApp({
 
     const clearAdvisorChat = () => {
       advisorChat.value = [];
+      const welcomeText = currentTheme.value === 'courage'
+        ? '🖥️ **[閣樓老電腦 The Attic Computer]**\n\n「嗶... 對話記憶已清除。愚蠢的狗，有新的財務疑問就趕緊輸入吧！」'
+        : '👋 對話已清空。您可以直接點選下方的常見問題範例，或輸入新的理財疑問！';
       advisorChat.value.push({
         id: 'welcome',
         role: 'assistant',
-        content: '👋 對話已清空。您可以直接點選下方的常見問題範例，或輸入新的理財疑問！',
-        formattedHtml: formatAdvisorMarkdown('👋 對話已清空。您可以直接點選下方的常見問題範例，或輸入新的理財疑問！'),
+        content: welcomeText,
+        formattedHtml: formatAdvisorMarkdown(welcomeText),
         timestamp: new Date()
       });
       refreshIcons();
@@ -3391,6 +3430,7 @@ createApp({
       triggerHaptic,
       hideAssets, toggleHideAssets,
       isDarkMode, toggleDarkMode,
+      currentTheme, setTheme, toggleTheme,
       analyticsRange, analyticsChartMode, analyticsData, loadingAnalytics,
       fetchAnalytics, setAnalyticsRange, setAnalyticsChartMode, jumpToTransactionsMonth,
       isEditingLayout, dashboardBlockOrder, kpiCardsOrder, draggedBlockIndex, dragOverBlockIndex,

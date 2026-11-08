@@ -263,11 +263,11 @@ export const ApiService = {
 
   // AI 智慧財務顧問 API
   getAdvisorSnapshot: () => authFetch('/api/ai/advisor/snapshot').then(r => (r.ok ? r.json() : null)),
-  askAdvisor: async (question, history = []) => {
+  askAdvisor: async (question, history = [], courageMode = false) => {
     const res = await authFetch('/api/ai/advisor/ask', {
       method: 'POST',
       headers: jsonHeaders,
-      body: JSON.stringify({ question, history })
+      body: JSON.stringify({ question, history, courage_mode: courageMode })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {

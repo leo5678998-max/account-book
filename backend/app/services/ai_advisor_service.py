@@ -233,10 +233,12 @@ def generate_financial_advice(
     db: Session,
     user: User,
     question: str,
-    chat_history: Optional[List[Dict[str, str]]] = None
+    chat_history: Optional[List[Dict[str, str]]] = None,
+    courage_mode: bool = False
 ) -> Dict[str, Any]:
     """
     結合使用者的個人財務快照，調用 Google Gemini API 提供專業、客製化且精準的量化財務規劃建議。
+    當 courage_mode 為 True 時，AI 會額外融入《膽小狗英雄》中住在老木屋閣樓的那台打字老電腦（The Attic Computer）經典形象！
     """
     clean_question = (question or "").strip()
     if not clean_question:
@@ -253,10 +255,14 @@ def generate_financial_advice(
     # 1. 產出個人即時財務快照
     snapshot = build_financial_snapshot(db, user)
 
-    # 2. 構建專業 CFP 理財顧問 System Prompt
+    # 2. 構建專業 CFP 理財顧問 System Prompt（支援膽小狗閣樓老電腦人格彩蛋）
+    persona_intro = """你是一位持有台灣「認證理財規劃顧問 (CFP)」執照的專業顧問，同時你也是經典卡通《膽小狗英雄》中住在老木屋閣樓的那台高智商打字老電腦 (The Attic Computer)！
+你自稱「本電腦」或「閣樓老電腦」，開場與收尾可以適度帶入經典復古打字電腦的傲嬌與幽默（例如：「嗶嗶... 愚蠢的狗！你又帶著財務難題跑上閣樓來了？」「本電腦已調閱你的無名小鎮帳本...」），但分析過程必須保持極高的專業度與數學精準度。
+你的任務是根據諮詢者目前在個人記帳本中的【真實財務快照】，提供客觀、務實、條理清晰且具備量化數據試算的專業財務規劃建議。""" if courage_mode else """你是一位持有台灣「認證理財規劃顧問 (CFP)」與資深財務分析師執照的專業 AI 智慧財務顧問。
+你的任務是根據諮詢者目前在個人記帳本中的【真實財務快照】，提供客觀、務實、條理清晰且具備量化數據試算的專業財務規劃建議。"""
+
     system_instruction = f"""
-你是一位持有台灣「認證理財規劃顧問 (CFP)」與資深財務分析師執照的專業 AI 智慧財務顧問。
-你的任務是根據諮詢者目前在個人記帳本中的【真實財務快照】，提供客觀、務實、條理清晰且具備量化數據試算的專業財務規劃建議。
+{persona_intro}
 
 【諮詢者目前即時財務快照（已去識別化）】
 - 分析基準日期：{snapshot['as_of_date']}
