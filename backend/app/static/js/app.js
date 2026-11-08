@@ -146,10 +146,10 @@ createApp({
       }
       updateThemeColorMeta();
       refreshIcons();
-      renderChart();
-      if (typeof renderTrendChart === 'function') {
-        renderTrendChart();
-      }
+      nextTick(() => {
+        try { if (typeof renderChart === 'function') renderChart(); } catch (e) {}
+        try { if (typeof renderTrendChart === 'function') renderTrendChart(); } catch (e) {}
+      });
     };
 
     // 視覺風格主題 (Theme: 'default' | 'courage')
@@ -172,10 +172,10 @@ createApp({
       applyThemeToDOM(themeName);
       triggerHaptic('light');
       refreshIcons();
-      renderChart();
-      if (typeof renderTrendChart === 'function') {
-        renderTrendChart();
-      }
+      nextTick(() => {
+        try { if (typeof renderChart === 'function') renderChart(); } catch (e) {}
+        try { if (typeof renderTrendChart === 'function') renderTrendChart(); } catch (e) {}
+      });
     };
 
     const toggleTheme = () => {
@@ -913,7 +913,7 @@ createApp({
       return (chartBaseSalary.value || 0) - monthlyTotalExpense.value;
     });
 
-    const renderChart = () => {
+    function renderChart() {
       nextTick(() => {
         renderExpenseDoughnutChart({
           canvasId: 'expenseChart',
@@ -924,7 +924,7 @@ createApp({
           mode: chartViewMode.value
         });
       });
-    };
+    }
 
     const setChartViewMode = (mode) => {
       chartViewMode.value = mode;
@@ -1118,7 +1118,7 @@ createApp({
     });
     const loadingAnalytics = ref(false);
 
-    const renderTrendChart = () => {
+    function renderTrendChart() {
       nextTick(() => {
         renderMonthlyTrendChart({
           canvasId: 'monthlyTrendChart',
@@ -1126,7 +1126,7 @@ createApp({
           chartMode: analyticsChartMode.value
         });
       });
-    };
+    }
 
     const fetchAnalytics = async (months = analyticsRange.value) => {
       loadingAnalytics.value = true;
