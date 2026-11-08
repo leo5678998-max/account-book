@@ -158,6 +158,7 @@ def build_financial_snapshot(db: Session, user: User) -> Dict[str, Any]:
     ]
 
     # 6. 近 3 個月歷史實際消費與收支統計 (現金流分析)
+    start_month = get_setting(db, "BOOKKEEPING_START_MONTH", "2026-11", user_id=uid)
     three_months_ago = datetime.utcnow() - relativedelta(months=3)
 
     recent_txs = db.query(Transaction).filter(
@@ -168,8 +169,15 @@ def build_financial_snapshot(db: Session, user: User) -> Dict[str, Any]:
     category_expenses: Dict[str, float] = {}
     total_recent_expense = 0.0
     total_recent_income = 0.0
+    active_months = set()
 
     for tx in recent_txs:
+        if not tx.date:
+            continue
+        m_str = tx.date.strftime("%Y-%m")
+        if start_month and m_str < start_month:
+            continue
+        active_months.add(m_str)
         amt = float(tx.amount or 0.0)
         if tx.tx_type == "EXPENSE":
             total_recent_expense += amt
@@ -182,9 +190,10 @@ def build_financial_snapshot(db: Session, user: User) -> Dict[str, Any]:
         elif tx.tx_type == "INCOME":
             total_recent_income += amt
 
-    # 評估平均月支出 (若最近 3 個月有資料則除以 3，否則採現有月份或固定開銷估計)
-    avg_monthly_expense = round(total_recent_expense / 3, 2) if total_recent_expense > 0 else monthly_recurring_total
-    avg_monthly_income = round(total_recent_income / 3, 2) if total_recent_income > 0 else effective_salary
+    # 評估平均月支出與收入：依實際記帳月份數平攤 (新用戶剛起步時不被固定除以 3 稀釋)
+    active_months_count = max(1, len(active_months))
+    avg_monthly_expense = round(total_recent_expense / active_months_count, 2) if total_recent_expense > 0 else monthly_recurring_total
+    avg_monthly_income = round(total_recent_income / active_months_count, 2) if total_recent_income > 0 else effective_salary
 
     # 排序消費前 5 大分類與佔比
     sorted_categories = sorted(category_expenses.items(), key=lambda x: x[1], reverse=True)[:5]

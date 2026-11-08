@@ -278,6 +278,7 @@ class SettingsUpdate(BaseModel):
     salary_account_id: Optional[int] = None
     salary_pay_day: Optional[int] = None
     auto_salary_income: Optional[bool] = None
+    bookkeeping_start_month: Optional[str] = None
 
 class SettingsStatus(BaseModel):
     is_google_connected: bool
@@ -313,6 +314,7 @@ class SettingsStatus(BaseModel):
     google_redirect_uri: Optional[str] = ""
     webhook_token: Optional[str] = ""
     webhook_url: Optional[str] = ""
+    bookkeeping_start_month: Optional[str] = "2026-11"
 
 
 # ================= 股票持股相關 Schema =================

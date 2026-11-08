@@ -228,6 +228,7 @@ def get_settings_status(
     pay_day = int(pay_day_str) if pay_day_str and pay_day_str.isdigit() else 5
 
     auto_salary_income_val = get_setting(db, "AUTO_SALARY_INCOME_ENABLED", "false", user_id=uid).lower() in ("true", "1")
+    bookkeeping_start_month_val = get_setting(db, "BOOKKEEPING_START_MONTH", "2026-11", user_id=uid)
 
     webhook_tok = get_or_create_webhook_token(db, uid)
     webhook_path = f"/api/webhook/apple-pay?token={webhook_tok}"
@@ -265,7 +266,8 @@ def get_settings_status(
         google_client_id=cid_val,
         google_redirect_uri=uri_val,
         webhook_token=webhook_tok,
-        webhook_url=webhook_path
+        webhook_url=webhook_path,
+        bookkeeping_start_month=bookkeeping_start_month_val
     )
 
 
@@ -324,6 +326,8 @@ def update_settings(
         save_setting(db, "SALARY_PAY_DAY", str(max(1, min(31, settings.salary_pay_day))), user_id=uid)
     if settings.auto_salary_income is not None:
         save_setting(db, "AUTO_SALARY_INCOME_ENABLED", "true" if settings.auto_salary_income else "false", user_id=uid)
+    if settings.bookkeeping_start_month is not None:
+        save_setting(db, "BOOKKEEPING_START_MONTH", settings.bookkeeping_start_month.strip(), user_id=uid)
     if settings.default_debit_account_id is not None:
         db.query(Account).filter(Account.user_id == uid).update({Account.is_dbs_default_debit: False})
         db.query(Account).filter(

@@ -177,6 +177,43 @@ class TestAIAdvisorServiceAndEndpoints(unittest.TestCase):
         self.assertEqual(data["total_savings_twd"], 200000.0)
         self.assertEqual(data["base_monthly_salary_twd"], 80000.0)
 
+    def test_dynamic_active_month_divisor_and_start_month(self):
+        """測試起始記帳月份過濾與動態除數計算，剛起步單月開銷不被除以3稀釋"""
+        save_setting(self.db, "BOOKKEEPING_START_MONTH", "2026-11", user_id=self.user.id)
+        # 建立 10 月測試支出 (應被排除) 與 11 月正式支出
+        t_oct = Transaction(
+            user_id=self.user.id,
+            account_id=self.acc1.id,
+            amount=5000.0,
+            tx_type="EXPENSE",
+            category="測試",
+            date=datetime(2026, 10, 25, 12, 0, 0)
+        )
+        t_nov = Transaction(
+            user_id=self.user.id,
+            account_id=self.acc1.id,
+            amount=12000.0,
+            tx_type="EXPENSE",
+            category="餐飲",
+            date=datetime(2026, 11, 2, 12, 0, 0)
+        )
+        self.db.add_all([t_oct, t_nov])
+        self.db.commit()
+
+        snapshot = build_financial_snapshot(self.db, self.user)
+        # 10 月 5000 元被過濾，11 月現有支出 (12000+20000+12000)=44000 元且只有 1 個活躍月，平均月支出為 44000.0 而非 (44000+5000) / 3
+        self.assertEqual(snapshot["avg_monthly_expense_twd"], 44000.0)
+
+    def test_monthly_trends_start_month_no_phantom_salary(self):
+        """測試收支趨勢在起始月份前不自動注入幽靈薪資與扣繳"""
+        save_setting(self.db, "BOOKKEEPING_START_MONTH", "2026-11", user_id=self.user.id)
+        res = self.client.get("/api/analytics/monthly-trends?months=6", headers=self.auth_headers)
+        self.assertEqual(res.status_code, 200, res.text)
+        data = res.json()
+        # 回傳之月度統計只包含 2026-11
+        for row in data["months_data"]:
+            self.assertGreaterEqual(row["month"], "2026-11")
+
 
 if __name__ == "__main__":
     unittest.main()

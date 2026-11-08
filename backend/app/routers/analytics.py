@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from typing import Dict, Any
 from fastapi import APIRouter, Depends
@@ -43,6 +43,7 @@ def get_monthly_trends(
     current_balance = sum(float(a.balance or 0.0) for a in user_accounts)
 
     # 讀取使用者設定的基準薪資與法定扣繳設定
+    start_month = get_setting(db, "BOOKKEEPING_START_MONTH", "2026-11", user_id=uid)
     salary_str = get_setting(db, "MONTHLY_SALARY", "", user_id=uid)
     base_salary = float(salary_str) if salary_str else 0.0
 
@@ -136,6 +137,8 @@ def get_monthly_trends(
         if not tx.date:
             continue
         m_str = tx.date.strftime("%Y-%m")
+        if start_month and m_str < start_month:
+            continue
         if m_str in monthly_stats:
             amt = float(tx.amount or 0.0)
             if tx.tx_type == "INCOME":
@@ -161,6 +164,10 @@ def get_monthly_trends(
 
     # 整合基準月薪、法定扣繳與固定常態開銷至各月份
     for m in month_keys:
+        # 若早於正式記帳起始月份，不自動回填基準月薪或常態扣繳，歷史月份維持空白/為0
+        if start_month and m < start_month:
+            continue
+
         # 若該月尚未手動記入薪資流水帳且有設定基準月薪，納入當月總收入
         if m not in manual_salary_months and monthly_base_income > 0:
             monthly_stats[m]["income"] += monthly_base_income
@@ -187,8 +194,10 @@ def get_monthly_trends(
                     monthly_stats[m]["categories"].get(cat, 0.0) + amt
                 )
 
-    # 目標分析月份列表 (排除多抓的前一個月)
-    target_months = month_keys[1:]
+    # 目標分析月份列表 (排除多抓的前一個月，若有指定起始月份則過濾起始月份之前的月份)
+    target_months = [m for m in month_keys[1:] if not start_month or m >= start_month]
+    if not target_months and month_keys:
+        target_months = [month_keys[-1]]
 
     # 逆推月末存款走勢：每個月滿足 end_balance[i] = end_balance[i-1] + net[i]
     month_nets = {
@@ -210,9 +219,14 @@ def get_monthly_trends(
         net = round(inc - exp, 2)
         savings_rate = round((net / inc * 100), 1) if inc > 0 else 0.0
 
-        # 與前一個月份對比 (idx 在 month_keys 中對應前一個月份)
-        prev_m = month_keys[idx]
-        prev_stat = monthly_stats[prev_m]
+        # 與前一個月份對比 (安全依據月度時間遞減 1 個月比對)
+        try:
+            m_date = datetime.strptime(m, "%Y-%m").date()
+            prev_m = (m_date - relativedelta(months=1)).strftime("%Y-%m")
+        except Exception:
+            prev_m = month_keys[idx] if idx < len(month_keys) else ""
+
+        prev_stat = monthly_stats.get(prev_m, {"income": 0.0, "expense": 0.0, "categories": {}})
         prev_exp = prev_stat["expense"]
         prev_net = prev_stat["income"] - prev_stat["expense"]
 
@@ -259,11 +273,12 @@ def get_monthly_trends(
     total_period_income = sum(d["income"] for d in months_data)
     total_period_expense = sum(d["expense"] for d in months_data)
     total_period_net = sum(d["net"] for d in months_data)
+    active_count = len(target_months) if target_months else 1
     avg_expense = (
-        round(total_period_expense / len(months_data), 2) if months_data else 0.0
+        round(total_period_expense / active_count, 2) if months_data else 0.0
     )
     avg_income = (
-        round(total_period_income / len(months_data), 2) if months_data else 0.0
+        round(total_period_income / active_count, 2) if months_data else 0.0
     )
 
     start_balance = running_balance
