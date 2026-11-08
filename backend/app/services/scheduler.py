@@ -15,7 +15,9 @@ from ..models import User, Account, Bill
 from .accounting_service import get_setting, execute_bill_payment, execute_auto_salary_credits
 from .integrations.gmail_service import GmailService
 from .integrations.imap_service import ImapService
-from .integrations.dbs_parser import parse_dbs_pdf, normalize_date
+from .integrations.dbs_parser import normalize_date
+# [相容保留 / 潛在 Dead Code] 舊版星展本地解析器已停用，全面改由純 Gemini AI 辨識
+# from .integrations.dbs_parser import parse_dbs_pdf
 from .integrations.ai_parser import parse_document_with_gemini
 from .stock_service import refresh_all_stock_prices
 from .recurring_service import execute_auto_recurring_debits
@@ -116,14 +118,14 @@ def sync_bills_from_gmail(db: Session = None, user_id: int = 1):
                         "minimum_amount": float(ai_res.get("minimum_amount", 0.0)),
                     }
 
-            # 若無 AI 或 AI 失敗，使用本地星展解析器
+            # 全面改為純 AI 智能辨識。若未設定 Gemini Key 或辨識未成功，則記錄並略過，不再使用本地正規表達式
             if not parse_result:
-                local_fallback_pwd = dbs_pwd or id_card_pwd
-                local_res = parse_dbs_pdf(att["pdf_bytes"], local_fallback_pwd)
-                if not local_res.get("success"):
-                    errors.append(f"信件 {att['subject']} 解析失敗: {local_res.get('error')}")
-                    continue
-                parse_result = local_res
+                # [相容保留 / 潛在 Dead Code] 舊版本地星展解析器已停用
+                if not gemini_key:
+                    errors.append(f"信件 {att['subject']} 未解析：使用者未設定 Gemini API Key")
+                else:
+                    errors.append(f"信件 {att['subject']} AI 辨識未成功")
+                continue
 
             due_date = parse_result.get("due_date")
             if not due_date:

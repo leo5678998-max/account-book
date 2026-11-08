@@ -1,3 +1,8 @@
+# [相容保留 / 潛在 Dead Code]
+# 本模組為舊版星展銀行本地 PDF 正規表達式解析器。
+# 系統單據辨識現已全面改由純 Google Gemini 多模態 AI (ai_parser.py) 辨識處理，支援各家銀行與各類發票。
+# 依照專案規範 GEMINI.md 保留此歷史相容模組。
+
 import re
 import io
 from datetime import datetime, date

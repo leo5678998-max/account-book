@@ -100,9 +100,18 @@ def parse_document_with_gemini(
     is_pdf = lower_name.endswith(".pdf")
     
     if is_pdf:
-        # 若為 PDF 先嘗試提取文字
-        extracted_text = extract_pdf_first_pages_text(file_bytes, password, max_pages=3)
+        # 若為 PDF 先嘗試解密與提取文字
         clean_bytes = decrypt_pdf_if_needed(file_bytes, password)
+        try:
+            chk_reader = PdfReader(io.BytesIO(clean_bytes))
+            if chk_reader.is_encrypted:
+                return {
+                    "success": False,
+                    "error": "此 PDF 帳單設有密碼保護，且您提供的解密密碼（身分證字號或專屬密碼）無法解鎖。請確認密碼是否正確。"
+                }
+        except Exception:
+            pass
+        extracted_text = extract_pdf_first_pages_text(clean_bytes, None, max_pages=3)
         mime_type = "application/pdf"
     elif lower_name.endswith((".jpg", ".jpeg")):
         mime_type = "image/jpeg"
@@ -163,7 +172,7 @@ def parse_document_with_gemini(
 """
 
     # 候選模型順序：優先使用快速穩定的 3.5-flash-lite，其次嘗試 3.8-flash，再次 3.1-flash-lite
-    candidate_models = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.1-flash-lite"]
+    candidate_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.5-flash-lite", "gemini-3.8-flash"]
     last_error = ""
 
     for model_name in candidate_models:

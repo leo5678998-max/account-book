@@ -33,7 +33,8 @@ from ..services.reconciliation_service import (
 )
 from ..services.auth_service import get_current_user
 from ..services.integrations.ai_parser import parse_document_with_gemini
-from ..services.integrations.dbs_parser import parse_dbs_pdf
+# [相容保留 / 潛在 Dead Code] 舊版星展本地解析器已停用，單據辨識全面改由純 Gemini AI 辨識
+# from ..services.integrations.dbs_parser import parse_dbs_pdf
 from ..services.scheduler import sync_bills_from_gmail, execute_auto_debits
 
 router = APIRouter(tags=["Bills & Sync"])
@@ -227,63 +228,48 @@ async def parse_document(
     if dbs_pwd:
         pwd_candidates.append(dbs_pwd.strip())
 
-    if gemini_key:
-        res = parse_document_with_gemini(
-            file_bytes=file_bytes,
-            filename=file.filename,
-            api_key=gemini_key,
-            password=pwd_candidates
-        )
-        if res.get("success"):
-            return DocumentParseResponse(
-                success=True,
-                document_type=res.get("document_type", "CREDIT_CARD_BILL"),
-                bank_or_company=res.get("bank_or_company", "未知機構"),
-                statement_month=res.get("statement_month"),
-                total_amount=float(res.get("total_amount", 0.0)),
-                minimum_amount=float(res.get("minimum_amount", 0.0)),
-                due_date=res.get("due_date"),
-                statement_date=res.get("statement_date"),
-                notes=res.get("notes"),
-                confidence_summary=res.get("confidence_summary"),
-                raw_snippet=res.get("raw_snippet"),
-                currency=res.get("currency", "TWD"),
-                original_amount=res.get("original_amount"),
-                exchange_rate=res.get("exchange_rate", 1.0)
-            )
-        else:
-            print(f"[AI Parser] Gemini 辨識失敗 (user={current_user.id}): {res.get('error')}，嘗試本地解析")
-
-    if file.filename.lower().endswith(".pdf"):
-        fallback_pwd = password or dbs_pwd or id_card_pwd
-        if not fallback_pwd:
-            raise HTTPException(status_code=400, detail="本地 PDF 解析需要解密密碼，或請至【設定】填寫您個人的 Gemini API Key 啟用 AI 辨識")
-
-        local_res = parse_dbs_pdf(file_bytes, fallback_pwd)
-        if not local_res.get("success"):
-            raise HTTPException(status_code=400, detail=local_res.get("error", "PDF 解析失敗"))
-
-        due_date_str = local_res.get("due_date").strftime("%Y-%m-%d") if local_res.get("due_date") else None
-        statement_date_str = local_res.get("statement_date").strftime("%Y-%m-%d") if local_res.get("statement_date") else None
-        warn_msg = " (提醒：金額為 0 元，建議在預覽框核對並手動修正)" if local_res.get("needs_review") else ""
-
-        return DocumentParseResponse(
-            success=True,
-            document_type="CREDIT_CARD_BILL",
-            bank_or_company=local_res.get("bank_name", "星展銀行"),
-            statement_month=local_res.get("statement_month"),
-            total_amount=local_res.get("total_amount", 0.0),
-            minimum_amount=local_res.get("minimum_amount", 0.0),
-            due_date=due_date_str,
-            statement_date=statement_date_str,
-            confidence_summary="使用本地正規表達式解析" + warn_msg,
-            raw_snippet=local_res.get("raw_snippet")
+    # 單據辨識功能全面改為「純 AI 智能辨識」，支援所有各家銀行信用卡帳單、日常發票與薪資單
+    if not gemini_key:
+        raise HTTPException(
+            status_code=400,
+            detail="系統單據辨識已全面升級為「純 AI 智能辨識」。請先至右上角【設定】填入您個人的 Gemini API Key (可於 Google AI Studio 免費申請)，即可啟用 AI 多模態辨識。"
         )
 
-    raise HTTPException(
-        status_code=400,
-        detail="圖片辨識或非星展銀行單據需要您個人的 GEMINI_API_KEY，請至右上角【設定】填入免費的 Gemini API Key"
+    res = parse_document_with_gemini(
+        file_bytes=file_bytes,
+        filename=file.filename,
+        api_key=gemini_key,
+        password=pwd_candidates
     )
+
+    if not res.get("success"):
+        raise HTTPException(
+            status_code=400,
+            detail=res.get("error", "AI 辨識單據未成功，請確認檔案內容或 PDF 解密密碼是否正確。")
+        )
+
+    return DocumentParseResponse(
+        success=True,
+        document_type=res.get("document_type", "CREDIT_CARD_BILL"),
+        bank_or_company=res.get("bank_or_company", "未知機構"),
+        statement_month=res.get("statement_month"),
+        total_amount=float(res.get("total_amount", 0.0)),
+        minimum_amount=float(res.get("minimum_amount", 0.0)),
+        due_date=res.get("due_date"),
+        statement_date=res.get("statement_date"),
+        notes=res.get("notes"),
+        confidence_summary=res.get("confidence_summary"),
+        raw_snippet=res.get("raw_snippet"),
+        currency=res.get("currency", "TWD"),
+        original_amount=res.get("original_amount"),
+        exchange_rate=res.get("exchange_rate", 1.0)
+    )
+
+    # [相容保留 / 潛在 Dead Code] 舊版星展銀行本地 PDF 正規表達式解析備用邏輯已停用，系統已全面改用純 Gemini AI 多模態辨識。
+    # if file.filename.lower().endswith(".pdf"):
+    #     fallback_pwd = password or dbs_pwd or id_card_pwd
+    #     local_res = parse_dbs_pdf(file_bytes, fallback_pwd)
+    #     ...
 
 
 @router.post("/api/salary/apply")
