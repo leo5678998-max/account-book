@@ -274,6 +274,10 @@ class SettingsUpdate(BaseModel):
     tax_fee: Optional[float] = None
     show_deductions_in_chart: Optional[bool] = None
     labor_health_auto_calc: Optional[bool] = None
+    auto_debit_bills: Optional[bool] = None
+    salary_account_id: Optional[int] = None
+    salary_pay_day: Optional[int] = None
+    auto_salary_income: Optional[bool] = None
 
 class SettingsStatus(BaseModel):
     is_google_connected: bool
@@ -282,6 +286,11 @@ class SettingsStatus(BaseModel):
     google_client_id_configured: bool
     has_gemini_api_key: bool
     default_debit_account_name: Optional[str] = None
+    auto_debit_bills: bool = False
+    salary_account_id: Optional[int] = None
+    salary_account_name: Optional[str] = None
+    salary_pay_day: int = 5
+    auto_salary_income: bool = False
     monthly_salary: float = 50000.0
     deduct_labor_health: bool = False
     health_insurance_dependents: int = 1

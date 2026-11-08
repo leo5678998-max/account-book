@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..models import User, Account
 from ..schemas import SettingsUpdate, SettingsStatus
-from ..services.accounting_service import get_setting, save_setting, get_default_debit_account
+from ..services.accounting_service import (
+    get_setting,
+    save_setting,
+    get_default_debit_account,
+    execute_auto_salary_credits
+)
 from ..services.webhook_service import get_or_create_webhook_token
 from ..services.auth_service import get_current_user
 from ..services.integrations.gmail_service import GmailService
@@ -208,6 +213,22 @@ def get_settings_status(
     is_imap_ok = imap_service.is_configured()
     is_gmail_ok = gmail_service.is_connected()
 
+    auto_debit_bills_val = get_setting(db, "AUTO_DEBIT_BILLS", "false", user_id=uid).lower() in ("true", "1")
+
+    salary_acc_id_str = get_setting(db, "SALARY_ACCOUNT_ID", "", user_id=uid)
+    salary_acc_id = int(salary_acc_id_str) if salary_acc_id_str and salary_acc_id_str.isdigit() else None
+    salary_acc = None
+    if salary_acc_id:
+        salary_acc = db.query(Account).filter(Account.id == salary_acc_id, Account.user_id == uid).first()
+    if not salary_acc and default_acc:
+        salary_acc = default_acc
+        salary_acc_id = default_acc.id
+
+    pay_day_str = get_setting(db, "SALARY_PAY_DAY", "5", user_id=uid)
+    pay_day = int(pay_day_str) if pay_day_str and pay_day_str.isdigit() else 5
+
+    auto_salary_income_val = get_setting(db, "AUTO_SALARY_INCOME_ENABLED", "false", user_id=uid).lower() in ("true", "1")
+
     webhook_tok = get_or_create_webhook_token(db, uid)
     webhook_path = f"/api/webhook/apple-pay?token={webhook_tok}"
 
@@ -218,6 +239,11 @@ def get_settings_status(
         google_client_id_configured=bool(cid_val),
         has_gemini_api_key=bool(gemini_val),
         default_debit_account_name=default_acc.name if default_acc else None,
+        auto_debit_bills=auto_debit_bills_val,
+        salary_account_id=salary_acc_id,
+        salary_account_name=salary_acc.name if salary_acc else None,
+        salary_pay_day=pay_day,
+        auto_salary_income=auto_salary_income_val,
         monthly_salary=salary,
         deduct_labor_health=deduct_labor_health,
         health_insurance_dependents=dependents,
@@ -290,6 +316,14 @@ def update_settings(
         save_setting(db, "TAX_FEE", str(settings.tax_fee), user_id=uid)
     if settings.show_deductions_in_chart is not None:
         save_setting(db, "SHOW_DEDUCTIONS_IN_CHART", "true" if settings.show_deductions_in_chart else "false", user_id=uid)
+    if settings.auto_debit_bills is not None:
+        save_setting(db, "AUTO_DEBIT_BILLS", "true" if settings.auto_debit_bills else "false", user_id=uid)
+    if settings.salary_account_id is not None:
+        save_setting(db, "SALARY_ACCOUNT_ID", str(settings.salary_account_id), user_id=uid)
+    if settings.salary_pay_day is not None:
+        save_setting(db, "SALARY_PAY_DAY", str(max(1, min(31, settings.salary_pay_day))), user_id=uid)
+    if settings.auto_salary_income is not None:
+        save_setting(db, "AUTO_SALARY_INCOME_ENABLED", "true" if settings.auto_salary_income else "false", user_id=uid)
     if settings.default_debit_account_id is not None:
         db.query(Account).filter(Account.user_id == uid).update({Account.is_dbs_default_debit: False})
         db.query(Account).filter(
@@ -298,7 +332,21 @@ def update_settings(
         ).update({Account.is_dbs_default_debit: True})
 
     db.commit()
+
+    # 若開啟每月自動薪資入帳，立即檢查本月是否已符合發薪日並入帳
+    if settings.auto_salary_income:
+        execute_auto_salary_credits(db, user_id=uid)
+
     return {"status": "success", "message": "設定已更新"}
+
+
+@router.post("/api/salary/trigger-credit")
+def trigger_salary_credit_now(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """手動觸發立即為本月入帳薪資流水帳"""
+    return execute_auto_salary_credits(db, user_id=current_user.id)
 
 
 @router.post("/api/settings/test-imap")

@@ -27,3 +27,7 @@ Thumbs.db
 backend/logs/
 *.log
 
+# Executables & Tools
+tools/ngrok.exe
+tools/*.old
+

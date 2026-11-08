@@ -51,6 +51,8 @@ const jsonHeaders = { 'Content-Type': 'application/json' };
 
 export const ApiService = {
   // 認證與帳號管理 API
+  getAuthConfig: () =>
+    fetch('/api/auth/config').then(r => (r.ok ? r.json() : { allow_registration: false })).catch(() => ({ allow_registration: false })),
   login: (username, password) =>
     fetch('/api/auth/login', {
       method: 'POST',

@@ -17,7 +17,7 @@ import {
   isDueSoon,
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
-import { ApiService, AuthStorage } from './api.js?v=2.9.0';
+import { ApiService, AuthStorage } from './api.js?v=2.9.1';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
@@ -69,6 +69,7 @@ createApp({
     const isAuthenticated = ref(Boolean(AuthStorage.getToken()));
     const currentUser = ref(AuthStorage.getUser());
     const authMode = ref('login'); // 'login' | 'register'
+    const allowRegistration = ref(false); // 伺服器是否開放外網註冊 (資安保護預設關閉)
     const authLoading = ref(false);
     const authError = ref('');
     const authForm = ref({
@@ -498,7 +499,11 @@ createApp({
       tax_rate: 0.05,
       tax_fee: 2500,
       show_deductions_in_chart: true,
-      labor_health_auto_calc: true
+      labor_health_auto_calc: true,
+      auto_debit_bills: false,
+      salary_account_id: null,
+      salary_pay_day: 5,
+      auto_salary_income: false
     });
 
     // 勞健保與實領薪資計算 (Effective Net Salary)
@@ -1106,6 +1111,10 @@ createApp({
       settingsForm.value.tax_rate = Number(data.tax_rate) !== undefined ? Number(data.tax_rate) : 0.05;
       settingsForm.value.show_deductions_in_chart = data.show_deductions_in_chart !== false;
       settingsForm.value.labor_health_auto_calc = data.labor_health_auto_calc !== false;
+      settingsForm.value.auto_debit_bills = Boolean(data.auto_debit_bills);
+      settingsForm.value.salary_account_id = data.salary_account_id || null;
+      settingsForm.value.salary_pay_day = Number(data.salary_pay_day) || 5;
+      settingsForm.value.auto_salary_income = Boolean(data.auto_salary_income);
       settingsForm.value.labor_insurance_fee = Number(data.labor_insurance_fee) || 0;
       settingsForm.value.health_insurance_fee = Number(data.health_insurance_fee) || 0;
       settingsForm.value.pension_fee = Number(data.pension_fee) || 0;
@@ -1163,6 +1172,7 @@ createApp({
         showAccountModal.value = false;
         await fetchAccounts();
         await fetchSettings();
+        await fetchTransactions();
       } else {
         alert('儲存失敗');
       }
@@ -2651,6 +2661,10 @@ createApp({
       if (settings.value.google_redirect_uri) {
         settingsForm.value.google_redirect_uri = settings.value.google_redirect_uri;
       }
+      settingsForm.value.auto_debit_bills = Boolean(settings.value.auto_debit_bills);
+      settingsForm.value.salary_account_id = settings.value.salary_account_id || (accounts.value.find(a => a.account_type === 'SAVINGS')?.id || null);
+      settingsForm.value.salary_pay_day = Number(settings.value.salary_pay_day) || 5;
+      settingsForm.value.auto_salary_income = Boolean(settings.value.auto_salary_income);
       showSettingsModal.value = true;
       nextTick(() => refreshIcons());
     };
@@ -2668,6 +2682,8 @@ createApp({
         alert('設定儲存成功！');
         showSettingsModal.value = false;
         await fetchSettings();
+        await fetchTransactions();
+        await fetchAccounts();
       }
     };
 
@@ -2896,6 +2912,13 @@ createApp({
     });
 
     onMounted(async () => {
+      // 載入公開資安配置（如是否開放註冊）
+      ApiService.getAuthConfig().then(cfg => {
+        if (cfg && typeof cfg.allow_registration === 'boolean') {
+          allowRegistration.value = cfg.allow_registration;
+        }
+      }).catch(() => {});
+
       loadDashboardLayout();
       const hash = window.location.hash.replace('#', '');
       const validTabs = ['dashboard', 'transactions', 'recurring', 'bills', 'stocks', 'accounts', 'assets', 'installments', 'trends'];
@@ -2938,6 +2961,8 @@ createApp({
         alert('🎉 Google 帳號授權成功！');
         window.history.replaceState({}, document.title, window.location.pathname);
         await fetchSettings();
+        await fetchTransactions();
+        await fetchAccounts();
       }
 
       // 📱 手機多工切回 / 解鎖螢幕 / 視窗獲得焦點時，自動靜默更新最新流水帳與餘額 (Apple Pay 刷完切回立即可見)
@@ -2977,7 +3002,7 @@ createApp({
     });
 
     return {
-      isAuthenticated, currentUser, authMode, authLoading, authError, authForm,
+      isAuthenticated, currentUser, authMode, allowRegistration, authLoading, authError, authForm,
       submitAuth, logout, testingImap, imapTestResult, testImapConnection,
       profileForm, updateUserProfile,
       accounts, bills, transactions, settings, salaryInput, currentMonth, selectedMonth,

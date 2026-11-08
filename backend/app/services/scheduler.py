@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 from ..core.database import SessionLocal
 from ..models import User, Account, Bill
-from .accounting_service import get_setting, execute_bill_payment
+from .accounting_service import get_setting, execute_bill_payment, execute_auto_salary_credits
 from .integrations.gmail_service import GmailService
 from .integrations.imap_service import ImapService
 from .integrations.dbs_parser import parse_dbs_pdf, normalize_date
@@ -167,7 +167,7 @@ def sync_bills_from_gmail(db: Session = None, user_id: int = 1):
 
 
 def execute_auto_debits(db: Session = None, user_id: Optional[int] = None):
-    """檢查所有已到期/即將到期的帳單，並從指定存款帳戶自動扣款"""
+    """檢查所有已到期/即將到期的帳單，並從指定存款帳戶自動扣款（需使用者明確開啟 AUTO_DEBIT_BILLS）"""
     close_db = False
     if db is None:
         db = SessionLocal()
@@ -175,6 +175,12 @@ def execute_auto_debits(db: Session = None, user_id: Optional[int] = None):
 
     try:
         today = date.today()
+        if user_id is not None:
+            is_enabled = get_setting(db, "AUTO_DEBIT_BILLS", "false", user_id=user_id).lower() in ("true", "1")
+            if not is_enabled:
+                print(f"[Scheduler] 使用者 (ID={user_id}) 未開啟帳單自動扣款，略過扣款")
+                return {"status": "skipped", "message": "未啟用帳單自動扣款功能", "paid_count": 0}
+
         query = db.query(Bill).filter(
             Bill.status == "PENDING",
             Bill.due_date <= today
@@ -186,6 +192,10 @@ def execute_auto_debits(db: Session = None, user_id: Optional[int] = None):
 
         paid_count = 0
         for bill in pending_bills:
+            bill_uid = bill.user_id or 1
+            if not (get_setting(db, "AUTO_DEBIT_BILLS", "false", user_id=bill_uid).lower() in ("true", "1")):
+                print(f"[Scheduler] 帳單 ID {bill.id} 所屬使用者 (ID={bill_uid}) 未開啟自動扣款，略過")
+                continue
             try:
                 acc = execute_bill_payment(db, bill, is_auto=True, user_id=bill.user_id)
                 paid_count += 1
@@ -204,14 +214,19 @@ def execute_auto_debits(db: Session = None, user_id: Optional[int] = None):
 
 
 def scheduled_daily_routine():
-    """每日排程任務：為所有使用者撈取新帳單、執行自動扣款，並更新股票最新現價"""
+    """每日排程任務：為所有使用者撈取新帳單、執行自動扣款（若已啟用），並更新股票最新現價"""
     print(f"[{datetime.now()}] 觸發每日自動巡檢任務...")
     db = SessionLocal()
     try:
         users = db.query(User).all()
         for u in users:
             sync_bills_from_gmail(db, user_id=u.id)
-        execute_auto_debits(db)
+            is_enabled = get_setting(db, "AUTO_DEBIT_BILLS", "false", user_id=u.id).lower() in ("true", "1")
+            if is_enabled:
+                execute_auto_debits(db, user_id=u.id)
+            else:
+                print(f"[Scheduler] 使用者 (ID={u.id}) 停用帳單自動扣款，僅同步帳單不扣款")
+        execute_auto_salary_credits(db)
         execute_auto_recurring_debits(db)
         refresh_all_stock_prices(db)
     except Exception as e:

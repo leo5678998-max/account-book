@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -19,10 +20,27 @@ from ..services.auth_service import (
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
+# 是否開放外網使用者公開註冊帳號 (預設關閉以提升資安防護；需要註冊時可在環境變數指定 ALLOW_REGISTRATION=true)
+ALLOW_REGISTRATION = os.getenv("ALLOW_REGISTRATION", "false").lower() in ("true", "1")
+
+
+@router.get("/config")
+def get_auth_config():
+    """取得認證相關公開配置（如是否允許公開註冊）"""
+    return {
+        "allow_registration": ALLOW_REGISTRATION
+    }
+
 
 @router.post("/register", response_model=TokenResponse)
 def register_user(req: UserRegister, db: Session = Depends(get_db)):
     """註冊新使用者帳號，並初始化獨立的帳本環境"""
+    if not ALLOW_REGISTRATION:
+        raise HTTPException(
+            status_code=403,
+            detail="公開註冊功能已關閉以維護系統資安。若需新增帳號，請由管理者透過本機伺服器環境設定開放。"
+        )
+
     username = (req.username or "").strip()
     password = req.password or ""
 

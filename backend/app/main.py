@@ -22,10 +22,16 @@ from .routers import auth, accounts, transactions, bills, stocks, recurring, set
 Base.metadata.create_all(bind=engine)
 run_schema_migrations(engine)
 
+# 檢查是否啟用 API 互動文件 (預設關閉以提升公網資安防護；本機若需除錯可設 ENABLE_API_DOCS=true)
+ENABLE_API_DOCS = os.getenv("ENABLE_API_DOCS", "false").lower() in ("true", "1")
+
 app = FastAPI(
     title="Personal Finance & Auto Bill Debit",
     description="多帳戶資產記帳、AI 智能多單據辨識 (各家信用卡/薪資單) 與自動扣款系統",
-    version="2.1.0"
+    version="2.1.0",
+    docs_url="/docs" if ENABLE_API_DOCS else None,
+    redoc_url="/redoc" if ENABLE_API_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_API_DOCS else None,
 )
 
 # 支援跨來源存取 (CORS)

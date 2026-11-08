@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ..models import Account, Transaction, Bill, SystemSetting
+from ..models import Account, Transaction, Bill, SystemSetting, User
 from ..schemas import TransactionCreate, TransactionUpdate, SalaryApplyRequest
 
 # ==============================================================================
@@ -344,3 +344,114 @@ def apply_salary_income(db: Session, req: SalaryApplyRequest, user_id: int = 1) 
 
     db.commit()
     return tx_id
+
+
+def execute_auto_salary_credits(db: Session, user_id: Optional[int] = None) -> dict:
+    """檢查各使用者是否已到每月發薪日，若是且當月尚未入帳，自動產生一筆薪資收入流水帳"""
+    import calendar
+    from datetime import date
+    today = date.today()
+    current_month_str = today.strftime("%Y-%m")
+
+    users_query = db.query(User)
+    if user_id is not None:
+        users_query = users_query.filter(User.id == user_id)
+    users = users_query.all()
+
+    credited_count = 0
+    details = []
+
+    for u in users:
+        uid = u.id
+        is_enabled = get_setting(db, "AUTO_SALARY_INCOME_ENABLED", "false", user_id=uid).lower() in ("true", "1")
+        if not is_enabled:
+            continue
+
+        salary_str = get_setting(db, SETTING_MONTHLY_SALARY, "", user_id=uid)
+        salary_amount = float(salary_str) if salary_str else 0.0
+        if salary_amount <= 0:
+            continue
+
+        pay_day_str = get_setting(db, "SALARY_PAY_DAY", "5", user_id=uid)
+        pay_day = int(pay_day_str) if pay_day_str and pay_day_str.isdigit() else 5
+        pay_day = max(1, min(31, pay_day))
+
+        # 若今天尚未到本月發薪日，則略過
+        if today.day < pay_day:
+            continue
+
+        # 檢查本月是否已入帳 (以設定標記或流水帳實際比對防重複)
+        last_credited = get_setting(db, "SALARY_LAST_CREDITED_MONTH", "", user_id=uid)
+        if last_credited == current_month_str:
+            continue
+
+        # 防呆檢查：查詢本月是否已經手動或自動記入薪資收入
+        existing_salary_tx = db.query(Transaction).filter(
+            Transaction.user_id == uid,
+            Transaction.tx_type == TX_TYPE_INCOME,
+            Transaction.category == CATEGORY_SALARY
+        ).all()
+        already_has_salary = any(
+            tx.date and tx.date.strftime("%Y-%m") == current_month_str
+            for tx in existing_salary_tx
+        )
+        if already_has_salary:
+            save_setting(db, "SALARY_LAST_CREDITED_MONTH", current_month_str, user_id=uid)
+            db.commit()
+            continue
+
+        # 取得薪轉入帳帳戶
+        salary_acc_id_str = get_setting(db, "SALARY_ACCOUNT_ID", "", user_id=uid)
+        salary_acc = None
+        if salary_acc_id_str and salary_acc_id_str.isdigit():
+            salary_acc = db.query(Account).filter(Account.id == int(salary_acc_id_str), Account.user_id == uid).first()
+
+        if not salary_acc:
+            salary_acc = get_default_debit_account(db, user_id=uid)
+        if not salary_acc:
+            salary_acc = db.query(Account).filter(Account.user_id == uid, Account.account_type == "SAVINGS").first()
+
+        if not salary_acc:
+            print(f"[Salary] 使用者 (ID={uid}) 無可用活存帳戶以入帳薪資")
+            continue
+
+        # 計算入帳日期 (以本月發薪日為基準，若當月日數不足則取最後一日)
+        max_days = calendar.monthrange(today.year, today.month)[1]
+        actual_day = min(pay_day, max_days)
+        tx_date = datetime(today.year, today.month, actual_day, 9, 0, 0)
+        if tx_date > datetime.now():
+            tx_date = datetime.now()
+
+        # 增加帳戶餘額
+        salary_acc.balance += salary_amount
+
+        # 建立薪資收入流水帳
+        tx = Transaction(
+            user_id=uid,
+            date=tx_date,
+            amount=salary_amount,
+            tx_type=TX_TYPE_INCOME,
+            account_id=salary_acc.id,
+            category=CATEGORY_SALARY,
+            description=f"{today.year}年{today.month}月 固定薪資入帳 ({salary_acc.name})",
+            affects_balance=True
+        )
+        db.add(tx)
+        save_setting(db, "SALARY_LAST_CREDITED_MONTH", current_month_str, user_id=uid)
+        db.commit()
+
+        credited_count += 1
+        details.append({
+            "user_id": uid,
+            "account": salary_acc.name,
+            "amount": salary_amount,
+            "date": tx_date.strftime("%Y-%m-%d")
+        })
+        print(f"[Salary] 成功自動發薪 (user={uid}): NT$ {salary_amount} 已入帳至【{salary_acc.name}】")
+
+    return {
+        "status": "success",
+        "credited_count": credited_count,
+        "details": details
+    }
+

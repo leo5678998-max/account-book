@@ -1,9 +1,9 @@
 /**
  * 智慧記帳本 Service Worker (PWA 支援與離線快取管理)
- * Version: 2.12.5
+ * Version: 2.12.8
  */
 
-const CACHE_NAME = 'account-book-v2.12.5';
+const CACHE_NAME = 'account-book-v2.12.8';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -12,7 +12,7 @@ const PRECACHE_ASSETS = [
   '/static/vendor/lucide.min.js',
   '/static/vendor/vue.global.prod.js',
   '/static/vendor/chart.min.js',
-  '/static/js/app.js?v=2.12.5',
+  '/static/js/app.js?v=2.12.8',
   '/static/js/api.js?v=2.12.5',
   '/static/js/chart.js?v=2.12.5',
   '/static/js/formatters.js?v=2.12.5',
