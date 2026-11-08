@@ -928,8 +928,9 @@
 
             <!-- 單據辨識 (電腦/平板保留文字，手機版由底部中央 ➕ 選單一鍵觸發) -->
             <button @click="triggerHaptic('light'); openUploadModal()" class="hidden sm:inline-flex relative items-center px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition touch-manipulation cursor-pointer" title="AI 單據與薪資單辨識">
-              <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:mr-1 text-purple-600"></i>
-              <span class="hidden sm:inline">單據辨識</span>
+              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_scan.png" class="w-4 h-4 sm:mr-1 object-cover rounded" alt="單據辨識" />
+              <i v-else data-lucide="sparkles" class="w-3.5 h-3.5 sm:mr-1 text-purple-600"></i>
+              <span class="hidden sm:inline">{{ currentTheme === 'courage' ? '放大鏡辨識' : '單據辨識' }}</span>
               <span v-if="!settings.has_gemini_api_key" class="w-2 h-2 ml-1 rounded-full bg-amber-500 animate-pulse" title="尚未設定 Gemini API Key"></span>
             </button>
 
@@ -3120,15 +3121,17 @@
           <!-- 選項 2: AI 單據辨識 -->
           <button type="button" @click="showQuickActionSheet = false; openUploadModal()"
             class="w-full flex items-center p-3 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100/80 active:bg-purple-200/70 border border-purple-200/80 dark:border-purple-800 transition cursor-pointer text-left group relative">
-            <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform">
-              <i data-lucide="sparkles" class="w-6 h-6"></i>
+            <div class="w-14 h-14 rounded-2xl text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform overflow-hidden"
+              :class="currentTheme === 'courage' ? 'shadow-sm border border-purple-400/40 bg-purple-950' : 'bg-gradient-to-tr from-purple-600 to-indigo-600'">
+              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_scan.png" class="w-full h-full object-cover" alt="單據辨識" />
+              <i v-else data-lucide="sparkles" class="w-6 h-6"></i>
             </div>
             <div class="flex-1 min-w-0">
               <div class="text-sm font-bold text-purple-950 dark:text-purple-200 flex items-center space-x-1.5">
-                <span>AI 單據 / 帳單辨識</span>
+                <span>{{ currentTheme === 'courage' ? '🔍 英雄放大鏡 (單據辨識)' : 'AI 單據 / 帳單辨識' }}</span>
                 <span v-if="!settings.has_gemini_api_key" class="w-2 h-2 ml-1 rounded-full bg-amber-500 animate-pulse" title="尚未設定 Key"></span>
               </div>
-              <div class="text-[11px] text-purple-700/80 dark:text-purple-300/80 mt-0.5 truncate">自動解析發票、收據、薪資單與信用卡帳單</div>
+              <div class="text-[11px] text-purple-700/80 dark:text-purple-300/80 mt-0.5 truncate">{{ currentTheme === 'courage' ? '用英雄的放大鏡，自動精準辨識發票與信用卡帳單' : '自動解析發票、收據、薪資單與信用卡帳單' }}</div>
             </div>
             <i data-lucide="chevron-right" class="w-4 h-4 text-purple-400 group-hover:text-purple-600 transition"></i>
           </button>
@@ -3136,9 +3139,9 @@
           <!-- 選項 3: AI 智慧財務顧問 -->
           <button type="button" @click="showQuickActionSheet = false; openAdvisorModal()"
             class="w-full flex items-center p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100/80 active:bg-emerald-200/70 border border-emerald-200/80 dark:border-emerald-800 transition cursor-pointer text-left group relative touch-manipulation">
-            <div class="w-11 h-11 rounded-xl text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform overflow-hidden"
-              :class="currentTheme === 'courage' ? 'bg-emerald-950 border border-emerald-500/60 p-0.5' : 'bg-gradient-to-tr from-emerald-600 to-teal-600'">
-              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" class="w-full h-full object-cover rounded-lg" alt="老電腦" />
+            <div class="w-14 h-14 rounded-2xl text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform overflow-hidden"
+              :class="currentTheme === 'courage' ? 'border border-emerald-500/60 bg-emerald-950' : 'bg-gradient-to-tr from-emerald-600 to-teal-600'">
+              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" class="w-full h-full object-cover" alt="老電腦" />
               <i v-else data-lucide="bot" class="w-6 h-6"></i>
             </div>
             <div class="flex-1 min-w-0">
@@ -3512,8 +3515,9 @@
       <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b pb-3">
           <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center">
-            <i data-lucide="sparkles" class="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 text-indigo-600"></i>
-            AI 智慧單據辨識
+            <img v-if="currentTheme === 'courage'" src="/static/icons/courage_scan.png" class="w-6 h-6 mr-2 object-cover rounded-md" alt="辨識" />
+            <i v-else data-lucide="sparkles" class="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 text-indigo-600"></i>
+            {{ currentTheme === 'courage' ? '英雄放大鏡 · AI 單據辨識' : 'AI 智慧單據辨識' }}
           </h3>
           <button @click="showUploadModal = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg" aria-label="關閉"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
@@ -5574,7 +5578,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.16.7"></script>
+  <script type="module" src="/static/js/app.js?v=2.16.8"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

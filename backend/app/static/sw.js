@@ -1,9 +1,9 @@
 /**
  * 智慧記帳本 Service Worker (PWA 支援與離線快取管理)
- * Version: 2.16.7
+ * Version: 2.16.8
  */
 
-const CACHE_NAME = 'account-book-v2.16.7';
+const CACHE_NAME = 'account-book-v2.16.8';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -12,7 +12,7 @@ const PRECACHE_ASSETS = [
   '/static/vendor/lucide.min.js',
   '/static/vendor/vue.global.prod.js',
   '/static/vendor/chart.min.js',
-  '/static/js/app.js?v=2.16.7',
+  '/static/js/app.js?v=2.16.8',
   '/static/js/api.js?v=2.16.2',
   '/static/js/chart.js?v=2.12.5',
   '/static/js/formatters.js?v=2.12.5',
@@ -24,7 +24,8 @@ const PRECACHE_ASSETS = [
   '/static/icons/courage_computer.png',
   '/static/icons/courage_empty_tx.jpg',
   '/static/icons/courage_cash.png',
-  '/static/icons/courage_manual_tx.png'
+  '/static/icons/courage_manual_tx.png',
+  '/static/icons/courage_scan.png'
 ];
 
 // 安裝階段：平行預載核心靜態資源（容錯保護：單一圖示或資源不阻塞其餘快取）
