@@ -9,4 +9,4 @@ taskkill /F /FI "WINDOWTITLE eq Account Book Backend Service*" >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 
 echo 服務已全數停止！
-timeout /t 2 >nul
+ping -n 2 127.0.0.1 >nul 2>&1
