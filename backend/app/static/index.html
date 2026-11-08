@@ -934,8 +934,8 @@
               <span v-if="!settings.has_gemini_api_key" class="w-2 h-2 ml-1 rounded-full bg-amber-500 animate-pulse" title="尚未設定 Gemini API Key"></span>
             </button>
 
-            <!-- AI 智慧財務顧問 (電腦/平板) -->
-            <button @click="triggerHaptic('light'); openAdvisorModal()" class="inline-flex relative items-center p-2 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition touch-manipulation cursor-pointer" title="AI 智慧財務顧問 (買房、購車、理財診斷)">
+            <!-- AI 智慧財務顧問 (電腦/平板保留，手機版由底部中央 ➕ 選單提供) -->
+            <button @click="triggerHaptic('light'); openAdvisorModal()" class="hidden sm:inline-flex relative items-center p-2 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition touch-manipulation cursor-pointer" title="AI 智慧財務顧問 (買房、購車、理財診斷)">
               <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" class="w-4 h-4 sm:mr-1 object-cover rounded" alt="老電腦" />
               <i v-else data-lucide="bot" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1 text-emerald-600"></i>
               <span class="hidden sm:inline">{{ currentTheme === 'courage' ? '閣樓老電腦' : 'AI 財務顧問' }}</span>
@@ -5578,7 +5578,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.16.8"></script>
+  <script type="module" src="/static/js/app.js?v=2.16.9"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {
