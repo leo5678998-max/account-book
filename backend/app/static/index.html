@@ -923,8 +923,8 @@
             </button>
 
             <!-- AI 智慧財務顧問 (電腦/平板) -->
-            <button @click="triggerHaptic('light'); openAdvisorModal()" class="hidden sm:inline-flex relative items-center px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition touch-manipulation cursor-pointer" title="AI 智慧財務顧問 (買房、購車、理財診斷)">
-              <i data-lucide="bot" class="w-3.5 h-3.5 sm:mr-1 text-emerald-600"></i>
+            <button @click="triggerHaptic('light'); openAdvisorModal()" class="inline-flex relative items-center p-2 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition touch-manipulation cursor-pointer" title="AI 智慧財務顧問 (買房、購車、理財診斷)">
+              <i data-lucide="bot" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1 text-emerald-600"></i>
               <span class="hidden sm:inline">AI 財務顧問</span>
               <span v-if="!settings.has_gemini_api_key" class="w-2 h-2 ml-1 rounded-full bg-amber-500 animate-pulse" title="尚未設定 Gemini API Key"></span>
             </button>
@@ -3088,7 +3088,7 @@
 
           <!-- 選項 3: AI 智慧財務顧問 -->
           <button type="button" @click="showQuickActionSheet = false; openAdvisorModal()"
-            class="w-full flex items-center p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100/80 active:bg-emerald-200/70 border border-emerald-200/80 dark:border-emerald-800 transition cursor-pointer text-left group relative">
+            class="w-full flex items-center p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100/80 active:bg-emerald-200/70 border border-emerald-200/80 dark:border-emerald-800 transition cursor-pointer text-left group relative touch-manipulation">
             <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform">
               <i data-lucide="bot" class="w-6 h-6"></i>
             </div>
@@ -5313,7 +5313,7 @@
     </div>
 
     <!-- Modal 11: 🤖 AI 智慧財務顧問 (CFP 買房/購車/支出分析) -->
-    <div v-if="showAdvisorModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-4 pt-safe pb-safe overflow-y-auto">
+    <div v-if="showAdvisorModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 sm:p-4 pt-safe pb-safe overflow-y-auto" @click.self="showAdvisorModal = false">
       <div class="bg-white dark:bg-slate-850 rounded-2xl sm:rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[94vh] my-auto overflow-hidden border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-150">
         
         <!-- 頂部標題列 -->
@@ -5510,7 +5510,7 @@
               </div>
             </div>
             <button type="submit"
-              :disabled="advisorLoading || !advisorQuestion.trim()"
+              :disabled="advisorLoading || !advisorQuestion || !advisorQuestion.trim()"
               class="h-10 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs font-bold transition shadow-sm flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex-shrink-0">
               <i v-if="advisorLoading" data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
               <i v-else data-lucide="send" class="w-4 h-4"></i>
@@ -5522,7 +5522,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.15.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.15.1"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

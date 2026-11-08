@@ -1,9 +1,9 @@
 /**
  * 智慧記帳本 Service Worker (PWA 支援與離線快取管理)
- * Version: 2.15.0
+ * Version: 2.15.1
  */
 
-const CACHE_NAME = 'account-book-v2.15.0';
+const CACHE_NAME = 'account-book-v2.15.1';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -12,8 +12,8 @@ const PRECACHE_ASSETS = [
   '/static/vendor/lucide.min.js',
   '/static/vendor/vue.global.prod.js',
   '/static/vendor/chart.min.js',
-  '/static/js/app.js?v=2.15.0',
-  '/static/js/api.js?v=2.15.0',
+  '/static/js/app.js?v=2.15.1',
+  '/static/js/api.js?v=2.15.1',
   '/static/js/chart.js?v=2.12.5',
   '/static/js/formatters.js?v=2.12.5',
   '/static/js/insurance.js?v=2.12.5',
@@ -23,13 +23,15 @@ const PRECACHE_ASSETS = [
   '/static/icons/apple-touch-icon.png'
 ];
 
-// 安裝階段：預載核心靜態資源並立即進入等待狀態
+// 安裝階段：平行預載核心靜態資源（容錯保護：單一圖示或資源不阻塞其餘快取）
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-        console.warn('[SW] Precache partial warning:', err);
-      });
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await Promise.allSettled(
+        PRECACHE_ASSETS.map((asset) => cache.add(asset).catch((err) => {
+          console.warn('[SW] Precache asset partial warning:', asset, err);
+        }))
+      );
     }).then(() => self.skipWaiting())
   );
 });

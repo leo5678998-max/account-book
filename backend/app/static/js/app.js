@@ -17,7 +17,7 @@ import {
   isDueSoon,
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
-import { ApiService, AuthStorage } from './api.js?v=2.15.0';
+import { ApiService, AuthStorage } from './api.js?v=2.15.1';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
@@ -2395,11 +2395,16 @@ createApp({
 
     const openAdvisorModal = (presetQuestion = null) => {
       triggerHaptic('light');
+      // 確保關閉所有手機抽屜與浮動選單，避免層級干擾
+      showQuickActionSheet.value = false;
+      mobileMenuOpen.value = false;
+
       showAdvisorModal.value = true;
       loadAdvisorSnapshot();
 
       if (advisorChat.value.length === 0) {
-        const welcomeText = currentTheme.value === 'courage'
+        const isCourage = (currentTheme && currentTheme.value === 'courage');
+        const welcomeText = isCourage
           ? '🖥️ **[閣樓老電腦 The Attic Computer v1.0.4]**\n\n「嗶嗶... 愚蠢的狗！你又帶著財務難題跑上無名小鎮閣樓啦？\n\n別慌！本電腦已即時連線你的**真實帳戶存款、實領收入、股票投資與信用卡分期**，為你進行專業精準的買房、買車與財務防護試算！\n\n點選下方快捷情境，或直接輸入你的疑問，本電腦馬上為你解答！」'
           : '👋 您好！我是您的 **AI 智慧理財顧問**。\n\n我會依據您在記帳系統中的**真實收支、各帳戶存款餘額、股票投資、固定常態扣款與分期明細**進行全方位量化試算，為您量身打造貼近真實財務狀況的買房、買車、收支診斷與預備金建議。\n\n您可以直接點選下方的常見問題情境範例，或在下方輸入框輸入您的財務問題！';
 
@@ -2416,8 +2421,10 @@ createApp({
         advisorQuestion.value = presetQuestion;
       }
 
-      refreshIcons();
-      scrollAdvisorChatToBottom();
+      nextTick(() => {
+        refreshIcons();
+        scrollAdvisorChatToBottom();
+      });
     };
 
     const askAdvisorQuestion = async (presetText = null) => {
