@@ -172,22 +172,54 @@ createApp({
       return acc ? acc.name : '';
     };
 
-    // 流水帳專屬搜尋與篩選
+    // 流水帳專屬搜尋與篩選 (支援年度與月份獨立或組合選擇)
     const txSearch = ref('');
     const txTypeFilter = ref('ALL');
-    const txMonthFilter = ref('');
+    const txYearFilter = ref('');   // '' 代表全部年份，或 '2026'
+    const txMonthFilter = ref('');  // '' 代表全部月份，或 '11'，亦相容舊版 '2026-11'
+
+    // 自動偵測現有交易紀錄中存在的年份，並納入當前年份
+    const availableTxYears = computed(() => {
+      const currentYear = new Date().getFullYear();
+      const yearsSet = new Set([String(currentYear)]);
+      (transactions.value || []).forEach(tx => {
+        if (tx.date && tx.date.length >= 4) {
+          const y = tx.date.substring(0, 4);
+          if (/^\d{4}$/.test(y)) {
+            yearsSet.add(y);
+          }
+        }
+      });
+      return Array.from(yearsSet).sort().reverse();
+    });
 
     const filteredTransactions = computed(() => {
       return (transactions.value || []).filter(tx => {
         if (txTypeFilter.value !== 'ALL' && tx.tx_type !== txTypeFilter.value) {
           return false;
         }
-        if (txMonthFilter.value) {
-          const txMonth = (tx.date || '').substring(0, 7);
-          if (txMonth !== txMonthFilter.value) {
+        const txDate = tx.date || '';
+        // 1. 年度篩選
+        if (txYearFilter.value) {
+          const txYear = txDate.substring(0, 4);
+          if (txYear !== txYearFilter.value) {
             return false;
           }
         }
+        // 2. 月份篩選 (相容 '11' 或 '2026-11' 格式)
+        if (txMonthFilter.value) {
+          if (txMonthFilter.value.includes('-')) {
+            if (txDate.substring(0, 7) !== txMonthFilter.value) {
+              return false;
+            }
+          } else {
+            const txMonth = txDate.length >= 7 ? txDate.substring(5, 7) : '';
+            if (txMonth !== txMonthFilter.value) {
+              return false;
+            }
+          }
+        }
+        // 3. 關鍵字搜尋
         if (txSearch.value.trim()) {
           const q = txSearch.value.trim().toLowerCase();
           const desc = (tx.description || '').toLowerCase();
@@ -200,6 +232,51 @@ createApp({
         return true;
       });
     });
+
+    const setTxCurrentMonth = () => {
+      triggerHaptic('light');
+      const now = new Date();
+      txYearFilter.value = String(now.getFullYear());
+      txMonthFilter.value = String(now.getMonth() + 1).padStart(2, '0');
+      nextTick(() => refreshIcons());
+    };
+
+    const prevTxMonth = () => {
+      triggerHaptic('light');
+      const now = new Date();
+      let y = txYearFilter.value ? parseInt(txYearFilter.value, 10) : now.getFullYear();
+      let m = txMonthFilter.value ? parseInt(txMonthFilter.value, 10) : (now.getMonth() + 1);
+      m -= 1;
+      if (m < 1) {
+        m = 12;
+        y -= 1;
+      }
+      txYearFilter.value = String(y);
+      txMonthFilter.value = String(m).padStart(2, '0');
+      nextTick(() => refreshIcons());
+    };
+
+    const nextTxMonth = () => {
+      triggerHaptic('light');
+      const now = new Date();
+      let y = txYearFilter.value ? parseInt(txYearFilter.value, 10) : now.getFullYear();
+      let m = txMonthFilter.value ? parseInt(txMonthFilter.value, 10) : (now.getMonth() + 1);
+      m += 1;
+      if (m > 12) {
+        m = 1;
+        y += 1;
+      }
+      txYearFilter.value = String(y);
+      txMonthFilter.value = String(m).padStart(2, '0');
+      nextTick(() => refreshIcons());
+    };
+
+    const clearTxDateFilter = () => {
+      triggerHaptic('light');
+      txYearFilter.value = '';
+      txMonthFilter.value = '';
+      nextTick(() => refreshIcons());
+    };
 
     const triggerHaptic = (type = 'light') => {
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -1039,7 +1116,13 @@ createApp({
     };
 
     const jumpToTransactionsMonth = (monthStr) => {
-      txMonthFilter.value = monthStr;
+      if (monthStr && monthStr.includes('-')) {
+        const parts = monthStr.split('-');
+        txYearFilter.value = parts[0];
+        txMonthFilter.value = parts[1];
+      } else {
+        txMonthFilter.value = monthStr || '';
+      }
       switchTab('transactions');
     };
 
@@ -3065,7 +3148,7 @@ createApp({
       openSettingsModal, saveSettings, connectGoogle, updateSalary, renderChart,
       chartViewMode, setChartViewMode, monthlyRecordedIncome, monthlyIncomesList,
       currentTab, mobileMenuOpen, currentTabTitle, switchTab, txSubTab, assetSubTab, showTxAdvanced, showTxCalcKeyboard,
-      txSearch, txTypeFilter, txMonthFilter, filteredTransactions, groupedTransactionsByDate, txStats, recentTransactions,
+      txSearch, txTypeFilter, txYearFilter, txMonthFilter, availableTxYears, setTxCurrentMonth, prevTxMonth, nextTxMonth, clearTxDateFilter, filteredTransactions, groupedTransactionsByDate, txStats, recentTransactions,
       triggerHaptic,
       hideAssets, toggleHideAssets,
       isDarkMode, toggleDarkMode,

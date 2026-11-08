@@ -88,7 +88,7 @@ export const ApiService = {
   }),
 
   // 交易流水帳 API
-  getTransactions: () => authFetch('/api/transactions').then(r => (r.ok ? r.json() : [])),
+  getTransactions: (limit = 1000) => authFetch(`/api/transactions?limit=${limit}`).then(r => (r.ok ? r.json() : [])),
   createTransaction: (tx) => authFetch('/api/transactions', {
     method: 'POST',
     headers: jsonHeaders,
