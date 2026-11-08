@@ -362,6 +362,7 @@ class TestWebhookServiceAndEndpoints(unittest.TestCase):
         # 必須去重合併為同一個交易 ID
         self.assertEqual(id1, id2)
         # 中文詳細店名應覆蓋英文銀行商家名
+        self.db.expire_all()
         merged_tx = self.db.query(Transaction).filter(Transaction.id == id1).first()
         self.assertIn("艇長有限公司", merged_tx.description)
 

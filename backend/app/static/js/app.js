@@ -1825,8 +1825,21 @@ createApp({
       selectedFilesCount.value = files ? files.length : 0;
     };
 
+    const openUploadModal = () => {
+      showUploadModal.value = true;
+      nextTick(() => refreshIcons());
+    };
+
     // AI 智慧單據辨識上傳（支援多選、批次排隊處理）
     const submitParseDocument = async () => {
+      if (!settings.value?.has_gemini_api_key) {
+        alert('⚠️ 尚未設定 Gemini API Key！\n\n系統單據辨識已全面改由純 AI 智能驅動，請先至【設定】填入免費申請的 Gemini API Key。');
+        showUploadModal.value = false;
+        openSettingsModal();
+        setSettingsTab('account');
+        return;
+      }
+
       const files = documentInput.value?.files;
       if (!files || files.length === 0) return alert('請先選擇 PDF 或圖片檔案');
 
@@ -3047,7 +3060,7 @@ createApp({
       openTxModal, openEditTxModal, openRefundModal, editingTxId, saveTx, deleteTx, toggleAffectsBalance, refreshIcons, openAddBillModal, openEditBillModal, saveBill, deleteBill,
       openAddStockModal, openEditStockModal, saveStock, deleteStock, refreshStockQuotes,
       openAddRecurringModal, openEditRecurringModal, saveRecurring, deleteRecurring, chargeRecurring,
-      submitParseDocument, confirmApplyParsedData,
+      openUploadModal, submitParseDocument, confirmApplyParsedData,
       syncGmail, triggerDebitCheck, payBillNow,
       openSettingsModal, saveSettings, connectGoogle, updateSalary, renderChart,
       chartViewMode, setChartViewMode, monthlyRecordedIncome, monthlyIncomesList,
