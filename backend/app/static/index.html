@@ -713,8 +713,9 @@
         <button @click="openAdvisorModal()"
           class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/80 transition border border-emerald-200/60 dark:border-emerald-800/60 cursor-pointer">
           <div class="flex items-center space-x-2.5">
-            <i data-lucide="bot" class="w-4 h-4 text-emerald-600"></i>
-            <span>AI 智慧財務顧問</span>
+            <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" class="w-4 h-4 object-cover rounded shadow-xs" alt="老電腦" />
+            <i v-else data-lucide="bot" class="w-4 h-4 text-emerald-600"></i>
+            <span>{{ currentTheme === 'courage' ? '閣樓老電腦' : 'AI 智慧財務顧問' }}</span>
           </div>
           <span class="text-[10px] font-mono bg-emerald-100 dark:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold">
             CFP
@@ -827,8 +828,12 @@
           <!-- 5. AI 智慧財務顧問 -->
           <button @click="mobileMenuOpen = false; openAdvisorModal()"
             class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/80 transition border border-emerald-200/60 dark:border-emerald-800/60">
-            <span class="flex items-center"><i data-lucide="bot" class="w-4 h-4 mr-2.5 text-emerald-600"></i>AI 智慧財務顧問</span>
-            <span class="text-[10px] font-mono bg-emerald-100 dark:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold">CFP</span>
+            <span class="flex items-center">
+              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" class="w-4 h-4 mr-2.5 object-cover rounded" alt="老電腦" />
+              <i v-else data-lucide="bot" class="w-4 h-4 mr-2.5 text-emerald-600"></i>
+              {{ currentTheme === 'courage' ? '閣樓老電腦 (AI 顧問)' : 'AI 智慧財務顧問' }}
+            </span>
+            <span class="text-[10px] font-mono bg-emerald-100 dark:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold">{{ currentTheme === 'courage' ? 'NOWHERE' : 'CFP' }}</span>
           </button>
         </nav>
 
@@ -924,8 +929,9 @@
 
             <!-- AI 智慧財務顧問 (電腦/平板) -->
             <button @click="triggerHaptic('light'); openAdvisorModal()" class="inline-flex relative items-center p-2 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition touch-manipulation cursor-pointer" title="AI 智慧財務顧問 (買房、購車、理財診斷)">
-              <i data-lucide="bot" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1 text-emerald-600"></i>
-              <span class="hidden sm:inline">AI 財務顧問</span>
+              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" class="w-4 h-4 sm:mr-1 object-cover rounded" alt="老電腦" />
+              <i v-else data-lucide="bot" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1 text-emerald-600"></i>
+              <span class="hidden sm:inline">{{ currentTheme === 'courage' ? '閣樓老電腦' : 'AI 財務顧問' }}</span>
               <span v-if="!settings.has_gemini_api_key" class="w-2 h-2 ml-1 rounded-full bg-amber-500 animate-pulse" title="尚未設定 Gemini API Key"></span>
             </button>
 
@@ -3089,15 +3095,17 @@
           <!-- 選項 3: AI 智慧財務顧問 -->
           <button type="button" @click="showQuickActionSheet = false; openAdvisorModal()"
             class="w-full flex items-center p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100/80 active:bg-emerald-200/70 border border-emerald-200/80 dark:border-emerald-800 transition cursor-pointer text-left group relative touch-manipulation">
-            <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform">
-              <i data-lucide="bot" class="w-6 h-6"></i>
+            <div class="w-11 h-11 rounded-xl text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform overflow-hidden"
+              :class="currentTheme === 'courage' ? 'bg-emerald-950 border border-emerald-500/60 p-0.5' : 'bg-gradient-to-tr from-emerald-600 to-teal-600'">
+              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" class="w-full h-full object-cover rounded-lg" alt="老電腦" />
+              <i v-else data-lucide="bot" class="w-6 h-6"></i>
             </div>
             <div class="flex-1 min-w-0">
               <div class="text-sm font-bold text-emerald-950 dark:text-emerald-200 flex items-center space-x-1.5">
-                <span>AI 智慧財務顧問</span>
+                <span>{{ currentTheme === 'courage' ? '🖥️ 閣樓老電腦 (AI 顧問)' : 'AI 智慧財務顧問' }}</span>
                 <span v-if="!settings.has_gemini_api_key" class="w-2 h-2 ml-1 rounded-full bg-amber-500 animate-pulse" title="尚未設定 Key"></span>
               </div>
-              <div class="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-0.5 truncate">依據存款與收支量化試算買房、購車與理財建議</div>
+              <div class="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-0.5 truncate">{{ currentTheme === 'courage' ? '無名小鎮閣樓毒舌電腦，為你精算買房與開銷' : '依據存款與收支量化試算買房、購車與理財建議' }}</div>
             </div>
             <i data-lucide="chevron-right" class="w-4 h-4 text-emerald-400 group-hover:text-emerald-600 transition"></i>
           </button>
@@ -5319,9 +5327,9 @@
         <!-- 頂部標題列 -->
         <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-50/70 via-teal-50/40 to-transparent dark:from-emerald-950/30 dark:via-transparent">
           <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-2xl text-white flex items-center justify-center shadow-md"
-              :class="currentTheme === 'courage' ? 'bg-gradient-to-tr from-emerald-800 to-teal-600 shadow-emerald-900/40 border border-emerald-500/40' : 'bg-gradient-to-tr from-emerald-600 to-teal-500 shadow-emerald-500/20'">
-              <span v-if="currentTheme === 'courage'" class="text-xl">🖥️</span>
+            <div class="w-11 h-11 rounded-2xl text-white flex items-center justify-center shadow-md overflow-hidden flex-shrink-0"
+              :class="currentTheme === 'courage' ? 'bg-emerald-950 shadow-emerald-950/60 border border-emerald-500/60 p-0.5' : 'bg-gradient-to-tr from-emerald-600 to-teal-500 shadow-emerald-500/20'">
+              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" alt="閣樓老電腦" class="w-full h-full object-cover rounded-xl" />
               <i v-else data-lucide="bot" class="w-5 h-5"></i>
             </div>
             <div>
@@ -5462,9 +5470,9 @@
             <div v-else class="max-w-[96%] sm:max-w-[92%] bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-2xl rounded-tl-xs p-4 shadow-xs text-xs space-y-2.5">
               <div class="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-700/80">
                 <div class="flex items-center space-x-1.5">
-                  <div class="w-5 h-5 rounded-full flex items-center justify-center"
-                    :class="currentTheme === 'courage' ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/50' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'">
-                    <span v-if="currentTheme === 'courage'" class="text-[10px]">🖥️</span>
+                  <div class="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+                    :class="currentTheme === 'courage' ? 'bg-emerald-950 border border-emerald-500/60 p-0.5' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'">
+                    <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" alt="電腦" class="w-full h-full object-cover rounded-full" />
                     <i v-else data-lucide="bot" class="w-3.5 h-3.5"></i>
                   </div>
                   <span class="font-bold text-slate-800 dark:text-slate-200">{{ currentTheme === 'courage' ? '閣樓老電腦' : 'AI 理財顧問' }}</span>
@@ -5485,8 +5493,10 @@
 
           <!-- AI 顧問計算中動畫 -->
           <div v-if="advisorLoading" class="flex items-start space-x-2">
-            <div class="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-              <i data-lucide="bot" class="w-4 h-4 animate-bounce"></i>
+            <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+              :class="currentTheme === 'courage' ? 'bg-emerald-950 border border-emerald-500/60 p-0.5' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'">
+              <img v-if="currentTheme === 'courage'" src="/static/icons/courage_computer.png" alt="老電腦" class="w-full h-full object-cover rounded-full animate-pulse" />
+              <i v-else data-lucide="bot" class="w-4 h-4 animate-bounce"></i>
             </div>
             <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-tl-xs px-4 py-3 shadow-xs text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-2">
               <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-emerald-600"></i>
@@ -5502,7 +5512,7 @@
               <textarea v-model="advisorQuestion"
                 rows="2"
                 @keydown.enter.exact.prevent="askAdvisorQuestion()"
-                placeholder="請輸入您的財務問題（例如：以我現在的薪水和存款，想在新北買 1500 萬的房，大概要存幾年？可負擔每月房貸嗎？）"
+                placeholder="請輸入您的財務問題"
                 class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-900 transition resize-none"></textarea>
               <div class="text-[10px] text-slate-400 mt-0.5 flex items-center justify-between">
                 <span>按 Enter 直接送出，Shift + Enter 可換行</span>
@@ -5522,7 +5532,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.15.1"></script>
+  <script type="module" src="/static/js/app.js?v=2.16.0"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {
