@@ -16,7 +16,7 @@ from .core.database import engine, Base
 from . import models  # 確保所有 ORM Model 均被載入註冊
 from .services.auth_service import run_schema_migrations
 from .services.scheduler import start_scheduler, stop_scheduler
-from .routers import auth, accounts, transactions, bills, stocks, recurring, settings, analytics, webhook, installments
+from .routers import auth, accounts, transactions, bills, stocks, recurring, settings, analytics, webhook, installments, ai_advisor
 
 # 初始化資料表與升級既有資料庫欄位
 Base.metadata.create_all(bind=engine)
@@ -113,3 +113,4 @@ app.include_router(settings.router)
 app.include_router(analytics.router)
 app.include_router(webhook.router)
 app.include_router(installments.router)
+app.include_router(ai_advisor.router)

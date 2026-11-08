@@ -17,7 +17,7 @@ import {
   isDueSoon,
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
-import { ApiService, AuthStorage } from './api.js?v=2.9.1';
+import { ApiService, AuthStorage } from './api.js?v=2.14.0';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
@@ -517,6 +517,14 @@ createApp({
     });
     const selectedPlanDetail = ref(null);
     const loadingPlanDetail = ref(false);
+
+    // AI 智慧財務顧問狀態
+    const showAdvisorModal = ref(false);
+    const advisorLoading = ref(false);
+    const advisorQuestion = ref('');
+    const advisorChat = ref([]);
+    const advisorSnapshot = ref(null);
+    const advisorCopiedId = ref(null);
 
     const uploadPwd = ref('');
     const documentInput = ref(null);
@@ -2244,6 +2252,202 @@ createApp({
       await fetchTransactions();
     };
 
+    // ==========================================
+    // AI 智慧財務顧問 (CFP 買房/購車/支出分析)
+    // ==========================================
+
+    const formatAdvisorMarkdown = (md) => {
+      if (!md) return '';
+      // HTML 跳脫防 XSS
+      let html = md
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      // 標題樣式
+      html = html.replace(/^### (.*$)/gim, '<h4 class="font-bold text-slate-800 dark:text-slate-100 text-sm mt-3 mb-1.5 flex items-center"><span class="w-1.5 h-3.5 bg-indigo-600 dark:bg-indigo-400 rounded-full mr-1.5 inline-block flex-shrink-0"></span>$1</h4>');
+      html = html.replace(/^## (.*$)/gim, '<h3 class="font-extrabold text-slate-900 dark:text-white text-base mt-4 mb-2 flex items-center"><span class="w-2 h-4 bg-purple-600 rounded-full mr-2 inline-block flex-shrink-0"></span>$1</h3>');
+      html = html.replace(/^# (.*$)/gim, '<h2 class="font-extrabold text-slate-900 dark:text-white text-lg mt-4 mb-2">$1</h2>');
+
+      // 粗體與斜體
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-indigo-700 dark:text-indigo-300">$1</strong>');
+      html = html.replace(/\*(.*?)\*/g, '<em class="text-slate-700 dark:text-slate-300">$1</em>');
+
+      // 水平分隔線
+      html = html.replace(/^---$/gim, '<hr class="my-3 border-slate-200 dark:border-slate-700" />');
+
+      // 逐行處理清單與段落
+      const lines = html.split('\n');
+      const result = [];
+      let inUl = false;
+      let inOl = false;
+
+      for (let line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          if (!inUl) {
+            if (inOl) { result.push('</ol>'); inOl = false; }
+            result.push('<ul class="my-1.5 space-y-1 pl-1">');
+            inUl = true;
+          }
+          result.push(`<li class="text-xs leading-relaxed text-slate-700 dark:text-slate-200 list-disc ml-3.5">${trimmed.substring(2)}</li>`);
+        } else if (/^\d+\.\s+/.test(trimmed)) {
+          if (!inOl) {
+            if (inUl) { result.push('</ul>'); inUl = false; }
+            result.push('<ol class="my-1.5 space-y-1 pl-1">');
+            inOl = true;
+          }
+          const content = trimmed.replace(/^\d+\.\s+/, '');
+          result.push(`<li class="text-xs leading-relaxed text-slate-700 dark:text-slate-200 list-decimal ml-3.5">${content}</li>`);
+        } else {
+          if (inUl) { result.push('</ul>'); inUl = false; }
+          if (inOl) { result.push('</ol>'); inOl = false; }
+          if (trimmed === '') {
+            result.push('<div class="h-2"></div>');
+          } else if (!trimmed.startsWith('<h') && !trimmed.startsWith('<hr')) {
+            result.push(`<p class="text-xs leading-relaxed text-slate-700 dark:text-slate-200 my-1">${trimmed}</p>`);
+          } else {
+            result.push(line);
+          }
+        }
+      }
+      if (inUl) result.push('</ul>');
+      if (inOl) result.push('</ol>');
+
+      return result.join('\n');
+    };
+
+    const scrollAdvisorChatToBottom = () => {
+      nextTick(() => {
+        const container = document.getElementById('advisor-chat-messages');
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
+    };
+
+    const loadAdvisorSnapshot = async () => {
+      try {
+        const snap = await ApiService.getAdvisorSnapshot();
+        if (snap) {
+          advisorSnapshot.value = snap;
+        }
+      } catch (e) {
+        console.warn('載入財務快照失敗:', e);
+      }
+    };
+
+    const openAdvisorModal = (presetQuestion = null) => {
+      triggerHaptic('light');
+      showAdvisorModal.value = true;
+      loadAdvisorSnapshot();
+
+      if (advisorChat.value.length === 0) {
+        advisorChat.value.push({
+          id: 'welcome',
+          role: 'assistant',
+          content: '👋 您好！我是您的 **AI 智慧理財顧問**。\n\n我會依據您在記帳系統中的**真實收支、各帳戶存款餘額、股票投資、固定常態扣款與分期明細**進行全方位量化試算，為您量身打造貼近真實財務狀況的買房、買車、收支診斷與預備金建議。\n\n您可以直接點選下方的常見問題情境範例，或在下方輸入框輸入您的財務問題！',
+          formattedHtml: formatAdvisorMarkdown('👋 您好！我是您的 **AI 智慧理財顧問**。\n\n我會依據您在記帳系統中的**真實收支、各帳戶存款餘額、股票投資、固定常態扣款與分期明細**進行全方位量化試算，為您量身打造貼近真實財務狀況的買房、買車、收支診斷與預備金建議。\n\n您可以直接點選下方的常見問題情境範例，或在下方輸入框輸入您的財務問題！'),
+          timestamp: new Date()
+        });
+      }
+
+      if (presetQuestion) {
+        advisorQuestion.value = presetQuestion;
+      }
+
+      refreshIcons();
+      scrollAdvisorChatToBottom();
+    };
+
+    const askAdvisorQuestion = async (presetText = null) => {
+      if (presetText) {
+        advisorQuestion.value = presetText;
+      }
+      const q = (advisorQuestion.value || '').trim();
+      if (!q) return;
+
+      if (!settings.value?.has_gemini_api_key) {
+        alert('⚠️ 尚未設定 Gemini API Key！\n\nAI 財務顧問需透過您的個人 Gemini API Key 進行連線分析。請先至【設定】填入免費申請的 Gemini API Key。');
+        showAdvisorModal.value = false;
+        openSettingsModal();
+        setSettingsTab('account');
+        return;
+      }
+
+      triggerHaptic('light');
+
+      // 使用者提問泡泡
+      const userMsg = {
+        id: Date.now(),
+        role: 'user',
+        content: q,
+        formattedHtml: q.replace(/\n/g, '<br>'),
+        timestamp: new Date()
+      };
+      advisorChat.value.push(userMsg);
+      advisorQuestion.value = '';
+      advisorLoading.value = true;
+      scrollAdvisorChatToBottom();
+
+      // 取近期對話紀錄作為上下文
+      const history = advisorChat.value
+        .filter(m => m.id !== 'welcome' && !m.isError)
+        .slice(-6)
+        .map(m => ({ role: m.role, content: m.content }));
+
+      try {
+        const res = await ApiService.askAdvisor(q, history);
+        if (res && res.snapshot) {
+          advisorSnapshot.value = res.snapshot;
+        }
+        advisorChat.value.push({
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: res.advice,
+          formattedHtml: formatAdvisorMarkdown(res.advice),
+          timestamp: new Date()
+        });
+      } catch (err) {
+        advisorChat.value.push({
+          id: Date.now() + 1,
+          role: 'assistant',
+          content: '⚠️ 諮詢失敗：' + (err.message || '無法取得 AI 顧問回應，請檢查網路或 Gemini API Key 設定。'),
+          formattedHtml: '<div class="text-rose-600 dark:text-rose-400 font-semibold text-xs">⚠️ 諮詢失敗：' + (err.message || '無法取得 AI 顧問回應') + '</div>',
+          isError: true,
+          timestamp: new Date()
+        });
+      } finally {
+        advisorLoading.value = false;
+        refreshIcons();
+        scrollAdvisorChatToBottom();
+      }
+    };
+
+    const copyAdvisorResponse = (msg) => {
+      if (!msg || !msg.content) return;
+      navigator.clipboard.writeText(msg.content);
+      advisorCopiedId.value = msg.id;
+      triggerHaptic('light');
+      setTimeout(() => {
+        if (advisorCopiedId.value === msg.id) {
+          advisorCopiedId.value = null;
+        }
+      }, 2500);
+    };
+
+    const clearAdvisorChat = () => {
+      advisorChat.value = [];
+      advisorChat.value.push({
+        id: 'welcome',
+        role: 'assistant',
+        content: '👋 對話已清空。您可以直接點選下方的常見問題範例，或輸入新的理財疑問！',
+        formattedHtml: formatAdvisorMarkdown('👋 對話已清空。您可以直接點選下方的常見問題範例，或輸入新的理財疑問！'),
+        timestamp: new Date()
+      });
+      refreshIcons();
+    };
+
     // 股票與投資資產管理
     const fetchStocks = async () => {
       try {
@@ -3121,6 +3325,8 @@ createApp({
       onFilesSelected, toggleBatchSelectAll, removeBatchItem, selectedBatchCount, totalSelectedBatchAmount, confirmBatchSave,
       showEditBillModal, showSettingsModal, settingsTab, setSettingsTab, uploadPwd, documentInput, currentAcc, currentTx,
       currentBill, parsedData, settingsForm,
+      showAdvisorModal, advisorLoading, advisorQuestion, advisorChat, advisorSnapshot, advisorCopiedId,
+      openAdvisorModal, loadAdvisorSnapshot, askAdvisorQuestion, copyAdvisorResponse, clearAdvisorChat,
       showReconcileModal, reconcileLoading, reconcileBill, reconcileData, reconcileAccountFilter,
       reconcileStartDate, reconcileEndDate, reconcileIncludeAll, reconcileTabFilter, reconcileSelectedIds,
       isSavingReconcile, isSettlingReconcile, showQuickAddModal, quickAddForm, showSettleConfirm, settleForm,

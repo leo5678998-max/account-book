@@ -259,5 +259,20 @@ export const ApiService = {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify(payload)
-  }).then(r => r.json())
+  }).then(r => r.json()),
+
+  // AI 智慧財務顧問 API
+  getAdvisorSnapshot: () => authFetch('/api/ai/advisor/snapshot').then(r => (r.ok ? r.json() : null)),
+  askAdvisor: async (question, history = []) => {
+    const res = await authFetch('/api/ai/advisor/ask', {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({ question, history })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || data.message || `連線錯誤 (${res.status})`);
+    }
+    return data;
+  }
 };
