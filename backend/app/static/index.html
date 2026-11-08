@@ -662,8 +662,9 @@
           :class="currentTab === 'dashboard' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'"
           class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs transition">
           <div class="flex items-center space-x-2.5">
-            <i data-lucide="layout-dashboard" class="w-4 h-4" :class="currentTab === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'"></i>
-            <span>總覽儀表板</span>
+            <span v-if="currentTheme === 'courage'" class="text-base leading-none">🏡</span>
+            <i v-else data-lucide="layout-dashboard" class="w-4 h-4" :class="currentTab === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'"></i>
+            <span>{{ currentTheme === 'courage' ? '無名小鎮老屋' : '總覽儀表板' }}</span>
           </div>
         </button>
 
@@ -672,8 +673,9 @@
           :class="currentTab === 'transactions' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'"
           class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs transition">
           <div class="flex items-center space-x-2.5">
-            <i data-lucide="receipt-text" class="w-4 h-4" :class="currentTab === 'transactions' ? 'text-indigo-600' : 'text-slate-400'"></i>
-            <span>收支記帳</span>
+            <span v-if="currentTheme === 'courage'" class="text-base leading-none">🐾</span>
+            <i v-else data-lucide="receipt-text" class="w-4 h-4" :class="currentTab === 'transactions' ? 'text-indigo-600' : 'text-slate-400'"></i>
+            <span>{{ currentTheme === 'courage' ? '英雄狗爪流水帳' : '收支記帳' }}</span>
           </div>
           <span class="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold">
             {{ transactions.length }}
@@ -685,8 +687,9 @@
           :class="currentTab === 'assets' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'"
           class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs transition">
           <div class="flex items-center space-x-2.5">
-            <i data-lucide="wallet" class="w-4 h-4" :class="currentTab === 'assets' ? 'text-indigo-600' : 'text-slate-400'"></i>
-            <span>資產與帳單</span>
+            <span v-if="currentTheme === 'courage'" class="text-base leading-none">📜</span>
+            <i v-else data-lucide="wallet" class="w-4 h-4" :class="currentTab === 'assets' ? 'text-indigo-600' : 'text-slate-400'"></i>
+            <span>{{ currentTheme === 'courage' ? '奧提斯帳單資產' : '資產與帳單' }}</span>
           </div>
           <span v-if="pendingBillAmount > 0" class="text-[10px] font-mono bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded font-bold">
             待扣
@@ -701,8 +704,9 @@
           :class="currentTab === 'trends' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'"
           class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs transition">
           <div class="flex items-center space-x-2.5">
-            <i data-lucide="line-chart" class="w-4 h-4" :class="currentTab === 'trends' ? 'text-indigo-600' : 'text-slate-400'"></i>
-            <span>財務趨勢報表</span>
+            <span v-if="currentTheme === 'courage'" class="text-base leading-none">🏜️</span>
+            <i v-else data-lucide="line-chart" class="w-4 h-4" :class="currentTab === 'trends' ? 'text-indigo-600' : 'text-slate-400'"></i>
+            <span>{{ currentTheme === 'courage' ? '無名荒原走勢' : '財務趨勢報表' }}</span>
           </div>
           <span class="text-[10px] font-mono bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">
             分析
@@ -796,15 +800,20 @@
           <button @click="switchTab('dashboard')"
             :class="currentTab === 'dashboard' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600'"
             class="w-full flex items-center px-3 py-2.5 rounded-lg text-xs">
-            <i data-lucide="layout-dashboard" class="w-4 h-4 mr-2.5"></i>
-            <span>總覽儀表板</span>
+            <span v-if="currentTheme === 'courage'" class="mr-2.5 text-base leading-none">🏡</span>
+            <i v-else data-lucide="layout-dashboard" class="w-4 h-4 mr-2.5"></i>
+            <span>{{ currentTheme === 'courage' ? '無名小鎮老屋' : '總覽儀表板' }}</span>
           </button>
 
           <!-- 2. 收支記帳 -->
           <button @click="switchTab('transactions')"
             :class="currentTab === 'transactions' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600'"
             class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs">
-            <span class="flex items-center"><i data-lucide="receipt-text" class="w-4 h-4 mr-2.5"></i>收支記帳</span>
+            <span class="flex items-center">
+              <span v-if="currentTheme === 'courage'" class="mr-2.5 text-base leading-none">🐾</span>
+              <i v-else data-lucide="receipt-text" class="w-4 h-4 mr-2.5"></i>
+              {{ currentTheme === 'courage' ? '英雄狗爪流水帳' : '收支記帳' }}
+            </span>
             <span class="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold">{{ transactions.length }}</span>
           </button>
 
@@ -812,7 +821,11 @@
           <button @click="switchTab('assets')"
             :class="currentTab === 'assets' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600'"
             class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs">
-            <span class="flex items-center"><i data-lucide="wallet" class="w-4 h-4 mr-2.5"></i>資產與帳單</span>
+            <span class="flex items-center">
+              <span v-if="currentTheme === 'courage'" class="mr-2.5 text-base leading-none">📜</span>
+              <i v-else data-lucide="wallet" class="w-4 h-4 mr-2.5"></i>
+              {{ currentTheme === 'courage' ? '奧提斯帳單資產' : '資產與帳單' }}
+            </span>
             <span v-if="pendingBillAmount > 0" class="text-[10px] font-mono bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded font-bold">待扣</span>
             <span v-else class="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold">{{ accounts.length }} 帳戶</span>
           </button>
@@ -821,7 +834,11 @@
           <button @click="switchTab('trends')"
             :class="currentTab === 'trends' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600'"
             class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs">
-            <span class="flex items-center"><i data-lucide="line-chart" class="w-4 h-4 mr-2.5"></i>財務趨勢報表</span>
+            <span class="flex items-center">
+              <span v-if="currentTheme === 'courage'" class="mr-2.5 text-base leading-none">🏜️</span>
+              <i v-else data-lucide="line-chart" class="w-4 h-4 mr-2.5"></i>
+              {{ currentTheme === 'courage' ? '無名荒原走勢' : '財務趨勢報表' }}
+            </span>
             <span class="text-[10px] font-mono bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">分析</span>
           </button>
 
@@ -1462,14 +1479,16 @@
             <button @click="switchTab('transactions', 'list')"
               :class="txSubTab === 'list' ? 'bg-white text-indigo-700 font-bold shadow-xs dark:bg-slate-900 dark:text-indigo-400' : 'text-slate-600 hover:text-slate-900 font-medium'"
               class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
-              <i data-lucide="receipt-text" class="w-3.5 h-3.5"></i>
-              <span>收支流水帳</span>
+              <span v-if="currentTheme === 'courage'" class="text-xs">🐾</span>
+              <i v-else data-lucide="receipt-text" class="w-3.5 h-3.5"></i>
+              <span>{{ currentTheme === 'courage' ? '狗爪流水帳' : '收支流水帳' }}</span>
             </button>
             <button @click="switchTab('transactions', 'recurring')"
               :class="txSubTab === 'recurring' ? 'bg-white text-indigo-700 font-bold shadow-xs dark:bg-slate-900 dark:text-indigo-400' : 'text-slate-600 hover:text-slate-900 font-medium'"
               class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
-              <i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
-              <span>固定開銷</span>
+              <span v-if="currentTheme === 'courage'" class="text-xs">✂️</span>
+              <i v-else data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
+              <span>{{ currentTheme === 'courage' ? '弗雷德剪刀開銷' : '固定開銷' }}</span>
               <span v-if="recurringExpenses.items && recurringExpenses.items.length" class="text-[10px] font-mono bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded font-bold">
                 {{ recurringExpenses.items.length }}
               </span>
@@ -1955,14 +1974,16 @@
               <button @click="switchTab('assets', 'accounts')"
                 :class="assetSubTab === 'accounts' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
                 class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
-                <i data-lucide="landmark" class="w-3.5 h-3.5"></i>
-                <span>存款帳戶</span>
+                <span v-if="currentTheme === 'courage'" class="text-xs">💰</span>
+                <i v-else data-lucide="landmark" class="w-3.5 h-3.5"></i>
+                <span>{{ currentTheme === 'courage' ? '英雄私房錢' : '存款帳戶' }}</span>
               </button>
               <button @click="switchTab('assets', 'bills')"
                 :class="assetSubTab === 'bills' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
                 class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
-                <i data-lucide="credit-card" class="w-3.5 h-3.5"></i>
-                <span>信用卡帳單</span>
+                <span v-if="currentTheme === 'courage'" class="text-xs">📜</span>
+                <i v-else data-lucide="credit-card" class="w-3.5 h-3.5"></i>
+                <span>{{ currentTheme === 'courage' ? '奧提斯帳單' : '信用卡帳單' }}</span>
                 <span v-if="pendingBillAmount > 0" class="text-[10px] font-mono bg-rose-50 text-rose-600 px-1 rounded font-bold">
                   待扣
                 </span>
@@ -1970,8 +1991,9 @@
               <button @click="switchTab('assets', 'installments')"
                 :class="assetSubTab === 'installments' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
                 class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
-                <i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
-                <span>分期付款</span>
+                <span v-if="currentTheme === 'courage'" class="text-xs">⏳</span>
+                <i v-else data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
+                <span>{{ currentTheme === 'courage' ? '分期清單' : '分期付款' }}</span>
                 <span v-if="installmentSummary && installmentSummary.active_plans_count > 0" class="text-[10px] font-mono bg-indigo-50 text-indigo-600 px-1 rounded font-bold">
                   {{ installmentSummary.active_plans_count }}
                 </span>
@@ -1979,8 +2001,9 @@
               <button @click="switchTab('assets', 'stocks')"
                 :class="assetSubTab === 'stocks' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
                 class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
-                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
-                <span>股票投資</span>
+                <span v-if="currentTheme === 'courage'" class="text-xs">📈</span>
+                <i v-else data-lucide="trending-up" class="w-3.5 h-3.5"></i>
+                <span>{{ currentTheme === 'courage' ? '荒原股票' : '股票投資' }}</span>
               </button>
             </div>
 
@@ -3038,16 +3061,18 @@
         <button @click="switchTab('dashboard')"
           :class="currentTab === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
           class="flex-1 flex flex-col items-center justify-center py-1 transition touch-manipulation cursor-pointer">
-          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-          <span class="text-[10px] mt-0.5">總覽</span>
+          <span v-if="currentTheme === 'courage'" class="text-base leading-none">🏡</span>
+          <i v-else data-lucide="layout-dashboard" class="w-5 h-5"></i>
+          <span class="text-[10px] mt-0.5">{{ currentTheme === 'courage' ? '老屋' : '總覽' }}</span>
         </button>
 
         <!-- 2. 明細流水帳 -->
         <button @click="switchTab('transactions')"
           :class="currentTab === 'transactions' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
           class="flex-1 flex flex-col items-center justify-center py-1 transition touch-manipulation cursor-pointer">
-          <i data-lucide="receipt-text" class="w-5 h-5"></i>
-          <span class="text-[10px] mt-0.5">明細</span>
+          <span v-if="currentTheme === 'courage'" class="text-base leading-none">🐾</span>
+          <i v-else data-lucide="receipt-text" class="w-5 h-5"></i>
+          <span class="text-[10px] mt-0.5">{{ currentTheme === 'courage' ? '狗爪明細' : '明細' }}</span>
         </button>
 
         <!-- 3. 中央立體 ➕ 記帳按鈕 (Dock Primary Button，點擊呼叫快捷選單：手動記帳 / AI辨識) -->
@@ -3063,8 +3088,9 @@
         <button @click="switchTab('assets')"
           :class="currentTab === 'assets' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
           class="flex-1 flex flex-col items-center justify-center py-1 transition touch-manipulation cursor-pointer relative">
-          <i data-lucide="wallet" class="w-5 h-5"></i>
-          <span class="text-[10px] mt-0.5">資產</span>
+          <span v-if="currentTheme === 'courage'" class="text-base leading-none">📜</span>
+          <i v-else data-lucide="wallet" class="w-5 h-5"></i>
+          <span class="text-[10px] mt-0.5">{{ currentTheme === 'courage' ? '帳單' : '資產' }}</span>
           <span v-if="pendingBillAmount > 0" class="w-2 h-2 rounded-full bg-rose-500 absolute top-1 right-[22%]"></span>
         </button>
 
@@ -3072,8 +3098,9 @@
         <button @click="switchTab('trends')"
           :class="currentTab === 'trends' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 dark:text-slate-400'"
           class="flex-1 flex flex-col items-center justify-center py-1 transition touch-manipulation cursor-pointer">
-          <i data-lucide="line-chart" class="w-5 h-5"></i>
-          <span class="text-[10px] mt-0.5">趨勢</span>
+          <span v-if="currentTheme === 'courage'" class="text-base leading-none">🏜️</span>
+          <i v-else data-lucide="line-chart" class="w-5 h-5"></i>
+          <span class="text-[10px] mt-0.5">{{ currentTheme === 'courage' ? '荒原' : '趨勢' }}</span>
         </button>
       </nav>
     </div>
@@ -5565,7 +5592,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.16.2"></script>
+  <script type="module" src="/static/js/app.js?v=2.16.3"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

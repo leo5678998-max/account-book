@@ -183,6 +183,20 @@ createApp({
     };
 
     const currentTabTitle = computed(() => {
+      if (currentTheme.value === 'courage') {
+        switch (currentTab.value) {
+          case 'dashboard': return '🏡 無名小鎮老屋與風車 (總覽)';
+          case 'transactions':
+            return txSubTab.value === 'recurring' ? '✂️ 弗雷德的小剪刀 (常態開銷)' : '🐾 英雄的狗爪腳印 (流水帳明細)';
+          case 'assets':
+            if (assetSubTab.value === 'bills') return '📜 奧提斯揮著帳單 (帳單管理)';
+            if (assetSubTab.value === 'stocks') return '📈 荒原股票戰報';
+            if (assetSubTab.value === 'installments') return '⏳ 奧提斯的分期清單';
+            return '💰 英雄私房錢與資產';
+          case 'trends': return '🏜️ 無名小鎮財務走勢';
+          default: return '🏡 無名小鎮老屋與風車';
+        }
+      }
       switch (currentTab.value) {
         case 'dashboard': return '總覽儀表板';
         case 'transactions':
