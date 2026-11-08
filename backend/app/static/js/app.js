@@ -335,6 +335,7 @@ createApp({
     const showParseResultModal = ref(false);
     const showEditBillModal = ref(false);
     const showSettingsModal = ref(false);
+    const settingsTab = ref('salary'); // 'salary' | 'sync' | 'account'
 
     // 月底帳單對帳核銷狀態
     const showReconcileModal = ref(false);
@@ -2665,7 +2666,13 @@ createApp({
       settingsForm.value.salary_account_id = settings.value.salary_account_id || (accounts.value.find(a => a.account_type === 'SAVINGS')?.id || null);
       settingsForm.value.salary_pay_day = Number(settings.value.salary_pay_day) || 5;
       settingsForm.value.auto_salary_income = Boolean(settings.value.auto_salary_income);
+      settingsTab.value = 'salary';
       showSettingsModal.value = true;
+      nextTick(() => refreshIcons());
+    };
+
+    const setSettingsTab = (tab) => {
+      settingsTab.value = tab;
       nextTick(() => refreshIcons());
     };
 
@@ -3009,7 +3016,7 @@ createApp({
       syncing, uploading, showAccountModal, showTxModal, showUploadModal, showParseResultModal,
       showBatchResultModal, isSavingBatch, selectedFilesCount, batchProgress, batchParsedList,
       onFilesSelected, toggleBatchSelectAll, removeBatchItem, selectedBatchCount, totalSelectedBatchAmount, confirmBatchSave,
-      showEditBillModal, showSettingsModal, uploadPwd, documentInput, currentAcc, currentTx,
+      showEditBillModal, showSettingsModal, settingsTab, setSettingsTab, uploadPwd, documentInput, currentAcc, currentTx,
       currentBill, parsedData, settingsForm,
       showReconcileModal, reconcileLoading, reconcileBill, reconcileData, reconcileAccountFilter,
       reconcileStartDate, reconcileEndDate, reconcileIncludeAll, reconcileTabFilter, reconcileSelectedIds,
