@@ -767,43 +767,43 @@
       <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700/80 sticky top-0 z-30 shadow-xs pt-safe select-none">
         <div class="px-3 sm:px-6 lg:px-8 h-13 sm:h-16 flex items-center justify-between min-w-0">
           <div class="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 mr-2">
+            <!-- [相容保留 / 潛在 Dead Code] 手機版抽屜漢堡選單 (功能已由底部 5 大分頁 Tab 完整取代，手機版預設隱藏以釋放頂部視野) -->
+            <!--
             <button @click="mobileMenuOpen = true" class="lg:hidden p-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/60 flex-shrink-0 touch-manipulation cursor-pointer" aria-label="打開導航選單">
               <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
-            <h2 class="text-sm sm:text-lg font-bold text-slate-900 dark:text-slate-100 truncate flex-1 min-w-0">
-              {{ currentTabTitle }}
-            </h2>
+            -->
+            <div class="flex items-center space-x-2 min-w-0">
+              <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-xs flex-shrink-0 lg:hidden">
+                💰
+              </div>
+              <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 truncate">
+                {{ currentTabTitle }}
+              </h2>
+            </div>
           </div>
 
           <div class="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-            <!-- 深色 / 淺色模式切換按鈕 -->
-            <button @click="toggleDarkMode" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition touch-manipulation cursor-pointer" :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'">
+            <!-- 深色 / 淺色模式切換按鈕 (平板/電腦保留，手機版收納進「設定」) -->
+            <button @click="toggleDarkMode" class="hidden sm:inline-flex p-2 min-h-[38px] min-w-[38px] items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition touch-manipulation cursor-pointer" :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'">
               <i :data-lucide="isDarkMode ? 'sun' : 'moon'" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1" :class="isDarkMode ? 'text-amber-400' : 'text-indigo-500'"></i>
               <span class="hidden sm:inline">{{ isDarkMode ? '淺色' : '深色' }}</span>
             </button>
 
-            <!-- 資產隱私開關按鈕 -->
-            <button @click="toggleHideAssets" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition touch-manipulation cursor-pointer" :title="hideAssets ? '點擊顯示資產金額' : '點擊隱藏資產金額'">
+            <!-- 資產隱私開關按鈕 (平板/電腦保留，手機版收納進「設定」) -->
+            <button @click="toggleHideAssets" class="hidden sm:inline-flex p-2 min-h-[38px] min-w-[38px] items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition touch-manipulation cursor-pointer" :title="hideAssets ? '點擊顯示資產金額' : '點擊隱藏資產金額'">
               <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1 text-slate-500"></i>
               <span class="hidden sm:inline">{{ hideAssets ? '顯示資產' : '隱藏資產' }}</span>
             </button>
 
-            <!-- [相容保留 / 潛在 Dead Code] 既有同步信箱按鈕 (使用者選擇自 UI 隱藏/移除) -->
-            <!--
-            <button @click="syncGmail" :disabled="syncing" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 transition disabled:opacity-50 touch-manipulation cursor-pointer" title="同步信箱帳單">
-              <i data-lucide="refresh-cw" :class="['w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-1', syncing ? 'animate-spin' : '']"></i>
-              <span class="hidden sm:inline">{{ syncing ? '同步中' : '同步 Gmail' }}</span>
-            </button>
-            -->
-
-            <!-- 快速記帳 (電腦/平板保留文字，手機版由常駐 FAB 提供) -->
+            <!-- 快速記帳 (電腦/平板保留文字，手機版由底部中央 ➕ 選單提供) -->
             <button @click="openTxModal()" class="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm touch-manipulation cursor-pointer">
               <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i>
               <span>記一筆</span>
             </button>
 
-            <!-- 單據辨識 (手機版圖示按鈕，電腦/平板保留文字，未設定 Key 時顯示提醒黃點) -->
-            <button @click="triggerHaptic('light'); openUploadModal()" class="relative inline-flex items-center px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition touch-manipulation cursor-pointer" title="AI 單據與薪資單辨識">
+            <!-- 單據辨識 (電腦/平板保留文字，手機版由底部中央 ➕ 選單一鍵觸發) -->
+            <button @click="triggerHaptic('light'); openUploadModal()" class="hidden sm:inline-flex relative items-center px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition touch-manipulation cursor-pointer" title="AI 單據與薪資單辨識">
               <i data-lucide="sparkles" class="w-3.5 h-3.5 sm:mr-1 text-purple-600"></i>
               <span class="hidden sm:inline">單據辨識</span>
               <span v-if="!settings.has_gemini_api_key" class="w-2 h-2 ml-1 rounded-full bg-amber-500 animate-pulse" title="尚未設定 Gemini API Key"></span>
@@ -811,7 +811,7 @@
 
             <!-- 設定 -->
             <button @click="openSettingsModal" class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition touch-manipulation cursor-pointer" title="系統設定">
-              <i data-lucide="settings" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+              <i data-lucide="settings" class="w-5 h-5"></i>
             </button>
           </div>
         </div>
@@ -832,8 +832,8 @@
               <p class="text-xs text-slate-500 mt-0.5 hidden sm:block">即時資產淨值、當月收支預算與固定常態開銷</p>
             </div>
 
-            <!-- 自訂版面開關與重設按鈕 -->
-            <div class="flex items-center space-x-1.5 sm:space-x-2">
+            <!-- 自訂版面開關與重設按鈕 (手機版收納進設定以精簡首頁，平板/電腦保留) -->
+            <div class="hidden sm:flex items-center space-x-1.5 sm:space-x-2">
               <button type="button" @click="triggerHaptic('light'); toggleEditLayout()"
                 class="inline-flex items-center px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none"
                 :class="isEditingLayout ? 'bg-indigo-600 text-white hover:bg-indigo-700 ring-2 ring-indigo-300' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'">
@@ -1416,8 +1416,24 @@
             </div>
           </div>
 
-          <!-- 篩選結果統計指標 -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          <!-- 篩選結果統計指標 (手機版精簡為單行摘要條，釋放縱向閱讀視野；電腦版保留完整 4 大方塊) -->
+          <!-- 手機版單行資訊條 (sm:hidden) -->
+          <div class="sm:hidden bg-white p-2.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs shadow-2xs select-none">
+            <div class="flex items-center space-x-2 font-mono">
+              <span class="text-rose-600 font-bold">支 NT$ {{ formatMoney(txStats.expense) }}</span>
+              <span class="text-slate-300">|</span>
+              <span class="text-emerald-600 font-bold">收 NT$ {{ formatMoney(txStats.income) }}</span>
+            </div>
+            <div class="flex items-center space-x-1.5 font-mono">
+              <span :class="txStats.net >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'" class="px-1.5 py-0.5 rounded font-extrabold text-[11px]">
+                {{ txStats.net >= 0 ? '+' : '' }}NT$ {{ formatMoney(txStats.net) }}
+              </span>
+              <span class="text-slate-400 text-[10px] font-sans">({{ filteredTransactions.length }}筆)</span>
+            </div>
+          </div>
+
+          <!-- 電腦/平板版 4 大統計方塊 (hidden sm:grid) -->
+          <div class="hidden sm:grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <div class="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 min-w-0">
               <div class="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">符合筆數</div>
               <div class="text-sm sm:text-lg font-extrabold text-slate-900 font-mono mt-0.5 truncate">{{ filteredTransactions.length }} 筆</div>
@@ -2875,11 +2891,11 @@
           <span class="text-[10px] mt-0.5">明細</span>
         </button>
 
-        <!-- 3. 中央立體 ➕ 記帳按鈕 (Dock Primary Button) -->
+        <!-- 3. 中央立體 ➕ 記帳按鈕 (Dock Primary Button，點擊呼叫快捷選單：手動記帳 / AI辨識) -->
         <div class="flex-1 flex justify-center -mt-5">
-          <button @click="openTxModal()"
+          <button @click="openQuickActionSheet()"
             class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white shadow-lg shadow-indigo-400/50 dark:shadow-indigo-950 flex items-center justify-center transition border-3 border-white dark:border-slate-900 touch-manipulation cursor-pointer"
-            title="快速手動記帳">
+            title="快速記帳或單據辨識">
             <i data-lucide="plus" class="w-6 h-6 stroke-[2.5]"></i>
           </button>
         </div>
@@ -2904,6 +2920,60 @@
     </div>
 
     <!-- ==================== MODALS ==================== -->
+
+    <!-- 手機專屬底部快速操作選單 (Action Sheet: 手動記帳 / AI單據辨識) -->
+    <div v-if="showQuickActionSheet" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center select-none">
+      <!-- 半透明背景遮罩 -->
+      <div @click="showQuickActionSheet = false" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"></div>
+      
+      <!-- 彈窗內容 (iOS 現代抽屜風格) -->
+      <div class="relative bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-2xl shadow-2xl max-w-sm w-full p-4 sm:p-5 space-y-3 z-10 pb-safe animate-in slide-in-from-bottom duration-200">
+        <!-- 頂部防滑把手條 -->
+        <div class="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto sm:hidden"></div>
+        
+        <div class="text-center pt-1 pb-1">
+          <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">快速記帳與辨識</h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">請選擇記帳方式</p>
+        </div>
+
+        <div class="space-y-2">
+          <!-- 選項 1: 手動記一筆 -->
+          <button type="button" @click="showQuickActionSheet = false; openTxModal()"
+            class="w-full flex items-center p-3 rounded-2xl bg-slate-50 dark:bg-slate-700/60 hover:bg-indigo-50/80 active:bg-indigo-100/70 border border-slate-200/80 dark:border-slate-700 transition cursor-pointer text-left group">
+            <div class="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform">
+              <i data-lucide="plus" class="w-6 h-6 stroke-[2.5]"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-bold text-slate-900 dark:text-slate-100">手動記一筆</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">自訂金額、分類、帳戶與備註</div>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition"></i>
+          </button>
+
+          <!-- 選項 2: AI 單據辨識 -->
+          <button type="button" @click="showQuickActionSheet = false; openUploadModal()"
+            class="w-full flex items-center p-3 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100/80 active:bg-purple-200/70 border border-purple-200/80 dark:border-purple-800 transition cursor-pointer text-left group relative">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mr-3 group-hover:scale-105 transition-transform">
+              <i data-lucide="sparkles" class="w-6 h-6"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-bold text-purple-950 dark:text-purple-200 flex items-center space-x-1.5">
+                <span>AI 單據 / 帳單辨識</span>
+                <span v-if="!settings.has_gemini_api_key" class="w-2 h-2 ml-1 rounded-full bg-amber-500 animate-pulse" title="尚未設定 Key"></span>
+              </div>
+              <div class="text-[11px] text-purple-700/80 dark:text-purple-300/80 mt-0.5 truncate">自動解析發票、收據、薪資單與信用卡帳單</div>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-purple-400 group-hover:text-purple-600 transition"></i>
+          </button>
+        </div>
+
+        <!-- 取消按鈕 -->
+        <button type="button" @click="showQuickActionSheet = false"
+          class="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 font-bold text-xs transition cursor-pointer">
+          取消
+        </button>
+      </div>
+    </div>
 
     <!-- Modal 1: 帳戶新增/編輯 -->
     <div v-if="showAccountModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 pt-safe pb-safe overflow-y-auto">
@@ -4432,6 +4502,48 @@
 
         <!-- ==================== TAB 3: 帳號偏好 (個人資料、Gemini API、常用分類、PWA) ==================== -->
         <div v-show="settingsTab === 'account'" class="space-y-3.5">
+          <!-- 0. 介面顯示與首頁版面偏好 (深色模式、隱私金額、自訂首頁排版) -->
+          <div class="bg-slate-50 dark:bg-slate-800/60 p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+            <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center">
+              <i data-lucide="sliders-horizontal" class="w-4 h-4 mr-1.5 text-indigo-600"></i> 外觀顯示與首頁版面偏好
+            </h4>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <!-- 深色模式切換 -->
+              <button type="button" @click="toggleDarkMode"
+                class="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer">
+                <span class="flex items-center space-x-1.5">
+                  <i :data-lucide="isDarkMode ? 'sun' : 'moon'" class="w-4 h-4" :class="isDarkMode ? 'text-amber-400' : 'text-indigo-500'"></i>
+                  <span>深色模式</span>
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-mono" :class="isDarkMode ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'">
+                  {{ isDarkMode ? '開啟' : '關閉' }}
+                </span>
+              </button>
+
+              <!-- 資產金額隱私切換 -->
+              <button type="button" @click="toggleHideAssets"
+                class="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer">
+                <span class="flex items-center space-x-1.5">
+                  <i :data-lucide="hideAssets ? 'eye-off' : 'eye'" class="w-4 h-4 text-slate-500"></i>
+                  <span>隱藏資產金額</span>
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-mono" :class="hideAssets ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'">
+                  {{ hideAssets ? '隱藏中' : '顯示中' }}
+                </span>
+              </button>
+
+              <!-- 自訂首頁版面順序 -->
+              <button type="button" @click="showSettingsModal = false; switchTab('dashboard'); toggleEditLayout()"
+                class="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 transition cursor-pointer">
+                <span class="flex items-center space-x-1.5">
+                  <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                  <span>自訂首頁排版</span>
+                </span>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-indigo-400"></i>
+              </button>
+            </div>
+          </div>
+
           <!-- 1. 個人帳號與密碼變更 -->
           <div class="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200 space-y-2.5">
             <div class="flex items-center justify-between">
@@ -5033,7 +5145,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.13.2"></script>
+  <script type="module" src="/static/js/app.js?v=2.13.3"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

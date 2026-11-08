@@ -409,6 +409,7 @@ createApp({
     const showAccountModal = ref(false);
     const showTxModal = ref(false);
     const showUploadModal = ref(false);
+    const showQuickActionSheet = ref(false);
     const showParseResultModal = ref(false);
     const showEditBillModal = ref(false);
     const showSettingsModal = ref(false);
@@ -1913,6 +1914,12 @@ createApp({
       nextTick(() => refreshIcons());
     };
 
+    const openQuickActionSheet = () => {
+      triggerHaptic('light');
+      showQuickActionSheet.value = true;
+      nextTick(() => refreshIcons());
+    };
+
     // AI 智慧單據辨識上傳（支援多選、批次排隊處理）
     const submitParseDocument = async () => {
       if (!settings.value?.has_gemini_api_key) {
@@ -3109,7 +3116,7 @@ createApp({
       submitAuth, logout, testingImap, imapTestResult, testImapConnection,
       profileForm, updateUserProfile,
       accounts, bills, transactions, settings, salaryInput, currentMonth, selectedMonth,
-      syncing, uploading, showAccountModal, showTxModal, showUploadModal, showParseResultModal,
+      syncing, uploading, showAccountModal, showTxModal, showUploadModal, showQuickActionSheet, openQuickActionSheet, showParseResultModal,
       showBatchResultModal, isSavingBatch, selectedFilesCount, batchProgress, batchParsedList,
       onFilesSelected, toggleBatchSelectAll, removeBatchItem, selectedBatchCount, totalSelectedBatchAmount, confirmBatchSave,
       showEditBillModal, showSettingsModal, settingsTab, setSettingsTab, uploadPwd, documentInput, currentAcc, currentTx,
