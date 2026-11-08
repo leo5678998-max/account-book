@@ -602,7 +602,7 @@
           </span>
         </button>
 
-        <!-- 3. 資產與帳單 (帳戶 + 帳單 + 美股) -->
+        <!-- 3. 資產與帳單 (帳戶 + 帳單 + 股票) -->
         <button @click="switchTab('assets')"
           :class="currentTab === 'assets' ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'"
           class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs transition">
@@ -1767,7 +1767,7 @@
                 :class="assetSubTab === 'stocks' ? 'bg-white text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
                 class="flex-1 py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer whitespace-nowrap">
                 <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
-                <span>美股投資</span>
+                <span>股票投資</span>
               </button>
             </div>
 
@@ -4995,7 +4995,7 @@
 
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.13.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.13.1"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

@@ -159,7 +159,7 @@ createApp({
           return txSubTab.value === 'recurring' ? '固定開銷規劃' : '收支記帳流水帳';
         case 'assets':
           if (assetSubTab.value === 'bills') return '信用卡帳單總覽';
-          if (assetSubTab.value === 'stocks') return '美股證券投資';
+          if (assetSubTab.value === 'stocks') return '股票投資';
           if (assetSubTab.value === 'installments') return '信用卡分期付款管理';
           return '各帳戶存款資產';
         case 'trends': return '收支與存款趨勢報表';
