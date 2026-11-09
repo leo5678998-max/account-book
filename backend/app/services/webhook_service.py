@@ -174,9 +174,9 @@ def parse_notification_text(text: str, app: Optional[str] = None, title: Optiona
     if not text and not title:
         return {"amount": None, "merchant": None, "card_name": None}
 
-    raw_text = str(text or "").strip()
-    raw_title = str(title or "").strip()
-    raw_app = str(app or "").strip()
+    raw_text = str(text or "").replace('\xa0', ' ').strip()
+    raw_title = str(title or "").replace('\xa0', ' ').strip()
+    raw_app = str(app or "").replace('\xa0', ' ').strip()
     combined = f"{raw_app} {raw_title} {raw_text}".strip()
 
     # 1. 提取金額
@@ -512,6 +512,7 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
             .first()
         )
         if recent_duplicate:
+            updated = False
             # 若新通知帶有更具體的商家名稱（非 LINE Pay 且比舊名稱更清楚，例如中文「艇長有限公司」優於銀行英文「CaptainLimited」），更新原紀錄描述與分類
             if merchant and merchant != "LINE Pay":
                 is_better_description = (
@@ -521,8 +522,26 @@ def process_apple_pay_transaction(db: Session, user_id: int, payload: dict) -> T
                 if is_better_description:
                     recent_duplicate.description = merchant
                     recent_duplicate.category = category
-                    db.commit()
-                    db.refresh(recent_duplicate)
+                    updated = True
+
+            # 若新通知匹配到了更具體的專屬卡片/銀行帳戶（例如新通知來自 星展Card+，而舊紀錄只是預設錢包/現金），升級扣款帳戶並重算餘額
+            if target_acc and target_acc.id != recent_duplicate.account_id:
+                old_acc = db.query(Account).filter(Account.id == recent_duplicate.account_id).first()
+                if old_acc and (old_acc.account_type == "CASH" or old_acc.is_dbs_default_debit):
+                    if recent_duplicate.affects_balance:
+                        if recent_duplicate.tx_type == TX_TYPE_EXPENSE:
+                            old_acc.balance += recent_duplicate.amount
+                            target_acc.balance -= recent_duplicate.amount
+                        elif recent_duplicate.tx_type == TX_TYPE_REFUND:
+                            old_acc.balance -= recent_duplicate.amount
+                            target_acc.balance += recent_duplicate.amount
+                    recent_duplicate.account_id = target_acc.id
+                    updated = True
+
+            if updated:
+                db.commit()
+                db.refresh(recent_duplicate)
+
             return recent_duplicate
 
         # 6. 寫入交易紀錄

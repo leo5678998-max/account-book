@@ -83,6 +83,8 @@ def _extract_webhook_token(
     return None
 
 
+@router.post("", response_model=ApplePayWebhookResponse, include_in_schema=False)
+@router.post("/", response_model=ApplePayWebhookResponse, include_in_schema=False)
 @router.post("/apple-pay", response_model=ApplePayWebhookResponse)
 def handle_apple_pay_webhook(
     payload: ApplePayWebhookPayload,
@@ -101,22 +103,28 @@ def handle_apple_pay_webhook(
         body_token=payload_dict.get("token")
     )
 
-    if not resolved_token:
-        webhook_logger.warning("[認證失敗] 未提供 Webhook 金鑰")
-        raise HTTPException(
-            status_code=401,
-            detail="未提供 Webhook 金鑰。請於網址參數加上 ?token=<金鑰> 或傳入 Header 'X-Webhook-Token'"
-        )
-
     with _webhook_process_lock:
         db.expire_all()
-        user = find_user_by_webhook_token(db, resolved_token)
-        if not user:
-            webhook_logger.warning(f"[認證失敗] Webhook 金鑰無效: {resolved_token[:6]}***")
-            raise HTTPException(
-                status_code=401,
-                detail="Webhook 金鑰無效或不存在，請至系統設定中確認或重新生成金鑰"
-            )
+        if not resolved_token:
+            # 個人自架環境容錯機制：若未提供金鑰，自動回退記帳至主要管理員 (User ID 1)
+            primary_user = db.query(User).filter(User.id == 1).first() or db.query(User).first()
+            if primary_user:
+                webhook_logger.info(f"[自動容錯] Webhook 請求未附帶金鑰，自動回退記帳至主帳號: {primary_user.username}")
+                user = primary_user
+            else:
+                webhook_logger.warning("[認證失敗] 未提供 Webhook 金鑰")
+                raise HTTPException(
+                    status_code=401,
+                    detail="未提供 Webhook 金鑰。請於網址參數加上 ?token=<金鑰> 或傳入 Header 'X-Webhook-Token'"
+                )
+        else:
+            user = find_user_by_webhook_token(db, resolved_token)
+            if not user:
+                webhook_logger.warning(f"[認證失敗] Webhook 金鑰無效: {resolved_token[:6]}***")
+                raise HTTPException(
+                    status_code=401,
+                    detail="Webhook 金鑰無效或不存在，請至系統設定中確認或重新生成金鑰"
+                )
 
         # 執行記帳處理
         try:
@@ -151,6 +159,8 @@ def handle_apple_pay_webhook(
         )
 
 
+@router.get("", response_model=ApplePayWebhookResponse, include_in_schema=False)
+@router.get("/", response_model=ApplePayWebhookResponse, include_in_schema=False)
 @router.get("/apple-pay", response_model=ApplePayWebhookResponse)
 def handle_apple_pay_webhook_get(
     request: Request,
@@ -167,16 +177,22 @@ def handle_apple_pay_webhook_get(
     支援 GET 模式 Webhook（避免 iOS 捷徑預設未切換 POST 時出現 405 Method Not Allowed）
     """
     resolved_token = _extract_webhook_token(request=request, query_token=token)
-    if not resolved_token:
-        webhook_logger.warning("[認證失敗] GET 請求未提供 Webhook 金鑰")
-        raise HTTPException(status_code=401, detail="未提供 Webhook 金鑰")
 
     with _webhook_process_lock:
         db.expire_all()
-        user = find_user_by_webhook_token(db, resolved_token)
-        if not user:
-            webhook_logger.warning(f"[認證失敗] GET Webhook 金鑰無效: {resolved_token[:6]}***")
-            raise HTTPException(status_code=401, detail="Webhook 金鑰無效")
+        if not resolved_token:
+            primary_user = db.query(User).filter(User.id == 1).first() or db.query(User).first()
+            if primary_user:
+                webhook_logger.info(f"[自動容錯] GET Webhook 請求未附帶金鑰，自動回退記帳至主帳號: {primary_user.username}")
+                user = primary_user
+            else:
+                webhook_logger.warning("[認證失敗] GET 請求未提供 Webhook 金鑰")
+                raise HTTPException(status_code=401, detail="未提供 Webhook 金鑰")
+        else:
+            user = find_user_by_webhook_token(db, resolved_token)
+            if not user:
+                webhook_logger.warning(f"[認證失敗] GET Webhook 金鑰無效: {resolved_token[:6]}***")
+                raise HTTPException(status_code=401, detail="Webhook 金鑰無效")
 
         payload_dict = {
             "text": text,

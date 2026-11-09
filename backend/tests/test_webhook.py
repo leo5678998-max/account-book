@@ -362,6 +362,7 @@ class TestWebhookServiceAndEndpoints(unittest.TestCase):
         # 必須去重合併為同一個交易 ID
         self.assertEqual(id1, id2)
         # 中文詳細店名應覆蓋英文銀行商家名
+        self.db.rollback()
         self.db.expire_all()
         merged_tx = self.db.query(Transaction).filter(Transaction.id == id1).first()
         self.assertIn("艇長有限公司", merged_tx.description)
@@ -387,6 +388,74 @@ class TestWebhookServiceAndEndpoints(unittest.TestCase):
         self.assertIsNotNone(tx)
         self.assertEqual(tx.tx_type, "REFUND")
         self.assertIn("[退款]", tx.description)
+
+    def test_post_to_root_and_fallback(self):
+        # 測試 iOS 捷徑誤將請求發送至根路徑 '/' (POST /) 且未帶 token 時的防呆容錯
+        res = self.client.post(
+            "/",
+            json={
+                "app": "LINE",
+                "title": "LINE錢包",
+                "text": "LINE Pay 付款 NT$ 205 付款完成。 商店名稱: 麥當勞"
+            }
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["amount"], 205.0)
+        self.assertEqual(data["category"], "飲食")
+
+    def test_twin_notification_account_upgrade(self):
+        # 測試 LINE Pay 先到 (使用預設儲蓄帳戶)，隨後信用卡推播到 (明確指定卡片)，扣款帳戶自動升級
+        # 1. 第一筆來自 LINE (未帶特定卡號，使用 savings_acc)
+        initial_savings_bal = self.savings_acc.balance
+        initial_card_bal = self.card_acc.balance
+
+        res1 = self.client.post(
+            "/",
+            json={
+                "app": "LINE",
+                "title": "LINE錢包",
+                "text": "LINE Pay 付款 NT$ 150 付款完成。 商店名稱: 麥當勞"
+            }
+        )
+        self.assertEqual(res1.status_code, 200)
+        tx_id_1 = res1.json()["transaction_id"]
+
+        # 2. 第二筆 1 秒後來自 信用卡 (明確包含卡片資訊 CUBE 1234)
+        res2 = self.client.post(
+            "/",
+            json={
+                "app": "國泰世華 CUBE",
+                "title": "",
+                "text": "信用卡號末四碼 1234 於 11月09日 20:18 在 LINEPAY*McDonalds交易，NT$150元"
+            }
+        )
+        self.assertEqual(res2.status_code, 200)
+        tx_id_2 = res2.json()["transaction_id"]
+
+        # 驗證兩筆合併為同一個交易 ID
+        self.assertEqual(tx_id_1, tx_id_2)
+
+        self.db.expire_all()
+        merged_tx = self.db.query(Transaction).filter(Transaction.id == tx_id_1).first()
+        # 扣款帳戶應升級為信用卡帳戶 (card_acc)
+        self.assertEqual(merged_tx.account_id, self.card_acc.id)
+        # 商家描述應維持中文麥當勞
+        self.assertEqual(merged_tx.description, "麥當勞")
+        # 儲蓄帳戶餘額應還原，信用卡帳戶餘額應扣減
+        self.db.refresh(self.savings_acc)
+        self.db.refresh(self.card_acc)
+        self.assertEqual(self.savings_acc.balance, initial_savings_bal)
+        self.assertEqual(self.card_acc.balance, initial_card_bal - 150.0)
+
+    def test_notification_with_nbsp(self):
+        # 測試推播中包含不可見 non-breaking space (\xa0) 的解析容錯
+        text = "【信用卡刷卡交易】約NT$205元\n卡號末四碼 1234 於 11月09日 20:18\xa0在 麥當勞交易。"
+        res = parse_notification_text(text, app="國泰世華")
+        self.assertEqual(res["amount"], 205.0)
+        self.assertEqual(res["merchant"], "麥當勞")
+        self.assertEqual(res["card_name"], "國泰世華 1234")
 
 
 if __name__ == "__main__":

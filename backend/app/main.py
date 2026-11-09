@@ -7,12 +7,14 @@ if sys.platform.startswith('win'):
         pass
 
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
-from .core.database import engine, Base
+from .core.database import engine, Base, get_db
+from .schemas import ApplePayWebhookPayload, ApplePayWebhookResponse
 from . import models  # 確保所有 ORM Model 均被載入註冊
 from .services.auth_service import run_schema_migrations
 from .services.scheduler import start_scheduler, stop_scheduler
@@ -62,6 +64,25 @@ def serve_index():
             }
         )
     return {"message": "Account Book API is running"}
+
+
+@app.post("/", response_model=ApplePayWebhookResponse, include_in_schema=False)
+async def handle_root_post_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    容錯轉發：iOS 捷徑或推播自動化若誤將請求發送至根路徑 '/' (省略了 '/api/webhook/apple-pay')，
+    自動導向 Webhook 處理流程，防止 405 Method Not Allowed 導致記帳遺漏。
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="請傳入有效的 JSON 格式")
+
+    payload = ApplePayWebhookPayload(**data)
+    token = request.query_params.get("token")
+    return webhook.handle_apple_pay_webhook(payload=payload, request=request, token=token, db=db)
 
 
 @app.get("/manifest.json")
