@@ -1,3 +1,4 @@
+from .stock_service import get_currency_rate_to_twd
 from datetime import datetime
 from typing import Optional
 from fastapi import HTTPException
@@ -167,8 +168,33 @@ def record_transaction(db: Session, tx_in: TransactionCreate, user_id: int = 1) 
         target_acc = _get_account_or_404(db, tx_in.target_account_id, user_id, detail="轉帳目標帳戶不存在")
 
     tx_data = tx_in.dict() if hasattr(tx_in, "dict") else tx_in.model_dump()
+    
+    # 多幣別與自動換算成台幣處理
+    currency = (tx_data.get("currency") or "TWD").strip().upper()
+    tx_data["currency"] = currency
+    if currency != "TWD":
+        rate = tx_data.get("exchange_rate")
+        if not rate or rate <= 0:
+            rate = get_currency_rate_to_twd(currency)
+        tx_data["exchange_rate"] = rate
+
+        orig_amt = tx_data.get("original_amount")
+        if orig_amt is None or orig_amt <= 0:
+            tx_data["original_amount"] = tx_data["amount"]
+            tx_data["amount"] = round(tx_data["original_amount"] * rate, 2)
+        else:
+            if not tx_data.get("amount") or tx_data["amount"] == orig_amt:
+                tx_data["amount"] = round(orig_amt * rate, 2)
+    else:
+        tx_data["currency"] = "TWD"
+        tx_data["exchange_rate"] = 1.0
+        if not tx_data.get("original_amount"):
+            tx_data["original_amount"] = tx_data["amount"]
+
     if tx_in.tx_type == TX_TYPE_REFUND:
-        tx_data["amount"] = abs(tx_in.amount)
+        tx_data["amount"] = abs(tx_data["amount"])
+        if tx_data.get("original_amount"):
+            tx_data["original_amount"] = abs(tx_data["original_amount"])
         tx_data["target_account_id"] = None
 
     if getattr(tx_in, "affects_balance", True):
@@ -215,9 +241,25 @@ def modify_transaction(
             raise HTTPException(status_code=400, detail="轉帳必須指定目標帳戶")
         new_target_acc = _get_account_or_404(db, tx_in.target_account_id, user_id, detail="轉帳目標帳戶不存在")
 
-    # 3. 套用新交易對帳戶餘額的影響
-    new_affects_balance = getattr(tx_in, "affects_balance", True)
+    # 3. 多幣別換算處理
+    currency = (tx_in.currency or "TWD").strip().upper()
+    rate = tx_in.exchange_rate or (1.0 if currency == "TWD" else get_currency_rate_to_twd(currency))
     new_amount = abs(tx_in.amount) if tx_in.tx_type == TX_TYPE_REFUND else tx_in.amount
+    orig_amount = tx_in.original_amount
+
+    if currency != "TWD":
+        if orig_amount is None or orig_amount <= 0:
+            orig_amount = new_amount
+            new_amount = round(orig_amount * rate, 2)
+        elif not new_amount or new_amount == orig_amount:
+            new_amount = round(orig_amount * rate, 2)
+    else:
+        rate = 1.0
+        if not orig_amount:
+            orig_amount = new_amount
+
+    # 套用新交易對帳戶餘額的影響
+    new_affects_balance = getattr(tx_in, "affects_balance", True)
     if new_affects_balance:
         _apply_balance_impact(
             source_acc=new_source_acc,
@@ -229,6 +271,9 @@ def modify_transaction(
 
     # 4. 更新交易紀錄欄位
     tx.amount = new_amount
+    tx.currency = currency
+    tx.original_amount = orig_amount
+    tx.exchange_rate = rate
     tx.tx_type = tx_in.tx_type
     tx.account_id = tx_in.account_id
     tx.target_account_id = tx_in.target_account_id if tx_in.tx_type == TX_TYPE_TRANSFER else None

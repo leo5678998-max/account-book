@@ -1,3 +1,4 @@
+import time
 import re
 import sys
 if sys.platform.startswith('win'):
@@ -41,19 +42,45 @@ POPULAR_NAMES = {
     "VT": "Vanguard 全球股票 ETF",
 }
 
+SUPPORTED_CURRENCIES = [
+    {"code": "TWD", "name": "新台幣", "symbol": "NT$", "flag": "🇹🇼"},
+    {"code": "JPY", "name": "日圓", "symbol": "¥", "flag": "🇯🇵"},
+    {"code": "USD", "name": "美元", "symbol": "$", "flag": "🇺🇸"},
+    {"code": "EUR", "name": "歐元", "symbol": "€", "flag": "🇪🇺"},
+    {"code": "KRW", "name": "韓元", "symbol": "₩", "flag": "🇰🇷"},
+    {"code": "CNY", "name": "人民幣", "symbol": "¥", "flag": "🇨🇳"},
+    {"code": "HKD", "name": "港幣", "symbol": "HK$", "flag": "🇭🇰"},
+    {"code": "GBP", "name": "英鎊", "symbol": "£", "flag": "🇬🇧"},
+    {"code": "THB", "name": "泰銖", "symbol": "฿", "flag": "🇹🇭"},
+    {"code": "SGD", "name": "新加坡幣", "symbol": "S$", "flag": "🇸🇬"},
+    {"code": "AUD", "name": "澳幣", "symbol": "A$", "flag": "🇦🇺"},
+    {"code": "CAD", "name": "加拿大幣", "symbol": "C$", "flag": "🇨🇦"},
+    {"code": "VND", "name": "越南盾", "symbol": "₫", "flag": "🇻🇳"},
+    {"code": "MYR", "name": "馬來西亞令吉", "symbol": "RM", "flag": "🇲🇾"},
+    {"code": "PHP", "name": "菲律賓披索", "symbol": "₱", "flag": "🇵🇭"},
+]
+
 DEFAULT_FALLBACK_RATES = {
-    "USD": 32.3,
+    "TWD": 1.0,
+    "USD": 32.5,
     "JPY": 0.205,
     "EUR": 35.5,
     "CNY": 4.5,
     "RMB": 4.5,
-    "HKD": 4.1,
-    "GBP": 41.0,
-    "KRW": 0.023,
-    "AUD": 21.0,
+    "HKD": 4.15,
+    "GBP": 42.5,
+    "KRW": 0.0235,
+    "AUD": 21.2,
     "CAD": 23.5,
-    "SGD": 24.2,
+    "SGD": 24.3,
+    "THB": 0.98,
+    "VND": 0.0013,
+    "MYR": 7.35,
+    "PHP": 0.56,
 }
+
+_RATE_CACHE = {}
+RATE_CACHE_TTL = 900  # 15 分鐘快取保護，兼顧即時性與請求效能
 
 def get_currency_rate_to_twd(currency: str) -> float:
     """取得任意主要外幣兌新台幣的即時匯率 (支援 USD, JPY, EUR, CNY 等)"""
@@ -63,17 +90,39 @@ def get_currency_rate_to_twd(currency: str) -> float:
     if curr in ("TWD", "NTD", "NT$", "NT"):
         return 1.0
 
+    now = time.time()
+    if curr in _RATE_CACHE:
+        rate, ts = _RATE_CACHE[curr]
+        if now - ts < RATE_CACHE_TTL:
+            return rate
+
     ticker_sym = f"{curr}TWD=X"
     try:
         ticker = yf.Ticker(ticker_sym)
         rate = ticker.fast_info.get("lastPrice")
         if rate and rate > 0:
-            precision = 4 if curr in ("JPY", "KRW") else 2
-            return round(float(rate), precision)
+            precision = 4 if curr in ("JPY", "KRW", "VND") else 2
+            final_rate = round(float(rate), precision)
+            _RATE_CACHE[curr] = (final_rate, now)
+            return final_rate
     except Exception as e:
         print(f"[StockService] 取得 {ticker_sym} 匯率失敗: {e}")
 
-    return DEFAULT_FALLBACK_RATES.get(curr, 1.0)
+    fallback = DEFAULT_FALLBACK_RATES.get(curr, 1.0)
+    _RATE_CACHE[curr] = (fallback, now)
+    return fallback
+
+def get_all_supported_currencies_with_rates():
+    """回傳所有支援的幣別清單與即時匯率"""
+    results = []
+    for c in SUPPORTED_CURRENCIES:
+        code = c["code"]
+        rate = 1.0 if code == "TWD" else get_currency_rate_to_twd(code)
+        results.append({
+            **c,
+            "rate_to_twd": rate
+        })
+    return results
 
 def get_usd_to_twd_rate() -> float:
     """取得即時美金兌台幣匯率"""

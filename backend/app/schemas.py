@@ -60,6 +60,9 @@ class AccountResponse(AccountBase):
 
 class TransactionCreate(BaseModel):
     amount: float
+    currency: Optional[str] = "TWD"
+    original_amount: Optional[float] = None
+    exchange_rate: Optional[float] = 1.0
     tx_type: str = "EXPENSE" # EXPENSE, INCOME, TRANSFER, REFUND
     account_id: int
     target_account_id: Optional[int] = None
@@ -78,6 +81,9 @@ class TransactionUpdate(TransactionCreate):
 class TransactionResponse(BaseModel):
     id: int
     amount: float
+    currency: Optional[str] = "TWD"
+    original_amount: Optional[float] = None
+    exchange_rate: Optional[float] = 1.0
     tx_type: str
     account_id: int
     target_account_id: Optional[int] = None

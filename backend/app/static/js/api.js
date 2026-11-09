@@ -87,7 +87,8 @@ export const ApiService = {
     body: JSON.stringify({ is_dbs_default_debit: true })
   }),
 
-  // 交易流水帳 API
+  // 交易流水帳與幣別匯率 API
+  getExchangeRates: () => authFetch('/api/transactions/exchange-rates').then(r => (r.ok ? r.json() : null)),
   getTransactions: (limit = 1000) => authFetch(`/api/transactions?limit=${limit}`).then(r => (r.ok ? r.json() : [])),
   createTransaction: (tx) => authFetch('/api/transactions', {
     method: 'POST',

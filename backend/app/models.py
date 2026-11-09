@@ -38,6 +38,9 @@ class Transaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), default=1, index=True, nullable=True)
     date = Column(DateTime, default=datetime.utcnow)
     amount = Column(Float, nullable=False)
+    currency = Column(String(10), default="TWD", nullable=True) # 幣別 (TWD, JPY, USD 等)
+    original_amount = Column(Float, nullable=True) # 外幣原始金額 (若為外幣交易記錄原幣金額)
+    exchange_rate = Column(Float, default=1.0, nullable=True) # 換算匯率 (1 外幣 = ? 新台幣)
     tx_type = Column(String(20), nullable=False) # EXPENSE, INCOME, TRANSFER, REFUND
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     target_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True) # 轉帳目標帳戶

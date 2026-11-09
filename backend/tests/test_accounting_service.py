@@ -221,6 +221,45 @@ class TestAccountingService(unittest.TestCase):
         salary_setting = get_setting(self.db, "MONTHLY_SALARY", user_id=1)
         self.assertEqual(salary_setting, "60000.0")
 
+    def test_multi_currency_transaction_conversion(self):
+        # 1. 記錄一筆日圓 JPY 1000 支出，指定匯率 0.205 -> 應自動折合為 205.0 台幣
+        tx_in = TransactionCreate(
+            account_id=1,
+            amount=205.0,
+            currency="JPY",
+            original_amount=1000.0,
+            exchange_rate=0.205,
+            tx_type="EXPENSE",
+            category="飲食",
+            description="日本一蘭拉麵"
+        )
+        tx = record_transaction(self.db, tx_in, user_id=1)
+        self.assertEqual(tx.currency, "JPY")
+        self.assertEqual(tx.original_amount, 1000.0)
+        self.assertEqual(tx.exchange_rate, 0.205)
+        self.assertEqual(tx.amount, 205.0)
+        # 帳戶餘額應扣減台幣 205.0 (原餘額 10000 -> 9795.0)
+        self.assertEqual(self.acc1.balance, 9795.0)
+
+        # 2. 編輯此筆為美元 USD 50，指定匯率 32.0 -> 應自動折合為 1600.0 台幣
+        tx_up = TransactionUpdate(
+            account_id=1,
+            amount=1600.0,
+            currency="USD",
+            original_amount=50.0,
+            exchange_rate=32.0,
+            tx_type="EXPENSE",
+            category="數位服務",
+            description="OpenAI 訂閱"
+        )
+        tx_mod = modify_transaction(self.db, tx.id, tx_up, user_id=1)
+        self.assertEqual(tx_mod.currency, "USD")
+        self.assertEqual(tx_mod.original_amount, 50.0)
+        self.assertEqual(tx_mod.exchange_rate, 32.0)
+        self.assertEqual(tx_mod.amount, 1600.0)
+        # 帳戶餘額應還原 205.0 再扣 1600.0 (10000 - 1600 = 8400.0)
+        self.assertEqual(self.acc1.balance, 8400.0)
+
 
 if __name__ == "__main__":
     unittest.main()

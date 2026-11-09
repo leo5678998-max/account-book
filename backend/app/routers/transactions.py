@@ -1,3 +1,4 @@
+from ..services.stock_service import get_all_supported_currencies_with_rates
 from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -9,6 +10,15 @@ from ..services.accounting_service import record_transaction, modify_transaction
 from ..services.auth_service import get_current_user
 
 router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
+
+
+@router.get("/exchange-rates")
+def get_exchange_rates():
+    """取得所有支援幣別與其兌新台幣之即時匯率"""
+    return {
+        "base_currency": "TWD",
+        "currencies": get_all_supported_currencies_with_rates()
+    }
 
 
 @router.get("", response_model=List[TransactionResponse])

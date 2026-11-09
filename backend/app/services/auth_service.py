@@ -175,6 +175,12 @@ def run_schema_migrations(engine) -> None:
                         conn.execute(text("ALTER TABLE transactions ADD COLUMN installment_plan_id INTEGER NULL"))
                     if "installment_period" not in col_names:
                         conn.execute(text("ALTER TABLE transactions ADD COLUMN installment_period INTEGER NULL"))
+                    if "currency" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN currency VARCHAR(10) DEFAULT 'TWD'"))
+                    if "original_amount" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN original_amount FLOAT NULL"))
+                    if "exchange_rate" not in col_names:
+                        conn.execute(text("ALTER TABLE transactions ADD COLUMN exchange_rate FLOAT DEFAULT 1.0"))
 
                 if table == "bills":
                     if "credit_account_id" not in col_names:

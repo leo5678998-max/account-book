@@ -1498,6 +1498,77 @@ createApp({
       }
     };
 
+    // 多幣別換算支援 (支援日圓、美金、歐元等各種外幣記帳，自動即時換算成台幣)
+    const currencies = ref([
+      { code: 'TWD', name: '新台幣', symbol: 'NT$', flag: '🇹🇼', rate_to_twd: 1.0 },
+      { code: 'JPY', name: '日圓', symbol: '¥', flag: '🇯🇵', rate_to_twd: 0.205 },
+      { code: 'USD', name: '美元', symbol: '$', flag: '🇺🇸', rate_to_twd: 32.5 },
+      { code: 'EUR', name: '歐元', symbol: '€', flag: '🇪🇺', rate_to_twd: 35.5 },
+      { code: 'KRW', name: '韓元', symbol: '₩', flag: '🇰🇷', rate_to_twd: 0.0235 },
+      { code: 'CNY', name: '人民幣', symbol: '¥', flag: '🇨🇳', rate_to_twd: 4.5 },
+      { code: 'HKD', name: '港幣', symbol: 'HK$', flag: '🇭🇰', rate_to_twd: 4.15 },
+      { code: 'GBP', name: '英鎊', symbol: '£', flag: '🇬🇧', rate_to_twd: 42.5 },
+      { code: 'THB', name: '泰銖', symbol: '฿', flag: '🇹🇭', rate_to_twd: 0.98 },
+      { code: 'SGD', name: '新加坡幣', symbol: 'S$', flag: '🇸🇬', rate_to_twd: 24.3 },
+      { code: 'AUD', name: '澳幣', symbol: 'A$', flag: '🇦🇺', rate_to_twd: 21.2 },
+      { code: 'CAD', name: '加拿大幣', symbol: 'C$', flag: '🇨🇦', rate_to_twd: 23.5 },
+      { code: 'VND', name: '越南盾', symbol: '₫', flag: '🇻🇳', rate_to_twd: 0.0013 },
+      { code: 'MYR', name: '馬來西亞令吉', symbol: 'RM', flag: '🇲🇾', rate_to_twd: 7.35 },
+      { code: 'PHP', name: '菲律賓披索', symbol: '₱', flag: '🇵🇭', rate_to_twd: 0.56 },
+    ]);
+    const txCurrency = ref('TWD');
+    const txCustomExchangeRate = ref(null);
+    const showCurrencyDropdown = ref(false);
+    const showCustomRateInput = ref(false);
+
+    const currentCurrencyObj = computed(() => {
+      return currencies.value.find(c => c.code === txCurrency.value) || currencies.value[0];
+    });
+
+    const txEffectiveExchangeRate = computed(() => {
+      if (txCurrency.value === 'TWD') return 1.0;
+      if (txCustomExchangeRate.value && !isNaN(parseFloat(txCustomExchangeRate.value))) {
+        return parseFloat(txCustomExchangeRate.value);
+      }
+      return currentCurrencyObj.value?.rate_to_twd || 1.0;
+    });
+
+    const txConvertedTwdAmount = computed(() => {
+      const rawAmt = txEvaluatedAmount.value !== null ? txEvaluatedAmount.value : parseFloat(txAmountFormula.value || '0');
+      if (isNaN(rawAmt) || rawAmt <= 0) return 0;
+      if (txCurrency.value === 'TWD') return Math.round(rawAmt);
+      return Math.round(rawAmt * txEffectiveExchangeRate.value);
+    });
+
+    const selectTxCurrency = (code) => {
+      txCurrency.value = code;
+      showCurrencyDropdown.value = false;
+      txCustomExchangeRate.value = null;
+      showCustomRateInput.value = false;
+      triggerHaptic('light');
+    };
+
+    const getCurrencySymbol = (code) => {
+      const c = currencies.value.find(item => item.code === code);
+      return c ? c.symbol : (code || 'NT$');
+    };
+
+    const getCurrencyFlag = (code) => {
+      const c = currencies.value.find(item => item.code === code);
+      return c ? c.flag : '🌐';
+    };
+
+    const fetchExchangeRates = async () => {
+      try {
+        const res = await ApiService.getExchangeRates();
+        if (res && Array.isArray(res.currencies) && res.currencies.length > 0) {
+          currencies.value = res.currencies;
+        }
+      } catch (err) {
+        console.warn('載入最新即時匯率失敗，將使用預設安全匯率', err);
+      }
+    };
+
     // 記帳管理 (方案 C: 極簡記帳體驗 + 簡易算式計算機)
     const showTxAdvanced = ref(false);
     const showTxCalcKeyboard = ref(false);
@@ -1542,6 +1613,10 @@ createApp({
       triggerHaptic('light');
       editingTxId.value = null;
       txAmountFormula.value = '';
+      txCurrency.value = 'TWD';
+      txCustomExchangeRate.value = null;
+      showCurrencyDropdown.value = false;
+      showCustomRateInput.value = false;
       const defaultAcc = accounts.value.find(a => a.is_dbs_default_debit) || accounts.value[0];
       const defaultCat = quickCategories.value[0] || '飲食';
       currentTx.value = {
@@ -1564,7 +1639,17 @@ createApp({
 
     const openEditTxModal = (tx) => {
       editingTxId.value = tx.id;
-      txAmountFormula.value = (tx.amount !== undefined && tx.amount !== null) ? String(tx.amount) : '';
+      if (tx.currency && tx.currency !== 'TWD') {
+        txCurrency.value = tx.currency;
+        txCustomExchangeRate.value = tx.exchange_rate || null;
+        txAmountFormula.value = (tx.original_amount !== undefined && tx.original_amount !== null) ? String(tx.original_amount) : String(tx.amount || '');
+      } else {
+        txCurrency.value = 'TWD';
+        txCustomExchangeRate.value = null;
+        txAmountFormula.value = (tx.amount !== undefined && tx.amount !== null) ? String(tx.amount) : '';
+      }
+      showCurrencyDropdown.value = false;
+      showCustomRateInput.value = false;
       currentTx.value = {
         amount: tx.amount,
         tx_type: tx.tx_type || 'EXPENSE',
@@ -1587,7 +1672,11 @@ createApp({
 
     const openRefundModal = (tx) => {
       editingTxId.value = null; // 建立新的關聯退款紀錄
-      const refundAmt = Math.abs(tx.amount || 0);
+      txCurrency.value = tx.currency || 'TWD';
+      txCustomExchangeRate.value = tx.exchange_rate || null;
+      showCurrencyDropdown.value = false;
+      showCustomRateInput.value = false;
+      const refundAmt = Math.abs(tx.original_amount || tx.amount || 0);
       txAmountFormula.value = String(refundAmt);
       currentTx.value = {
         amount: refundAmt,
@@ -1621,6 +1710,22 @@ createApp({
       } else if (txAmountFormula.value) {
         const parsed = parseFloat(txAmountFormula.value);
         if (!isNaN(parsed)) currentTx.value.amount = parsed;
+      }
+
+      // 多幣別換算處理：若非台幣，自動依據即時或自訂匯率折算為台幣入帳
+      if (txCurrency.value !== 'TWD') {
+        const foreignAmt = txEvaluatedAmount.value !== null ? txEvaluatedAmount.value : parseFloat(txAmountFormula.value);
+        if (isNaN(foreignAmt) || foreignAmt <= 0) return alert('請填寫有效的金額');
+        const effectiveRate = txEffectiveExchangeRate.value;
+        const twdAmt = Math.round(foreignAmt * effectiveRate);
+        currentTx.value.amount = twdAmt;
+        currentTx.value.currency = txCurrency.value;
+        currentTx.value.original_amount = foreignAmt;
+        currentTx.value.exchange_rate = effectiveRate;
+      } else {
+        currentTx.value.currency = 'TWD';
+        currentTx.value.original_amount = currentTx.value.amount;
+        currentTx.value.exchange_rate = 1.0;
       }
 
       if (!currentTx.value.amount || !currentTx.value.account_id) return alert('請填寫金額與選擇帳戶');
@@ -3320,6 +3425,7 @@ createApp({
 
       fetchCategories();
       fetchCategoryColors();
+      fetchExchangeRates();
       if (AuthStorage.getToken()) {
         try {
           const meRes = await ApiService.getMe();
@@ -3418,6 +3524,9 @@ createApp({
       canInstallPwa, isPwaInstalled, installPwa,
       webhookToken, webhookUrl, webhookCopySuccess, webhookTutorialOpen, testingWebhook, webhookTestResult,
       fetchWebhookToken, regenerateWebhook, copyWebhookUrl, runWebhookTest,
+      currencies, txCurrency, txCustomExchangeRate, showCurrencyDropdown, showCustomRateInput,
+      currentCurrencyObj, txEffectiveExchangeRate, txConvertedTwdAmount, selectTxCurrency,
+      getCurrencySymbol, getCurrencyFlag, fetchExchangeRates,
       txAmountFormula, txEvaluatedAmount, txHasFormula, applyTxFormula, appendTxFormulaOp,
       recurringAmountFormula, recurringEvaluatedAmount, recurringHasFormula, applyRecurringFormula, appendRecurringFormulaOp,
       totalSavings, totalNetWorth, pendingBillAmount, nextDueBill, monthlyExpensesList, monthlyTotalExpense, monthlyLivingExpense,
