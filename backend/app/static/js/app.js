@@ -843,13 +843,28 @@ createApp({
         }
       });
 
-      // 2. 啟用中的每日常態/固定開銷 (月繳或年繳月平攤)
+      // 2. 啟用中的每日常態/固定開銷 (月繳或年繳月平攤，若當月流水帳尚未記入該筆固定開銷才補充)
       if (recurringExpenses.value && recurringExpenses.value.items) {
         recurringExpenses.value.items.forEach(item => {
           if (item.is_active) {
             const cat = item.category || '其他';
             const amt = Number(item.monthly_amortized_amount || item.amount || 0);
-            expensesByCategory[cat] = (expensesByCategory[cat] || 0) + amt;
+
+            // 檢查當月流水帳是否已有此固定開銷之扣款紀錄（比對說明文字或名稱，避免與實際扣款重複加總）
+            const alreadyCharged = transactions.value.some(tx => {
+              if (tx.tx_type !== 'EXPENSE') return false;
+              const txMonth = (tx.date || '').substring(0, 7);
+              if (txMonth !== targetMonth) return false;
+              const desc = (tx.description || '').toLowerCase();
+              const itemName = (item.name || '').toLowerCase();
+              if (itemName && desc.includes(itemName)) return true;
+              const cleanName = itemName.replace(/[定期定額|扣款|每月|費用]/g, '').trim();
+              return cleanName.length >= 2 && desc.includes(cleanName);
+            });
+
+            if (!alreadyCharged) {
+              expensesByCategory[cat] = (expensesByCategory[cat] || 0) + amt;
+            }
             fixedByCategory[cat] = (fixedByCategory[cat] || 0) + amt;
           }
         });
