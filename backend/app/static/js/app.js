@@ -777,7 +777,11 @@ createApp({
     const chartBaseSalary = computed(() => {
       const baseSalary = (isDeductionsInChart.value ? Number(salaryInput.value) : effectiveSalary.value) || 0;
       if (monthlyRecordedSalary.value > 0) {
-        return Math.max(monthlyRecordedSalary.value + monthlyRecordedExtraIncome.value, 1);
+        // 若圖表開啟顯示法定扣繳切片，且實際入帳之薪資為實領薪資（小於等於實領基準），
+        // 則在總收入母數中還原法定扣繳，避免在支出端重複扣減造成實領結餘二度短少
+        const recordedSal = monthlyRecordedSalary.value;
+        const grossUp = (isDeductionsInChart.value && recordedSal <= (effectiveSalary.value + 10)) ? totalInsuranceDeduction.value : 0;
+        return Math.max(recordedSal + grossUp + monthlyRecordedExtraIncome.value, 1);
       }
       return Math.max(baseSalary + monthlyRecordedExtraIncome.value, 1);
     });

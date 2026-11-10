@@ -75,6 +75,26 @@ class TestAutoSalary(unittest.TestCase):
         self.db.refresh(self.account)
         self.assertEqual(self.account.balance, 90000.0)
 
+    def test_auto_salary_credited_with_net_salary_when_deduct_enabled(self):
+        """驗證當啟用實領制 (DEDUCT_LABOR_HEALTH=true) 時，自動入帳金額為扣除勞健保後之實領淨額"""
+        save_setting(self.db, "AUTO_SALARY_INCOME_ENABLED", "true", user_id=self.user.id)
+        save_setting(self.db, "DEDUCT_LABOR_HEALTH", "true", user_id=self.user.id)
+        save_setting(self.db, "HEALTH_INSURANCE_DEPENDENTS", "3", user_id=self.user.id)
+        save_setting(self.db, "LABOR_HEALTH_AUTO_CALC", "true", user_id=self.user.id)
+        self.db.commit()
+
+        res = execute_auto_salary_credits(self.db, user_id=self.user.id)
+        self.assertEqual(res.get("credited_count"), 1)
+
+        # 80000 全薪扣除 4832 法定扣繳 (勞保1100 + 健保4口3732) = 實領 75168
+        self.db.refresh(self.account)
+        self.assertEqual(self.account.balance, 10000.0 + 75168.0)
+
+        tx = self.db.query(Transaction).filter_by(user_id=self.user.id, tx_type="INCOME").first()
+        self.assertIsNotNone(tx)
+        self.assertEqual(tx.amount, 75168.0)
+        self.assertIn("(實領)", tx.description)
+
 
 if __name__ == "__main__":
     unittest.main()

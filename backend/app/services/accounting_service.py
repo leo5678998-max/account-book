@@ -1,4 +1,5 @@
 from .stock_service import get_currency_rate_to_twd
+from .insurance_service import calculate_insurance_summary
 from datetime import datetime
 from typing import Optional
 from fastapi import HTTPException
@@ -417,6 +418,45 @@ def execute_auto_salary_credits(db: Session, user_id: Optional[int] = None) -> d
         if salary_amount <= 0:
             continue
 
+        # 若使用者開啟實領制（扣除勞健保自付額），以扣除後實領薪資入帳
+        is_deduct_labor_health = get_setting(db, "DEDUCT_LABOR_HEALTH", "false", user_id=uid).lower() in ("true", "1")
+        if is_deduct_labor_health:
+            dependents_str = get_setting(db, "HEALTH_INSURANCE_DEPENDENTS", "1", user_id=uid)
+            dependents = int(dependents_str) if dependents_str and dependents_str.isdigit() else 1
+            auto_calc = get_setting(db, "LABOR_HEALTH_AUTO_CALC", "true", user_id=uid).lower() in ("true", "1")
+
+            pension_rate_str = get_setting(db, "PENSION_RATE", "0.0", user_id=uid)
+            try:
+                pension_rate = float(pension_rate_str)
+            except (ValueError, TypeError):
+                pension_rate = 0.0
+
+            tax_rate_str = get_setting(db, "TAX_RATE", "0.0", user_id=uid)
+            try:
+                tax_rate = float(tax_rate_str)
+            except (ValueError, TypeError):
+                tax_rate = 0.0
+
+            labor_fee_str = get_setting(db, "LABOR_INSURANCE_FEE", "", user_id=uid) or None
+            health_fee_str = get_setting(db, "HEALTH_INSURANCE_FEE", "", user_id=uid) or None
+            pension_fee_str = get_setting(db, "PENSION_FEE", "", user_id=uid) or None
+            tax_fee_str = get_setting(db, "TAX_FEE", "", user_id=uid) or None
+
+            if auto_calc or labor_fee_str is None or health_fee_str is None or pension_fee_str is None or tax_fee_str is None:
+                calc = calculate_insurance_summary(salary_amount, dependents, pension_rate, tax_rate)
+                labor_fee = float(calc["labor_insurance"]["fee"])
+                health_fee = float(calc["health_insurance"]["fee"])
+                pension_fee = float(calc["labor_pension"]["fee"])
+                tax_fee = float(calc["income_tax"]["fee"])
+            else:
+                labor_fee = float(labor_fee_str)
+                health_fee = float(health_fee_str)
+                pension_fee = float(pension_fee_str)
+                tax_fee = float(tax_fee_str)
+
+            total_deductions = labor_fee + health_fee + pension_fee + tax_fee
+            salary_amount = max(0.0, salary_amount - total_deductions)
+
         pay_day_str = get_setting(db, "SALARY_PAY_DAY", "5", user_id=uid)
         pay_day = int(pay_day_str) if pay_day_str and pay_day_str.isdigit() else 5
         pay_day = max(1, min(31, pay_day))
@@ -478,7 +518,7 @@ def execute_auto_salary_credits(db: Session, user_id: Optional[int] = None) -> d
             tx_type=TX_TYPE_INCOME,
             account_id=salary_acc.id,
             category=CATEGORY_SALARY,
-            description=f"{today.year}年{today.month}月 固定薪資入帳 ({salary_acc.name})",
+            description=f"{today.year}年{today.month}月 固定薪資入帳 ({salary_acc.name})" + (" (實領)" if is_deduct_labor_health else ""),
             affects_balance=True
         )
         db.add(tx)

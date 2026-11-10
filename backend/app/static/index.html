@@ -1236,7 +1236,7 @@
                       </span>
                       <span class="text-sm sm:text-xl font-extrabold font-mono px-2 truncate"
                         :class="chartViewMode === 'expense' ? 'text-slate-800' : 'text-emerald-700'">
-                        NT$ {{ formatMoney(chartViewMode === 'expense' ? monthlyTotalExpense : chartBaseSalary) }}
+                        NT$ {{ formatMoney(chartViewMode === 'expense' ? monthlyTotalExpense : (monthlyRecordedSalary > 0 ? monthlyRecordedSalary + monthlyRecordedExtraIncome : (isDeductionsInChart ? effectiveSalary : chartBaseSalary))) }}
                       </span>
                       <span v-if="chartViewMode === 'expense'" class="text-[10px] sm:text-[11px] font-semibold mt-0.5"
                         :class="remainingSalary >= 0 ? 'text-emerald-600' : 'text-rose-600'">
@@ -1318,7 +1318,7 @@
                         <span class="text-[10px] text-slate-400 hidden sm:inline">（點擊圓點自訂色彩）</span>
                       </div>
                       <span class="text-[11px] text-slate-400 font-semibold">
-                        當月實得總進帳 NT$ {{ formatMoney(chartBaseSalary) }}
+                        當月實得總進帳 NT$ {{ formatMoney(monthlyRecordedSalary > 0 ? monthlyRecordedSalary + monthlyRecordedExtraIncome : (isDeductionsInChart ? effectiveSalary : chartBaseSalary)) }}
                       </span>
                     </div>
                     <div v-if="monthlyIncomesList.length === 0" class="text-center py-8 text-slate-400 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 text-xs">
@@ -5677,7 +5677,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.18.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.18.1"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

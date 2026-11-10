@@ -180,6 +180,12 @@ def get_monthly_trends(
                     monthly_stats[m]["categories"].get(cat_name, 0.0) + fee_amt
                 )
 
+        # 若該月份已手動或自動記入實領薪資（淨額入帳），且開啟圖表扣繳切片，將扣繳加回該月總收入池以平衡支出扣除，避免二度扣減結餘
+        if m in manual_salary_months and show_deductions_in_chart and statutory_deductions:
+            tot_ded = sum(statutory_deductions.values())
+            if monthly_stats[m]["income"] <= (base_salary - tot_ded + 10.0):
+                monthly_stats[m]["income"] += tot_ded
+
         # 納入啟用中的常態固定開銷（月平攤額，若該月流水帳未有同名扣款）
         for item in recurring_items:
             amt = round(item.amount / 12, 2) if item.frequency == "YEARLY" else float(item.amount or 0.0)
