@@ -740,7 +740,16 @@ createApp({
       return settings.value.deduct_labor_health && settings.value.show_deductions_in_chart !== false;
     });
 
-    // 當月手動記錄的所有收入進帳總和
+    // 判定流水帳是否屬於薪資類交易（避免發薪日自動入帳或手動記薪與設定底薪重複加總）
+    const SALARY_KEYWORDS = ['薪資收入', '固定月薪', '薪資', '薪水', 'salary'];
+    const isSalaryIncomeTx = (tx) => {
+      if (tx.tx_type !== 'INCOME') return false;
+      const cat = (tx.category || '').toLowerCase();
+      const desc = (tx.description || '').toLowerCase();
+      return SALARY_KEYWORDS.some(kw => cat.includes(kw.toLowerCase()) || desc.includes(kw.toLowerCase()));
+    };
+
+    // 當月手動或自動記錄的所有收入進帳總和
     const monthlyRecordedIncome = computed(() => {
       const targetMonth = selectedMonth.value;
       return transactions.value
@@ -748,10 +757,29 @@ createApp({
         .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
     });
 
-    // 當月可用總收入母數 = 基準薪資 + 當月手動記錄之各項收入
+    // 當月已記錄之薪資流水帳總和（手動或發薪日自動入帳）
+    const monthlyRecordedSalary = computed(() => {
+      const targetMonth = selectedMonth.value;
+      return transactions.value
+        .filter(tx => (tx.date || '').substring(0, 7) === targetMonth && isSalaryIncomeTx(tx))
+        .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    });
+
+    // 當月非薪資之額外進帳總和（如獎金、兼職、股息、中獎等）
+    const monthlyRecordedExtraIncome = computed(() => {
+      const targetMonth = selectedMonth.value;
+      return transactions.value
+        .filter(tx => tx.tx_type === 'INCOME' && (tx.date || '').substring(0, 7) === targetMonth && !isSalaryIncomeTx(tx))
+        .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    });
+
+    // 當月可用總收入母數：若已入帳實際薪資，則以實際薪資為基準（避免重複疊加預設底薪），加上額外進帳
     const chartBaseSalary = computed(() => {
       const baseSalary = (isDeductionsInChart.value ? Number(salaryInput.value) : effectiveSalary.value) || 0;
-      return Math.max(baseSalary + monthlyRecordedIncome.value, 1);
+      if (monthlyRecordedSalary.value > 0) {
+        return Math.max(monthlyRecordedSalary.value + monthlyRecordedExtraIncome.value, 1);
+      }
+      return Math.max(baseSalary + monthlyRecordedExtraIncome.value, 1);
     });
 
     // 當月收入項目明細結構清單
@@ -760,7 +788,8 @@ createApp({
       const incomesByCategory = {};
 
       const baseSalary = (isDeductionsInChart.value ? Number(salaryInput.value) : effectiveSalary.value) || 0;
-      if (baseSalary > 0) {
+      // 僅在當月尚未有薪資入帳流水帳時，才補充預設的「固定月薪」基準項目
+      if (monthlyRecordedSalary.value === 0 && baseSalary > 0) {
         incomesByCategory['固定月薪'] = baseSalary;
       }
 
@@ -3540,7 +3569,7 @@ createApp({
       openUploadModal, submitParseDocument, confirmApplyParsedData,
       syncGmail, triggerDebitCheck, payBillNow,
       openSettingsModal, saveSettings, connectGoogle, updateSalary, renderChart,
-      chartViewMode, setChartViewMode, monthlyRecordedIncome, monthlyIncomesList,
+      chartViewMode, setChartViewMode, monthlyRecordedIncome, monthlyRecordedSalary, monthlyRecordedExtraIncome, monthlyIncomesList,
       currentTab, mobileMenuOpen, currentTabTitle, switchTab, txSubTab, assetSubTab, showTxAdvanced, showTxCalcKeyboard,
       txSearch, txTypeFilter, txYearFilter, txMonthFilter, availableTxYears, setTxCurrentMonth, prevTxMonth, nextTxMonth, clearTxDateFilter, filteredTransactions, groupedTransactionsByDate, txStats, recentTransactions,
       triggerHaptic,

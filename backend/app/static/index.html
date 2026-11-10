@@ -1135,7 +1135,8 @@
                     <!-- 收入構成與跳轉 -->
                     <div class="mt-2 pt-2 sm:mt-3 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 min-w-0">
                       <div class="truncate">
-                        <span v-if="monthlyRecordedIncome > 0" class="truncate text-emerald-700 font-medium">含外加 NT$ {{ formatMoney(monthlyRecordedIncome) }}</span>
+                        <span v-if="monthlyRecordedExtraIncome > 0" class="truncate text-emerald-700 font-medium">含外加 NT$ {{ formatMoney(monthlyRecordedExtraIncome) }}</span>
+                        <span v-else-if="monthlyRecordedSalary > 0" class="truncate text-emerald-700 font-medium">薪資已入帳 NT$ {{ formatMoney(monthlyRecordedSalary) }}</span>
                         <span v-else class="truncate text-slate-400">實收底薪 NT$ {{ hideAssets ? '•••' : formatMoney(effectiveSalary) }}</span>
                       </div>
                       <button @click="switchTab('transactions')" class="text-emerald-600 hover:text-emerald-800 font-semibold flex items-center flex-shrink-0 ml-1 cursor-pointer">
@@ -1206,8 +1207,11 @@
                       class="px-2 py-1 rounded-md transition flex items-center space-x-1 cursor-pointer">
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-600" v-if="chartViewMode === 'income'"></span>
                       <span>收入結構</span>
-                      <span v-if="monthlyRecordedIncome > 0" class="text-[9px] bg-emerald-50 text-emerald-600 px-1 rounded-full font-bold">
-                        +{{ formatMoney(monthlyRecordedIncome) }}
+                      <span v-if="monthlyRecordedExtraIncome > 0" class="text-[9px] bg-emerald-50 text-emerald-600 px-1 rounded-full font-bold">
+                        +{{ formatMoney(monthlyRecordedExtraIncome) }}
+                      </span>
+                      <span v-else-if="monthlyRecordedSalary > 0" class="text-[9px] bg-emerald-50 text-emerald-600 px-1 rounded-full font-bold">
+                        已入帳
                       </span>
                     </button>
                   </div>
@@ -1239,7 +1243,7 @@
                         {{ remainingSalary >= 0 ? '結餘 ' + formatMoney(remainingSalary) : '透支 ' + formatMoney(Math.abs(remainingSalary)) }}
                       </span>
                       <span v-else class="text-[10px] sm:text-[11px] text-emerald-600 font-semibold mt-0.5">
-                        {{ monthlyRecordedIncome > 0 ? '含手動進帳 ' + formatMoney(monthlyRecordedIncome) : '固定底薪基準' }}
+                        {{ monthlyRecordedExtraIncome > 0 ? '含外加進帳 ' + formatMoney(monthlyRecordedExtraIncome) : (monthlyRecordedSalary > 0 ? '薪資已實得入帳' : '固定底薪基準') }}
                       </span>
                     </div>
                   </div>
@@ -1267,7 +1271,8 @@
                       </div>
                       <span class="text-[11px] text-slate-400">
                         總收入池 NT$ {{ formatMoney(chartBaseSalary) }}
-                        <span v-if="monthlyRecordedIncome > 0" class="text-emerald-600 font-bold">(含進帳 +{{ formatMoney(monthlyRecordedIncome) }})</span>
+                        <span v-if="monthlyRecordedExtraIncome > 0" class="text-emerald-600 font-bold">(含外加 +{{ formatMoney(monthlyRecordedExtraIncome) }})</span>
+                        <span v-else-if="monthlyRecordedSalary > 0" class="text-emerald-600 font-bold">(薪資已入帳)</span>
                       </span>
                     </div>
                     <div v-if="monthlyExpensesList.length === 0" class="text-center py-8 text-slate-400 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 text-xs">
@@ -1331,6 +1336,9 @@
                             <span class="truncate">{{ item.category }}</span>
                             <span v-if="item.category === '固定月薪'" class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1 rounded">
                               底薪基準
+                            </span>
+                            <span v-else-if="item.category === '薪資收入' || item.category === '薪水' || item.category === '薪資'" class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded">
+                              本薪入帳
                             </span>
                             <span v-else class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded">
                               實得進帳
@@ -5669,7 +5677,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.17.0"></script>
+  <script type="module" src="/static/js/app.js?v=2.18.0"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {
