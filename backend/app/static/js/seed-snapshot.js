@@ -34,7 +34,7 @@ export const INITIAL_SEED_SNAPSHOT = {
       "user_id": 1,
       "name": "星展",
       "account_type": "SAVINGS",
-      "balance": 859751.0,
+      "balance": 856501.0,
       "currency": "TWD",
       "is_dbs_default_debit": false
     },
@@ -49,6 +49,28 @@ export const INITIAL_SEED_SNAPSHOT = {
     }
   ],
   "transactions": [
+    {
+      "id": 88,
+      "date": "2026-11-22 00:39:25.117120",
+      "amount": 3250.0,
+      "tx_type": "EXPENSE",
+      "account_id": 3,
+      "target_account_id": null,
+      "category": "訂閱服務",
+      "description": "Google Gemini Pro 訂閱費",
+      "bill_id": null,
+      "created_at": "2026-11-21 16:39:25.136780",
+      "user_id": 1,
+      "affects_balance": true,
+      "related_transaction_id": null,
+      "is_reconciled": false,
+      "reconciled_at": null,
+      "installment_plan_id": null,
+      "installment_period": null,
+      "currency": "TWD",
+      "original_amount": 3250.0,
+      "exchange_rate": 1.0
+    },
     {
       "id": 87,
       "date": "2026-11-21 02:55:22.806436",
