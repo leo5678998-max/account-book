@@ -26,9 +26,19 @@ Thumbs.db
 
 # Application logs
 backend/logs/
+backend/ngrok_recent.json
 *.log
 
 # Executables & Tools
 tools/ngrok.exe
 tools/*.old
+
+# Node.js & Capacitor build artifacts
+node_modules/
+package-lock.json
+build/
+Payload/
+*.ipa
+ios/App/Pods/
+ios/App/Podfile.lock
 

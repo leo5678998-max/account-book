@@ -17,7 +17,7 @@ import {
   isDueSoon,
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
-import { ApiService, AuthStorage } from './api.js?v=2.15.1';
+import { ApiService, AuthStorage, processIosShortcutUrlParams } from './api.js?v=3.0.0';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
@@ -3368,6 +3368,129 @@ createApp({
       }
     };
 
+    // =========================================================================
+    // 📱 iOS 本地優先資料庫模式 (Local-First) & iOS 捷徑手機本地直連記帳
+    // =========================================================================
+    const isLocalFirstMode = ref(ApiService.isLocalFirstMode());
+    const iosToast = ref(null);
+    const iosLocalCopySuccess = ref(false);
+    const iosLocalShortcutUrl = computed(() => {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      return `${origin}/?ios_shortcut=1&amount=100&merchant=商家名稱&card=錢包`;
+    });
+    const iosLocalTextShortcutUrl = computed(() => {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      return `${origin}/?ios_shortcut=1&text=通知內容`;
+    });
+
+    let iosToastTimer = null;
+    const showIosToast = (toastData) => {
+      iosToast.value = toastData;
+      triggerHaptic('medium');
+      if (iosToastTimer) clearTimeout(iosToastTimer);
+      iosToastTimer = setTimeout(() => {
+        iosToast.value = null;
+      }, 4500);
+    };
+
+    const checkAndExecuteIosShortcut = async () => {
+      try {
+        const result = processIosShortcutUrlParams();
+        if (result && result.transaction) {
+          const tx = result.transaction;
+          await Promise.all([
+            fetchTransactions(),
+            fetchAccounts()
+          ]);
+          showIosToast({
+            title: `⚡ iOS 本地直連已入帳：NT$ ${formatMoney(tx.amount)}`,
+            subtitle: `${tx.description} (${tx.category})・已從【${result.account_name}】扣款`,
+            balance: formatMoney(result.account_balance)
+          });
+          refreshIcons();
+        }
+      } catch (e) {
+        console.warn('[iOS Shortcut] 本地直連解析略過:', e);
+      }
+    };
+
+    const toggleLocalFirstMode = async () => {
+      const nextVal = !isLocalFirstMode.value;
+      ApiService.setLocalFirstMode(nextVal);
+      isLocalFirstMode.value = nextVal;
+      triggerHaptic('medium');
+      await loadAllUserData();
+      showIosToast({
+        title: nextVal ? '📱 已切換為「iOS 手機本地資料庫模式」' : '☁️ 已切換為「電腦伺服器連線模式」',
+        subtitle: nextVal ? '所有記帳與查詢 0 延遲秒開，免開電腦、無 ngrok 警告頁' : '所有操作將優先連線至後端伺服器'
+      });
+    };
+
+    const copyIosLocalShortcutUrl = async (urlToCopy) => {
+      const target = urlToCopy || iosLocalShortcutUrl.value;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(target);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = target;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        iosLocalCopySuccess.value = true;
+        triggerHaptic('light');
+        setTimeout(() => { iosLocalCopySuccess.value = false; }, 2500);
+      } catch {
+        alert('複製失敗，請手動選取網址複製');
+      }
+    };
+
+    const exportLocalDbJson = () => {
+      try {
+        const snap = ApiService.getLocalSnapshot();
+        const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().substring(0, 10);
+        a.href = url;
+        a.download = `hero-account-book-ios-${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showIosToast({
+          title: '📦 手機本地帳本備份已匯出',
+          subtitle: '可儲存至 iPhone「檔案 / iCloud Drive」隨時還原'
+        });
+      } catch (e) {
+        alert('匯出備份失敗: ' + e.message);
+      }
+    };
+
+    const importLocalDbJson = (event) => {
+      const file = event?.target?.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const parsed = JSON.parse(String(e.target?.result || '{}'));
+          ApiService.importLocalSnapshot(parsed);
+          await loadAllUserData();
+          showIosToast({
+            title: '✅ 帳本資料已成功還原至手機',
+            subtitle: `共載入 ${(parsed.transactions || []).length} 筆交易與 ${(parsed.accounts || []).length} 個帳戶`
+          });
+        } catch (err) {
+          alert('匯入備份檔失敗，請確認檔案為有效的 JSON 備份: ' + err.message);
+        } finally {
+          if (event?.target) event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    };
+
     const loadAllUserData = async () => {
       await Promise.all([
         fetchAccounts(),
@@ -3465,16 +3588,20 @@ createApp({
         switchTab(hash);
       }
       window.addEventListener('hashchange', () => {
-        const h = window.location.hash.replace('#', '');
+        const h = window.location.hash.replace('#', '').split('?')[0];
         if (validTabs.includes(h)) {
           switchTab(h);
         }
+        checkAndExecuteIosShortcut();
+      });
+      window.addEventListener('popstate', () => {
+        checkAndExecuteIosShortcut();
       });
 
       fetchCategories();
       fetchCategoryColors();
       fetchExchangeRates();
-      if (AuthStorage.getToken()) {
+      if (AuthStorage.getToken() || isLocalFirstMode.value) {
         try {
           const meRes = await ApiService.getMe();
           if (meRes.ok) {
@@ -3483,14 +3610,17 @@ createApp({
             AuthStorage.setUser(meData);
             isAuthenticated.value = true;
             await loadAllUserData();
+            await checkAndExecuteIosShortcut();
             if (currentTab.value === 'trends') {
               fetchAnalytics();
             }
-          } else {
+          } else if (!isLocalFirstMode.value) {
             logout();
           }
         } catch {
-          logout();
+          if (!isLocalFirstMode.value) {
+            logout();
+          }
         }
       } else {
         refreshIcons();
@@ -3508,6 +3638,7 @@ createApp({
       // 📱 手機多工切回 / 解鎖螢幕 / 視窗獲得焦點時，自動靜默更新最新流水帳與餘額 (Apple Pay 刷完切回立即可見)
       let lastAutoRefreshTime = 0;
       const autoRefreshOnActive = async () => {
+        await checkAndExecuteIosShortcut();
         if (!isAuthenticated.value) return;
         const now = Date.now();
         if (now - lastAutoRefreshTime < 2500) return; // 避免 2.5 秒內重複觸發
@@ -3542,6 +3673,8 @@ createApp({
     });
 
     return {
+      isLocalFirstMode, iosToast, showIosToast, iosLocalShortcutUrl, iosLocalTextShortcutUrl,
+      iosLocalCopySuccess, copyIosLocalShortcutUrl, toggleLocalFirstMode, exportLocalDbJson, importLocalDbJson,
       isAuthenticated, currentUser, authMode, allowRegistration, authLoading, authError, authForm,
       submitAuth, logout, testingImap, imapTestResult, testImapConnection,
       profileForm, updateUserProfile,

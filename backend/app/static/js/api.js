@@ -1,14 +1,27 @@
 /**
- * 後端 REST API 通訊封裝層 (Isolating HTTP, Auth Token & Endpoint Details)
+ * 後端 REST API 通訊封裝層 (Isolating HTTP, Auth Token & iOS Local-First Engine)
  */
+
+import { localDb, handleLocalApiRequest, processIosShortcutUrlParams } from './local-db.js?v=3.0.0';
 
 const TOKEN_KEY = 'account_book_auth_token';
 const USER_KEY = 'account_book_auth_user';
+const DEFAULT_LOCAL_TOKEN = 'ios-local-first-token';
 
 let unauthorizedHandler = null;
 
+export { localDb, processIosShortcutUrlParams };
+
 export const AuthStorage = {
-  getToken: () => localStorage.getItem(TOKEN_KEY) || '',
+  getToken: () => {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (stored) return stored;
+    if (localDb.isLocalFirstEnabled()) {
+      localStorage.setItem(TOKEN_KEY, DEFAULT_LOCAL_TOKEN);
+      return DEFAULT_LOCAL_TOKEN;
+    }
+    return '';
+  },
   setToken: (token) => {
     if (token) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
@@ -16,9 +29,14 @@ export const AuthStorage = {
   getUser: () => {
     try {
       const raw = localStorage.getItem(USER_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
+      if (raw) return JSON.parse(raw);
+      if (localDb.isLocalFirstEnabled() && localDb.db?.user) {
+        localStorage.setItem(USER_KEY, JSON.stringify(localDb.db.user));
+        return localDb.db.user;
+      }
       return null;
+    } catch {
+      return localDb.db?.user || null;
     }
   },
   setUser: (user) => {
@@ -35,32 +53,51 @@ export const AuthStorage = {
 };
 
 const authFetch = async (url, options = {}) => {
+  // iOS 本地優先模式：0ms 直接由手機本地資料庫引擎回應，不需等待網路或 ngrok
+  if (localDb.isLocalFirstEnabled() && !options.forceNetwork) {
+    return handleLocalApiRequest(url, options);
+  }
+
   const token = AuthStorage.getToken();
   const headers = { ...(options.headers || {}) };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  const response = await fetch(url, { ...options, headers });
-  if (response.status === 401 && unauthorizedHandler) {
-    unauthorizedHandler();
+  try {
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401 && unauthorizedHandler && !localDb.isLocalFirstEnabled()) {
+      unauthorizedHandler();
+    }
+    if (response.status === 503 || response.status === 502 || response.status === 504) {
+      return handleLocalApiRequest(url, options);
+    }
+    return response;
+  } catch (err) {
+    // 網路斷線或電腦未開機時，無縫自動切換至手機本地資料庫引擎
+    return handleLocalApiRequest(url, options);
   }
-  return response;
 };
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
 export const ApiService = {
+  // iOS 本地優先資料庫模式與備份管理 API
+  isLocalFirstMode: () => localDb.isLocalFirstEnabled(),
+  setLocalFirstMode: (enabled) => localDb.setLocalFirstEnabled(enabled),
+  getLocalSnapshot: () => localDb.getSnapshot(),
+  importLocalSnapshot: (snapshot) => localDb.replaceSnapshot(snapshot),
+
   // 認證與帳號管理 API
   getAuthConfig: () =>
-    fetch('/api/auth/config').then(r => (r.ok ? r.json() : { allow_registration: false })).catch(() => ({ allow_registration: false })),
+    authFetch('/api/auth/config').then(r => (r.ok ? r.json() : { allow_registration: false })).catch(() => ({ allow_registration: false })),
   login: (username, password) =>
-    fetch('/api/auth/login', {
+    authFetch('/api/auth/login', {
       method: 'POST',
       headers: jsonHeaders,
       body: JSON.stringify({ username, password })
     }),
   register: (username, password, displayName = '') =>
-    fetch('/api/auth/register', {
+    authFetch('/api/auth/register', {
       method: 'POST',
       headers: jsonHeaders,
       body: JSON.stringify({ username, password, display_name: displayName })
@@ -249,7 +286,7 @@ export const ApiService = {
     body: JSON.stringify(payload)
   }),
   calculateInsurance: (salary, dependents, pensionRate = 0, taxRate = 0) =>
-    fetch(`/api/settings/calculate-insurance?salary=${encodeURIComponent(salary)}&dependents=${encodeURIComponent(dependents)}&pension_rate=${encodeURIComponent(pensionRate)}&tax_rate=${encodeURIComponent(taxRate)}`).then(r => r.json()),
+    authFetch(`/api/settings/calculate-insurance?salary=${encodeURIComponent(salary)}&dependents=${encodeURIComponent(dependents)}&pension_rate=${encodeURIComponent(pensionRate)}&tax_rate=${encodeURIComponent(taxRate)}`).then(r => r.json()),
   getGoogleAuthUrl: (redirectUri) =>
     authFetch(`/api/auth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`).then(r => r.json()),
 

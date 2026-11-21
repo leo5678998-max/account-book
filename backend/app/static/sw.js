@@ -1,9 +1,9 @@
 /**
- * 智慧記帳本 Service Worker (PWA 支援與離線快取管理)
- * Version: 2.18.2
+ * 智慧記帳本 Service Worker (iOS Local-First 離線秒開與防 ngrok 攔截引擎)
+ * Version: 3.0.0
  */
 
-const CACHE_NAME = 'account-book-v2.18.2';
+const CACHE_NAME = 'account-book-ios-v3.0.0';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -12,11 +12,13 @@ const PRECACHE_ASSETS = [
   '/static/vendor/lucide.min.js',
   '/static/vendor/vue.global.prod.js',
   '/static/vendor/chart.min.js',
-  '/static/js/app.js?v=2.18.2',
-  '/static/js/api.js?v=2.18.2',
-  '/static/js/chart.js?v=2.12.5',
-  '/static/js/formatters.js?v=2.12.5',
-  '/static/js/insurance.js?v=2.12.5',
+  '/static/js/app.js',
+  '/static/js/api.js',
+  '/static/js/local-db.js',
+  '/static/js/seed-snapshot.js',
+  '/static/js/chart.js',
+  '/static/js/formatters.js',
+  '/static/js/insurance.js',
   '/static/icons/icon.svg',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
@@ -28,27 +30,34 @@ const PRECACHE_ASSETS = [
   '/static/icons/courage_scan.png'
 ];
 
-// 安裝階段：平行預載核心靜態資源（容錯保護：單一圖示或資源不阻塞其餘快取）
+// 安裝階段：平行預載所有核心資源與本地資料庫種子
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       await Promise.allSettled(
-        PRECACHE_ASSETS.map((asset) => cache.add(asset).catch((err) => {
-          console.warn('[SW] Precache asset partial warning:', asset, err);
-        }))
+        PRECACHE_ASSETS.map((asset) =>
+          fetch(asset, { headers: { 'ngrok-skip-browser-warning': '1' } })
+            .then((resp) => {
+              if (resp && resp.status === 200) {
+                return cache.put(asset, resp);
+              }
+            })
+            .catch((err) => {
+              console.warn('[SW] Precache partial warning:', asset, err);
+            })
+        )
       );
     }).then(() => self.skipWaiting())
   );
 });
 
-// 啟動階段：清除舊版快取並接管所有客戶端
+// 啟動階段：清除舊版快取並立即接管所有頁面
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((name) => {
           if (name !== CACHE_NAME) {
-            console.log('[SW] Clearing old cache:', name);
             return caches.delete(name);
           }
         })
@@ -57,19 +66,40 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 請求攔截策略
+// 安全背景更新首頁 App Shell（嚴格過濾 ngrok 警告頁或錯誤頁，防止覆蓋正常快取）
+async function revalidateAppShellInBackground() {
+  try {
+    const resp = await fetch('/', {
+      headers: { 'ngrok-skip-browser-warning': '1' }
+    });
+    if (resp && resp.status === 200) {
+      const text = await resp.clone().text();
+      if (text.includes('英雄記帳') && !text.includes('ERR_NGROK')) {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put('/', new Response(text, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' }
+        }));
+      }
+    }
+  } catch {
+    // 離線狀態或電腦關機時靜默忽略
+  }
+}
+
+// 請求攔截策略：iOS App Shell 快取優先 (0 延遲秒開、免除 ngrok 警告頁、支援離線 URL 捷徑記帳)
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 1. 後端 REST API 請求：優先走網路，確保財務數據與登入驗證的即時真實性
+  // 1. API 請求：若前端走網路模式，自動附帶 ngrok-skip-browser-warning
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(req).catch(() => {
         return new Response(
           JSON.stringify({
             offline: true,
-            detail: '目前處於離線狀態，請連接網路以同步最新財務資料'
+            detail: '目前處於離線模式，已自動由手機本地資料庫接管'
           }),
           {
             status: 503,
@@ -81,28 +111,33 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. 頁面導航（Navigate HTML）：網路優先，離線時自動回退至快取的 App Shell
+  // 2. 頁面導航 (Navigate HTML / iOS 捷徑喚醒 /?ios_shortcut=1...)：快取優先秒開！
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
-        .then((networkResp) => {
-          if (networkResp && networkResp.status === 200) {
-            const copy = networkResp.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
-          }
-          return networkResp;
-        })
-        .catch(() => {
-          return caches.match('/').then((cached) => cached || caches.match('/static/index.html'));
-        })
+      caches.match('/', { ignoreSearch: true }).then((cachedShell) => {
+        if (cachedShell) {
+          // 背景靜默檢查更新，前景 0ms 直接返回快取的 App Shell
+          event.waitUntil(revalidateAppShellInBackground());
+          return cachedShell;
+        }
+        return fetch(req, { headers: { 'ngrok-skip-browser-warning': '1' } })
+          .then((networkResp) => {
+            if (networkResp && networkResp.status === 200) {
+              const copy = networkResp.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
+            }
+            return networkResp;
+          })
+          .catch(() => caches.match('/static/index.html', { ignoreSearch: true }));
+      })
     );
     return;
   }
 
-  // 3. 靜態資源（CSS、JS、圖示、第三方庫）：Stale-While-Revalidate（快取優先且背景更新）
+  // 3. 靜態資源 (JS / CSS / 圖示 / Vendor)：忽略版號查詢參數快取優先 (Cache-First + Background Revalidate)
   event.respondWith(
-    caches.match(req).then((cachedResp) => {
-      const fetchPromise = fetch(req)
+    caches.match(req, { ignoreSearch: true }).then((cachedResp) => {
+      const fetchPromise = fetch(req, { headers: { 'ngrok-skip-browser-warning': '1' } })
         .then((networkResp) => {
           if (networkResp && networkResp.status === 200 && req.method === 'GET') {
             const copy = networkResp.clone();

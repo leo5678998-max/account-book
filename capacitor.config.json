@@ -1,0 +1,17 @@
+{
+  "appId": "com.hero.accountbook",
+  "appName": "英雄記帳",
+  "webDir": "backend/app/static",
+  "bundledWebRuntime": false,
+  "ios": {
+    "scheme": "HeroAccountBook",
+    "scrollEnabled": true,
+    "allowsLinkPreview": false,
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK"
+    }
+  }
+}

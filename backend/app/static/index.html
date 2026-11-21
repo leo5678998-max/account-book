@@ -561,10 +561,75 @@
     html.dark ::-webkit-scrollbar-thumb:hover {
       background: #475569;
     }
+
+    /* ================= 📱 iOS NATIVE APP SMOOTHNESS & 120Hz PHYSICS ================= */
+    html, body {
+      overscroll-behavior-y: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    button, a, nav, header, aside, [role="button"] {
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+    button {
+      transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease, opacity 0.15s ease;
+    }
+    button:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+    /* Prevent iOS Safari automatic viewport zoom when focusing inputs (< 16px) */
+    @media (max-width: 768px) {
+      input[type="text"],
+      input[type="number"],
+      input[type="password"],
+      input[type="email"],
+      input[type="date"],
+      input[type="datetime-local"],
+      input[type="time"],
+      select,
+      textarea {
+        font-size: 16px !important;
+      }
+    }
+    /* iOS 18 Native Translucent Navigation & Tab Bar Blur */
+    header.sticky {
+      background-color: rgba(255, 255, 255, 0.86) !important;
+      backdrop-filter: saturate(180%) blur(20px) !important;
+      -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+    }
+    html.dark header.sticky {
+      background-color: rgba(30, 41, 59, 0.86) !important;
+    }
+    html.dark.theme-courage header.sticky {
+      background-color: rgba(39, 28, 32, 0.88) !important;
+    }
+    @keyframes iosDynamicIslandIn {
+      0% { opacity: 0; transform: translate(-50%, -24px) scale(0.9); }
+      100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    }
+    .ios-dynamic-island {
+      animation: iosDynamicIslandIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
   <div id="app" v-cloak class="flex min-h-screen bg-slate-50 text-slate-800 antialiased font-sans">
+
+    <!-- ==================== 📱 iOS 動態島即時通知膠囊 (Dynamic Island Toast) ==================== -->
+    <div v-if="iosToast" @click="iosToast = null"
+      class="ios-dynamic-island fixed left-1/2 z-[120] max-w-[92vw] sm:max-w-md w-auto px-4 py-3 rounded-3xl bg-slate-950/95 text-white shadow-2xl border border-white/15 backdrop-blur-xl flex items-center space-x-3 cursor-pointer"
+      style="top: max(12px, env(safe-area-inset-top, 12px));">
+      <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 flex-shrink-0 text-sm">
+        ⚡
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="text-xs font-extrabold tracking-tight text-white truncate">{{ iosToast.title }}</div>
+        <div v-if="iosToast.subtitle" class="text-[11px] text-slate-300 truncate mt-0.5">{{ iosToast.subtitle }}</div>
+      </div>
+    </div>
 
     <!-- ==================== 登入 / 註冊驗證畫面 (Multi-User Auth Overlay) ==================== -->
     <div v-if="!isAuthenticated" class="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4 overflow-y-auto">
@@ -896,9 +961,20 @@
                 <img v-show="currentTheme === 'courage'" src="/static/icons/courage_cash.png" class="w-full h-full object-cover" alt="英雄記帳" />
                 <span v-show="currentTheme !== 'courage'">💰</span>
               </div>
-              <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 truncate">
-                {{ currentTabTitle }}
-              </h2>
+              <div class="min-w-0">
+                <div class="flex items-center space-x-1.5">
+                  <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {{ currentTabTitle }}
+                  </h2>
+                  <button type="button" @click="openSettingsModal(); setSettingsTab('account')"
+                    :class="isLocalFirstMode ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold border transition flex-shrink-0 cursor-pointer"
+                    title="點擊管理 iOS 手機本地資料庫與備份">
+                    <span class="w-1.5 h-1.5 rounded-full mr-1" :class="isLocalFirstMode ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+                    <span>{{ isLocalFirstMode ? 'iOS 本地秒開' : '伺服器模式' }}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -4638,6 +4714,39 @@
               </div>
             </div>
 
+            <!-- ★ 新增：iOS 捷徑「手機本地直連秒記帳」（免開電腦、無 ngrok、0 延遲） -->
+            <div class="p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center">
+                  ⚡ iOS 捷徑「手機本地直連記帳」（推薦・免開電腦伺服器）
+                </span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white">0 延遲秒入帳</span>
+              </div>
+              <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                在 iPhone「捷徑」自動化中改用<strong>「打開網址 (Open URLs)」</strong>並填入下方直連網址。即使<strong>電腦關機、不開 ngrok、甚至在飛機上離線</strong>，刷卡後也會直接在手機本地資料庫秒速入帳並扣除帳戶餘額！
+              </p>
+              <div class="space-y-1.5">
+                <div class="text-[10px] font-bold text-slate-600 dark:text-slate-300">① 結構化參數直連網址（適合 Apple Pay 捷徑傳入金額與商家）：</div>
+                <div class="flex items-center space-x-2">
+                  <input type="text" readonly :value="iosLocalShortcutUrl"
+                    class="flex-1 px-2.5 py-1.5 text-[11px] font-mono bg-white dark:bg-slate-900 border border-emerald-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 select-all outline-none">
+                  <button type="button" @click="copyIosLocalShortcutUrl(iosLocalShortcutUrl)"
+                    class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs flex-shrink-0 cursor-pointer">
+                    {{ iosLocalCopySuccess ? '已複製 ✓' : '複製直連網址' }}
+                  </button>
+                </div>
+                <div class="text-[10px] font-bold text-slate-600 dark:text-slate-300 pt-1">② LINE Pay / 銀行推播通知全文智慧解析網址（自動從通知文字抓金額與店家）：</div>
+                <div class="flex items-center space-x-2">
+                  <input type="text" readonly :value="iosLocalTextShortcutUrl"
+                    class="flex-1 px-2.5 py-1.5 text-[11px] font-mono bg-white dark:bg-slate-900 border border-emerald-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 select-all outline-none">
+                  <button type="button" @click="copyIosLocalShortcutUrl(iosLocalTextShortcutUrl)"
+                    class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition shadow-xs flex-shrink-0 cursor-pointer">
+                    複製通知解析網址
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <!-- Webhook 網址與複製列 -->
             <div class="space-y-1.5">
               <div class="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
@@ -4953,6 +5062,36 @@
                 class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-xs flex-shrink-0 cursor-pointer">
                 新增分類
               </button>
+            </div>
+          </div>
+
+          <!-- 3.5 📱 iOS 手機本地資料庫 (Local-First) 與備份還原中心 -->
+          <div class="bg-emerald-50/60 dark:bg-slate-800/80 p-3.5 sm:p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/70 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="database" class="w-4 h-4 text-emerald-600"></i>
+                <div>
+                  <h4 class="text-xs font-extrabold text-slate-900 dark:text-slate-100">📱 iOS 手機本地資料庫引擎 (Local-First)</h4>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400">資料直接儲存於手機內，0 延遲秒開、徹底擺脫 ngrok 與電腦開機限制</p>
+                </div>
+              </div>
+              <button type="button" @click="toggleLocalFirstMode"
+                :class="isLocalFirstMode ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'"
+                class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition shadow-xs cursor-pointer flex-shrink-0">
+                {{ isLocalFirstMode ? '✓ 本地優先已啟用' : '切換為本地優先' }}
+              </button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-emerald-200/60 dark:border-slate-700">
+              <button type="button" @click="exportLocalDbJson"
+                class="px-3 py-1.5 bg-white dark:bg-slate-900 border border-emerald-300 dark:border-slate-600 rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 transition cursor-pointer flex items-center space-x-1">
+                <i data-lucide="download" class="w-3.5 h-3.5 mr-1"></i>
+                <span>匯出手機帳本備份 (.json)</span>
+              </button>
+              <label class="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition cursor-pointer flex items-center space-x-1">
+                <i data-lucide="upload" class="w-3.5 h-3.5 mr-1"></i>
+                <span>匯入還原備份 (.json)</span>
+                <input type="file" accept=".json,application/json" @change="importLocalDbJson" class="hidden">
+              </label>
             </div>
           </div>
 
@@ -5677,7 +5816,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=2.18.2"></script>
+  <script type="module" src="/static/js/app.js?v=3.0.0"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

@@ -1,0 +1,60 @@
+name: Build iOS Native IPA (Sideloadly Ready)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-ios-ipa:
+    name: Build Unsigned IPA for Windows Sideloadly
+    runs-on: macos-14
+    steps:
+      - name: 📥 簽出專案原始碼 (Checkout Code)
+        uses: actions/checkout@v4
+
+      - name: ⚙️ 設定 Node.js 環境
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 安裝專案相依套件 (Install Dependencies)
+        run: npm ci || npm install
+
+      - name: 📱 同步 Capacitor iOS 原生資源 (Sync iOS Assets)
+        run: |
+          npx cap add ios || true
+          npx cap sync ios
+
+      - name: 🛠️ 執行 CocoaPods 相依管理
+        run: |
+          cd ios/App
+          pod install
+
+      - name: 🍏 編譯 Xcode 原生 Archive 封裝 (xcodebuild)
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/HeroAccountBook.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean archive
+
+      - name: 📦 打包生成 Sideloadly 專用 .ipa 安裝包
+        run: |
+          mkdir -p Payload
+          cp -r build/HeroAccountBook.xcarchive/Products/Applications/App.app Payload/
+          zip -r HeroAccountBook.ipa Payload
+          echo "=== HeroAccountBook.ipa 打包完成 ==="
+          ls -lh HeroAccountBook.ipa
+
+      - name: 🚀 上傳 IPA 產物供下載安裝 (Upload Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: HeroAccountBook-iOS-Sideloadly
+          path: HeroAccountBook.ipa
+          retention-days: 14
