@@ -16,11 +16,7 @@ export const AuthStorage = {
   getToken: () => {
     const stored = localStorage.getItem(TOKEN_KEY);
     if (stored) return stored;
-    if (localDb.isLocalFirstEnabled()) {
-      localStorage.setItem(TOKEN_KEY, DEFAULT_LOCAL_TOKEN);
-      return DEFAULT_LOCAL_TOKEN;
-    }
-    return '';
+    return DEFAULT_LOCAL_TOKEN;
   },
   setToken: (token) => {
     if (token) localStorage.setItem(TOKEN_KEY, token);
@@ -30,13 +26,9 @@ export const AuthStorage = {
     try {
       const raw = localStorage.getItem(USER_KEY);
       if (raw) return JSON.parse(raw);
-      if (localDb.isLocalFirstEnabled() && localDb.db?.user) {
-        localStorage.setItem(USER_KEY, JSON.stringify(localDb.db.user));
-        return localDb.db.user;
-      }
-      return null;
+      return { id: 1, username: 'admin', display_name: '預設管理者' };
     } catch {
-      return localDb.db?.user || null;
+      return { id: 1, username: 'admin', display_name: '預設管理者' };
     }
   },
   setUser: (user) => {

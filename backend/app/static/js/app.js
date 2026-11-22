@@ -72,8 +72,8 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = window.Vue;
 createApp({
   setup() {
     // 認證與多使用者狀態
-    const isAuthenticated = ref(Boolean(AuthStorage.getToken()));
-    const currentUser = ref(AuthStorage.getUser());
+    const isAuthenticated = ref(true);
+    const currentUser = ref(AuthStorage.getUser() || { id: 1, username: 'admin', display_name: '預設管理者' });
     const authMode = ref('login'); // 'login' | 'register'
     const allowRegistration = ref(false); // 伺服器是否開放外網註冊 (資安保護預設關閉)
     const authLoading = ref(false);
