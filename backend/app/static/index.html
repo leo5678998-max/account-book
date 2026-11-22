@@ -966,12 +966,11 @@
                   <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 truncate">
                     {{ currentTabTitle }}
                   </h2>
-                  <button type="button" @click="openSettingsModal(); setSettingsTab('account')"
-                    :class="isLocalFirstMode ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'"
-                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold border transition flex-shrink-0 cursor-pointer"
-                    title="點擊管理 iOS 手機本地資料庫與備份">
-                    <span class="w-1.5 h-1.5 rounded-full mr-1" :class="isLocalFirstMode ? 'bg-emerald-500' : 'bg-slate-400'"></span>
-                    <span>{{ isLocalFirstMode ? 'iOS 本地秒開' : '伺服器模式' }}</span>
+                  <button type="button" @click="syncWithServerNow()" :disabled="syncing"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold border transition flex-shrink-0 cursor-pointer bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800 hover:bg-indigo-100 shadow-xs"
+                    title="點擊立即從電腦伺服器拉取最新刷卡紀錄">
+                    <i data-lucide="refresh-cw" class="w-2.5 h-2.5 mr-1" :class="syncing ? 'animate-spin text-indigo-600' : ''"></i>
+                    <span>{{ syncing ? '同步中...' : '同步伺服器' }}</span>
                   </button>
                 </div>
               </div>
@@ -5816,7 +5815,7 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=3.0.1"></script>
+  <script type="module" src="/static/js/app.js?v=3.0.2"></script>
   <script>
     // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {

@@ -1,9 +1,9 @@
 /**
- * 智慧記帳本 Service Worker (iOS Local-First 離線秒開與防 ngrok 攔截引擎)
- * Version: 3.0.1
+ * 智慧記帳本 Service Worker (網路優先同步 + 離線自動快取引擎)
+ * Version: 3.0.2
  */
 
-const CACHE_NAME = 'account-book-ios-v3.0.1';
+const CACHE_NAME = 'account-book-ios-v3.0.2';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -12,10 +12,10 @@ const PRECACHE_ASSETS = [
   '/static/vendor/lucide.min.js',
   '/static/vendor/vue.global.prod.js',
   '/static/vendor/chart.min.js',
-  '/static/js/app.js',
-  '/static/js/api.js',
-  '/static/js/local-db.js',
-  '/static/js/seed-snapshot.js',
+  '/static/js/app.js?v=3.0.2',
+  '/static/js/api.js?v=3.0.2',
+  '/static/js/local-db.js?v=3.0.2',
+  '/static/js/seed-snapshot.js?v=3.0.2',
   '/static/js/chart.js',
   '/static/js/formatters.js',
   '/static/js/insurance.js',
@@ -30,8 +30,9 @@ const PRECACHE_ASSETS = [
   '/static/icons/courage_scan.png'
 ];
 
-// 安裝階段：平行預載所有核心資源與本地資料庫種子
+// 安裝階段：快顯預載並立即接管
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       await Promise.allSettled(
@@ -42,22 +43,21 @@ self.addEventListener('install', (event) => {
                 return cache.put(asset, resp);
               }
             })
-            .catch((err) => {
-              console.warn('[SW] Precache partial warning:', asset, err);
-            })
+            .catch(() => {})
         )
       );
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
-// 啟動階段：清除舊版快取並立即接管所有頁面
+// 啟動階段：徹底清除所有舊版快取並立即控制現有頁面
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((name) => {
           if (name !== CACHE_NAME) {
+            console.log('[SW] 刪除舊快取:', name);
             return caches.delete(name);
           }
         })
@@ -66,40 +66,39 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 安全背景更新首頁 App Shell（嚴格過濾 ngrok 警告頁或錯誤頁，防止覆蓋正常快取）
-async function revalidateAppShellInBackground() {
-  try {
-    const resp = await fetch('/', {
-      headers: { 'ngrok-skip-browser-warning': '1' }
-    });
-    if (resp && resp.status === 200) {
-      const text = await resp.clone().text();
-      if (text.includes('英雄記帳') && !text.includes('ERR_NGROK')) {
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put('/', new Response(text, {
-          status: 200,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
-        }));
-      }
-    }
-  } catch {
-    // 離線狀態或電腦關機時靜默忽略
-  }
+// 網路連線超時輔助函式
+function fetchWithTimeout(request, timeoutMs = 3500) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Network timeout')), timeoutMs);
+    const reqHeaders = new Headers(request.headers);
+    reqHeaders.set('ngrok-skip-browser-warning', '1');
+    const newReq = new Request(request, { headers: reqHeaders });
+
+    fetch(newReq)
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
 }
 
-// 請求攔截策略：iOS App Shell 快取優先 (0 延遲秒開、免除 ngrok 警告頁、支援離線 URL 捷徑記帳)
+// 請求攔截策略：網路優先 (確保隨時同步最新刷卡)，離線自動回退快取
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 1. API 請求：若前端走網路模式，自動附帶 ngrok-skip-browser-warning
+  // 1. API 請求：直接走網路
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(req).catch(() => {
         return new Response(
           JSON.stringify({
             offline: true,
-            detail: '目前處於離線模式，已自動由手機本地資料庫接管'
+            detail: '目前處於離線模式，已由手機本地資料庫接管'
           }),
           {
             status: 503,
@@ -111,43 +110,37 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. 頁面導航 (Navigate HTML / iOS 捷徑喚醒 /?ios_shortcut=1...)：快取優先秒開！
+  // 2. 頁面導航 (HTML / 首頁)：網路優先，超時或離線回退快取
   if (req.mode === 'navigate') {
     event.respondWith(
-      caches.match('/', { ignoreSearch: true }).then((cachedShell) => {
-        if (cachedShell) {
-          // 背景靜默檢查更新，前景 0ms 直接返回快取的 App Shell
-          event.waitUntil(revalidateAppShellInBackground());
-          return cachedShell;
-        }
-        return fetch(req, { headers: { 'ngrok-skip-browser-warning': '1' } })
-          .then((networkResp) => {
-            if (networkResp && networkResp.status === 200) {
-              const copy = networkResp.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
-            }
-            return networkResp;
-          })
-          .catch(() => caches.match('/static/index.html', { ignoreSearch: true }));
-      })
+      fetchWithTimeout(req, 3000)
+        .then((networkResp) => {
+          if (networkResp && networkResp.status === 200) {
+            const copy = networkResp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
+          }
+          return networkResp;
+        })
+        .catch(() => {
+          return caches.match('/', { ignoreSearch: true })
+            .then((cached) => cached || caches.match('/static/index.html', { ignoreSearch: true }));
+        })
     );
     return;
   }
 
-  // 3. 靜態資源 (JS / CSS / 圖示 / Vendor)：忽略版號查詢參數快取優先 (Cache-First + Background Revalidate)
+  // 3. 靜態資源 (JS / CSS / 圖示)：網路優先以確保代碼更新即時生效，離線自動回退快取
   event.respondWith(
-    caches.match(req, { ignoreSearch: true }).then((cachedResp) => {
-      const fetchPromise = fetch(req, { headers: { 'ngrok-skip-browser-warning': '1' } })
-        .then((networkResp) => {
-          if (networkResp && networkResp.status === 200 && req.method === 'GET') {
-            const copy = networkResp.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-          }
-          return networkResp;
-        })
-        .catch(() => null);
-
-      return cachedResp || fetchPromise;
-    })
+    fetchWithTimeout(req, 3000)
+      .then((networkResp) => {
+        if (networkResp && networkResp.status === 200 && req.method === 'GET') {
+          const copy = networkResp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        }
+        return networkResp;
+      })
+      .catch(() => {
+        return caches.match(req, { ignoreSearch: true });
+      })
   );
 });

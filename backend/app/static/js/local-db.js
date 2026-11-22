@@ -8,7 +8,7 @@
  * 4. 支援與電腦後端雙向快照同步 (Sync) 以及 JSON 檔案匯出/匯入備份。
  */
 
-import { INITIAL_SEED_SNAPSHOT } from './seed-snapshot.js?v=3.0.1';
+import { INITIAL_SEED_SNAPSHOT } from './seed-snapshot.js?v=3.0.2';
 import { calculateInsuranceSummary } from './insurance.js?v=2.9.0';
 
 // ==============================================================================

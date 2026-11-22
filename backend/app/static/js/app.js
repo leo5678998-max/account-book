@@ -17,7 +17,7 @@ import {
   isDueSoon,
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
-import { ApiService, AuthStorage, processIosShortcutUrlParams } from './api.js?v=3.0.1';
+import { ApiService, AuthStorage, processIosShortcutUrlParams } from './api.js?v=3.0.2';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
@@ -28,13 +28,19 @@ import {
 // PWA Service Worker 註冊
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    navigator.serviceWorker.register('/sw.js?v=3.0.2', { scope: '/' })
       .then((reg) => {
-        console.log('[PWA] Service Worker 註冊成功，管理範圍:', reg.scope);
+        console.log('[PWA] Service Worker 註冊成功 (v3.0.2)，管理範圍:', reg.scope);
+        reg.update();
       })
       .catch((err) => {
         console.warn('[PWA] Service Worker 註冊失敗:', err);
       });
+      
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      console.log('[PWA] Service Worker 已更新，自動刷新取得最新代碼與資料');
+      window.location.reload();
+    });
   });
 }
 
@@ -3414,6 +3420,38 @@ createApp({
       }
     };
 
+    const syncWithServerNow = async () => {
+      syncing.value = true;
+      try {
+        localStorage.removeItem('account_book_ios_local_mode');
+        localStorage.removeItem('account_book_ios_local_db');
+        if (ApiService.setLocalFirstMode) ApiService.setLocalFirstMode(false);
+        isLocalFirstMode.value = false;
+        
+        if ('caches' in window) {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          } catch {}
+        }
+        
+        await loadAllUserData();
+        triggerHaptic('success');
+        showIosToast({
+          title: '✅ 資料已成功同步！',
+          subtitle: '已從伺服器載入最新刷卡明細與餘額'
+        });
+      } catch (err) {
+        showIosToast({
+          title: '⚠️ 同步失敗',
+          subtitle: err.message || '請確認伺服器連線狀態'
+        });
+      } finally {
+        syncing.value = false;
+        refreshIcons();
+      }
+    };
+
     const toggleLocalFirstMode = async () => {
       const nextVal = !isLocalFirstMode.value;
       ApiService.setLocalFirstMode(nextVal);
@@ -3574,6 +3612,12 @@ createApp({
     });
 
     onMounted(async () => {
+      // 自動清理舊版衝突的本地資料庫快取，預設優先連線電腦伺服器
+      if (localStorage.getItem('account_book_ios_local_mode') === 'true') {
+        localStorage.removeItem('account_book_ios_local_mode');
+        localStorage.removeItem('account_book_ios_local_db');
+      }
+
       // 載入公開資安配置（如是否開放註冊）
       ApiService.getAuthConfig().then(cfg => {
         if (cfg && typeof cfg.allow_registration === 'boolean') {
@@ -3674,7 +3718,7 @@ createApp({
 
     return {
       isLocalFirstMode, iosToast, showIosToast, iosLocalShortcutUrl, iosLocalTextShortcutUrl,
-      iosLocalCopySuccess, copyIosLocalShortcutUrl, toggleLocalFirstMode, exportLocalDbJson, importLocalDbJson,
+      syncWithServerNow, iosLocalCopySuccess, copyIosLocalShortcutUrl, toggleLocalFirstMode, exportLocalDbJson, importLocalDbJson,
       isAuthenticated, currentUser, authMode, allowRegistration, authLoading, authError, authForm,
       submitAuth, logout, testingImap, imapTestResult, testImapConnection,
       profileForm, updateUserProfile,
