@@ -1,9 +1,9 @@
 /**
  * 智慧記帳本 Service Worker (iOS Local-First 離線秒開與防 ngrok 攔截引擎)
- * Version: 3.0.0
+ * Version: 3.0.1
  */
 
-const CACHE_NAME = 'account-book-ios-v3.0.0';
+const CACHE_NAME = 'account-book-ios-v3.0.1';
 
 const PRECACHE_ASSETS = [
   '/',

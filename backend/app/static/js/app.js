@@ -17,7 +17,7 @@ import {
   isDueSoon,
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
-import { ApiService, AuthStorage, processIosShortcutUrlParams } from './api.js?v=3.0.0';
+import { ApiService, AuthStorage, processIosShortcutUrlParams } from './api.js?v=3.0.1';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,

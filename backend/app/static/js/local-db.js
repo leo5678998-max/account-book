@@ -8,7 +8,7 @@
  * 4. 支援與電腦後端雙向快照同步 (Sync) 以及 JSON 檔案匯出/匯入備份。
  */
 
-import { INITIAL_SEED_SNAPSHOT } from './seed-snapshot.js?v=3.0.0';
+import { INITIAL_SEED_SNAPSHOT } from './seed-snapshot.js?v=3.0.1';
 import { calculateInsuranceSummary } from './insurance.js?v=2.9.0';
 
 // ==============================================================================
@@ -241,8 +241,8 @@ class LocalDbManager {
 
   isLocalFirstEnabled() {
     const val = localStorage.getItem(STORAGE_KEY_LOCAL_MODE);
-    // 預設啟用 iOS 本地優先模式 ('true')
-    return val === null ? true : val === 'true';
+    // 預設優先伺服器連線模式，確保 Webhook 刷卡即時同步
+    return val === 'true';
   }
 
   setLocalFirstEnabled(enabled) {

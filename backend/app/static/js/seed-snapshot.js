@@ -34,7 +34,7 @@ export const INITIAL_SEED_SNAPSHOT = {
       "user_id": 1,
       "name": "星展",
       "account_type": "SAVINGS",
-      "balance": 856501.0,
+      "balance": 856044.0,
       "currency": "TWD",
       "is_dbs_default_debit": false
     },
@@ -49,6 +49,28 @@ export const INITIAL_SEED_SNAPSHOT = {
     }
   ],
   "transactions": [
+    {
+      "id": 89,
+      "date": "2026-11-22 04:55:35.209753",
+      "amount": 457.0,
+      "tx_type": "EXPENSE",
+      "account_id": 3,
+      "target_account_id": null,
+      "category": "其他",
+      "description": "YOSHI NOYA GROUP",
+      "bill_id": null,
+      "created_at": "2026-11-22 04:55:35.216321",
+      "user_id": 1,
+      "affects_balance": true,
+      "related_transaction_id": null,
+      "is_reconciled": false,
+      "reconciled_at": null,
+      "installment_plan_id": null,
+      "installment_period": null,
+      "currency": "TWD",
+      "original_amount": 457.0,
+      "exchange_rate": 1.0
+    },
     {
       "id": 88,
       "date": "2026-11-22 00:39:25.117120",

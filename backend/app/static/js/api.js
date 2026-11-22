@@ -2,7 +2,7 @@
  * 後端 REST API 通訊封裝層 (Isolating HTTP, Auth Token & iOS Local-First Engine)
  */
 
-import { localDb, handleLocalApiRequest, processIosShortcutUrlParams } from './local-db.js?v=3.0.0';
+import { localDb, handleLocalApiRequest, processIosShortcutUrlParams } from './local-db.js?v=3.0.1';
 
 const TOKEN_KEY = 'account_book_auth_token';
 const USER_KEY = 'account_book_auth_user';
@@ -53,18 +53,19 @@ export const AuthStorage = {
 };
 
 const authFetch = async (url, options = {}) => {
-  // iOS 本地優先模式：0ms 直接由手機本地資料庫引擎回應，不需等待網路或 ngrok
-  if (localDb.isLocalFirstEnabled() && !options.forceNetwork) {
-    return handleLocalApiRequest(url, options);
-  }
-
   const token = AuthStorage.getToken();
   const headers = { ...(options.headers || {}) };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+
+  // 優先連線伺服器，確保能即時獲取 Webhook 刷卡記帳最新明細
   try {
-    const response = await fetch(url, { ...options, headers });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const response = await fetch(url, { ...options, headers, signal: options.signal || controller.signal });
+    clearTimeout(timeoutId);
+
     if (response.status === 401 && unauthorizedHandler && !localDb.isLocalFirstEnabled()) {
       unauthorizedHandler();
     }
@@ -73,7 +74,8 @@ const authFetch = async (url, options = {}) => {
     }
     return response;
   } catch (err) {
-    // 網路斷線或電腦未開機時，無縫自動切換至手機本地資料庫引擎
+    // 網路斷線、超時或電腦未開機時，無縫自動切換至手機本地快取資料庫
+    console.warn('[Offline Mode] 伺服器連線離線，切換至本地資料庫:', url);
     return handleLocalApiRequest(url, options);
   }
 };
