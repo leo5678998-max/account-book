@@ -8,7 +8,7 @@ on:
 jobs:
   build-ios-ipa:
     name: Build Unsigned IPA for Windows Sideloadly
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: 📥 簽出專案原始碼 (Checkout Code)
         uses: actions/checkout@v4
