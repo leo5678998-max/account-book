@@ -5815,16 +5815,18 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=3.0.2"></script>
+  <script type="module" src="/static/js/app.js?v=3.0.3"></script>
   <script>
-    // 防白屏保險機制：若發生網路快取或腳本錯誤，逾時自動清除 v-cloak 確保畫面不卡死
     setTimeout(function() {
-      var appEl = document.getElementById('app');
-      if (appEl && appEl.hasAttribute('v-cloak')) {
-        console.warn('Auto-clearing v-cloak');
-        appEl.removeAttribute('v-cloak');
+      var appEl = document.getElementById("app");
+      if (appEl && appEl.hasAttribute("v-cloak")) {
+        if (!window.Vue || !window.Vue.createApp) {
+          console.warn("[Bootstrap] Vue loading pending or intercepted");
+          appEl.removeAttribute("v-cloak");
+          appEl.innerHTML = '<div style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;color:#f8fafc;padding:24px;text-align:center;font-family:-apple-system,sans-serif;"><div style="font-size:48px;margin-bottom:16px;">💳</div><h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">英雄記帳 正在就緒中...</h2><p style="font-size:14px;color:#94a3b8;max-width:320px;line-height:1.6;margin-bottom:24px;">若首次開啟或網路快取更新中，請點擊下方按鈕重新載入。</p><button onclick="window.location.reload(true)" style="background:linear-gradient(to right,#059669,#0d9488);color:#fff;border:none;padding:12px 32px;border-radius:14px;font-weight:700;font-size:15px;box-shadow:0 4px 14px rgba(5,150,105,0.4);cursor:pointer;">重新整理載入</button></div>';
+        }
       }
-    }, 1200);
+    }, 3000);
   </script>
 </body>
 </html>

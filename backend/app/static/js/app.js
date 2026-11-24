@@ -17,7 +17,7 @@ import {
   isDueSoon,
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
-import { ApiService, AuthStorage, processIosShortcutUrlParams } from './api.js?v=3.0.2';
+import { ApiService, AuthStorage, processIosShortcutUrlParams } from './api.js?v=3.0.3';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
@@ -28,7 +28,7 @@ import {
 // PWA Service Worker 註冊
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js?v=3.0.2', { scope: '/' })
+    navigator.serviceWorker.register('/sw.js?v=3.0.3', { scope: '/' })
       .then((reg) => {
         console.log('[PWA] Service Worker 註冊成功 (v3.0.2)，管理範圍:', reg.scope);
         reg.update();
@@ -67,6 +67,9 @@ const safeCategoryColor = (cat, idx = 0, customColors = {}) => {
   return '#8B5CF6';
 };
 
+if (!window.Vue || typeof window.Vue.createApp !== 'function') {
+  console.error('[Bootstrap] window.Vue 未就緒或尚未載入完成');
+} else {
 const { createApp, ref, computed, onMounted, nextTick, watch } = window.Vue;
 
 createApp({
@@ -3780,4 +3783,5 @@ createApp({
     };
   }
 }).mount('#app');
+}
 
