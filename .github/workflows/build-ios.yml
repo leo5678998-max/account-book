@@ -17,10 +17,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: 📦 安裝專案相依套件 (Install Dependencies)
-        run: npm ci || npm install
+        run: npm install
 
       - name: 📱 同步 Capacitor iOS 原生資源 (Sync iOS Assets)
         run: |
