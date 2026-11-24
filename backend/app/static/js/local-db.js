@@ -215,8 +215,13 @@ class LocalDbManager {
               mergedCount++;
             }
           }
-          if (mergedCount > 0) {
-            this.db.accounts = cloneDeep(INITIAL_SEED_SNAPSHOT.accounts);
+          if (mergedCount > 0 || this.db.transactions.length === 0 || this.db.accounts.length === 0) {
+            if (this.db.transactions.length === 0 && (INITIAL_SEED_SNAPSHOT.transactions || []).length > 0) {
+              this.db.transactions = cloneDeep(INITIAL_SEED_SNAPSHOT.transactions);
+            }
+            if (this.db.accounts.length === 0 && (INITIAL_SEED_SNAPSHOT.accounts || []).length > 0) {
+              this.db.accounts = cloneDeep(INITIAL_SEED_SNAPSHOT.accounts);
+            }
             this._sortTransactions();
             this._save();
           }

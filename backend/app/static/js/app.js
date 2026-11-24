@@ -18,6 +18,7 @@ import {
   evaluateMathExpression
 } from './formatters.js?v=2.9.0';
 import { ApiService, AuthStorage, processIosShortcutUrlParams } from './api.js?v=3.0.3';
+import { COURAGE_ICONS } from './courage-icons.js?v=3.0.3';
 import { renderExpenseDoughnutChart, renderMonthlyTrendChart } from './chart.js?v=2.9.0';
 import {
   calculateLaborInsurance,
@@ -3428,6 +3429,7 @@ createApp({
       try {
         localStorage.removeItem('account_book_ios_local_mode');
         localStorage.removeItem('account_book_ios_local_db');
+        localStorage.removeItem('account_book_local_db_v1');
         if (ApiService.setLocalFirstMode) ApiService.setLocalFirstMode(false);
         isLocalFirstMode.value = false;
         
@@ -3779,7 +3781,8 @@ createApp({
       fetchAnalytics, setAnalyticsRange, setAnalyticsChartMode, jumpToTransactionsMonth,
       isEditingLayout, dashboardBlockOrder, kpiCardsOrder, draggedBlockIndex, dragOverBlockIndex,
       getBlockTitle, toggleEditLayout, resetDashboardLayout, moveBlockUp, moveBlockDown,
-      moveKpiCardLeft, moveKpiCardRight, onBlockDragStart, onBlockDragOver, onBlockDrop, onBlockDragEnd
+      moveKpiCardLeft, moveKpiCardRight, onBlockDragStart, onBlockDragOver, onBlockDrop, onBlockDragEnd,
+      courageIcons: COURAGE_ICONS
     };
   }
 }).mount('#app');
