@@ -46,7 +46,10 @@ export const AuthStorage = {
 
 const authFetch = async (url, options = {}) => {
   const token = AuthStorage.getToken();
-  const headers = { ...(options.headers || {}) };
+  const headers = {
+    'ngrok-skip-browser-warning': '1',
+    ...(options.headers || {})
+  };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -64,11 +67,48 @@ const authFetch = async (url, options = {}) => {
     if (response.status === 503 || response.status === 502 || response.status === 504) {
       return handleLocalApiRequest(url, options);
     }
+    // 防禦 ngrok 警告頁面：若 API 請求收到 HTML 回應，自動降級至本地快顯資料庫
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html') && url.startsWith('/api/')) {
+      console.warn('[Offline Mode] 檢測到 API 被 ngrok 攔截為 HTML 頁面，自動由本地快顯資料庫接管:', url);
+      return handleLocalApiRequest(url, options);
+    }
     return response;
   } catch (err) {
     // 網路斷線、超時或電腦未開機時，無縫自動切換至手機本地快取資料庫
     console.warn('[Offline Mode] 伺服器連線離線，切換至本地資料庫:', url);
     return handleLocalApiRequest(url, options);
+  }
+};
+
+const safeJson = async (respPromise, fallbackFn, defaultValue = []) => {
+  try {
+    const resp = await respPromise;
+    if (!resp.ok) {
+      if (fallbackFn) {
+        const fbResp = await fallbackFn();
+        return await fbResp.json();
+      }
+      return defaultValue;
+    }
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) {
+      if (fallbackFn) {
+        const fbResp = await fallbackFn();
+        return await fbResp.json();
+      }
+      return defaultValue;
+    }
+    return await resp.json();
+  } catch (err) {
+    console.warn('[ApiService] JSON 解析異常，回退本地資料庫:', err);
+    if (fallbackFn) {
+      try {
+        const fbResp = await fallbackFn();
+        return await fbResp.json();
+      } catch {}
+    }
+    return defaultValue;
   }
 };
 
@@ -105,7 +145,7 @@ export const ApiService = {
     }),
 
   // 帳戶 API
-  getAccounts: () => authFetch('/api/accounts').then(r => (r.ok ? r.json() : [])),
+  getAccounts: () => safeJson(authFetch('/api/accounts'), () => handleLocalApiRequest('/api/accounts'), []),
   saveAccount: (acc) => {
     const method = acc.id ? 'PUT' : 'POST';
     const url = acc.id ? `/api/accounts/${acc.id}` : '/api/accounts';
@@ -120,7 +160,7 @@ export const ApiService = {
 
   // 交易流水帳與幣別匯率 API
   getExchangeRates: () => authFetch('/api/transactions/exchange-rates').then(r => (r.ok ? r.json() : null)),
-  getTransactions: (limit = 1000) => authFetch(`/api/transactions?limit=${limit}`).then(r => (r.ok ? r.json() : [])),
+  getTransactions: (limit = 1000) => safeJson(authFetch(`/api/transactions?limit=${limit}`), () => handleLocalApiRequest(`/api/transactions?limit=${limit}`), []),
   createTransaction: (tx) => authFetch('/api/transactions', {
     method: 'POST',
     headers: jsonHeaders,
@@ -152,7 +192,7 @@ export const ApiService = {
   resetCategoryColors: () => authFetch('/api/category-colors/reset', { method: 'POST' }).then(r => (r.ok ? r.json() : null)),
 
   // 信用卡帳單 API
-  getBills: () => authFetch('/api/bills').then(r => (r.ok ? r.json() : [])),
+  getBills: () => safeJson(authFetch('/api/bills'), () => handleLocalApiRequest('/api/bills'), []),
   saveBill: (bill) => {
     const isEdit = !!bill.id;
     const url = isEdit ? `/api/bills/${bill.id}` : '/api/bills';

@@ -25,6 +25,11 @@ jobs:
         run: |
           npx cap add ios || true
           npx cap sync ios
+          # 關鍵修復：補齊 public/static 目錄，確保 index.html 的 /static/* 於原生 iOS 容器內 100% 正確載入
+          mkdir -p ios/App/App/public/static
+          cp -r backend/app/static/vendor ios/App/App/public/static/
+          cp -r backend/app/static/js ios/App/App/public/static/
+          cp -r backend/app/static/icons ios/App/App/public/static/
 
       - name: 🛠️ 執行 CocoaPods 相依管理
         run: |
